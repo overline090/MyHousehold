@@ -101,13 +101,39 @@ Si oui : la page affiche un code d'appariement et un QR code. Dans l'app,
 locale : nom du foyer, fuseau, tâches, compteurs, rendez-vous, historique.
 
 L'assistant affiche ensuite un **récapitulatif de ce qui a été repris et de ce qui
-manque** — un foyer utilisé seul n'a ni membres, ni rôles, ni invitations. Les étapes
-suivantes sont pré-remplies et, pour celles que l'import a déjà couvertes, marquées
-comme telles : on les passe en revue au lieu de les refaire.
+manque** — un foyer utilisé seul n'a ni membres, ni rôles, ni invitations.
+
+Ce récapitulatif n'est pas qu'une liste à lire : **chaque point s'y configure
+directement**. Deux façons d'avancer, et les deux doivent exister :
+
+- *Tout configurer, étape par étape* enchaîne les points manquants comme des
+  sous-étapes de l'assistant, dans l'ordre, en revenant au récapitulatif à chaque
+  fois — ce qui permet de voir ce qui reste.
+- *Configurer* sur une ligne traite ce point-là seulement, pour qui sait déjà ce
+  qu'il veut régler.
+
+« Régler plus tard » reste offert sur tout ce qui n'est pas obligatoire : un foyer
+qui fonctionne tout de suite vaut mieux qu'une installation abandonnée au milieu.
+
+Les étapes suivantes sont pré-remplies et, pour celles que l'import a déjà couvertes,
+marquées comme telles : on les passe en revue au lieu de les refaire.
 
 L'import réutilise les identifiants générés par l'app : les UUID sont générés côté
 client depuis le début, précisément pour que les données puissent changer de maison
 sans perdre leur identité.
+
+### La reprise ne se limite pas à l'installation
+
+Un téléphone qui a servi seul pendant des mois peut rejoindre un serveur **déjà
+installé**, bien après — quelqu'un qui emménage, un membre du foyer qui s'y met enfin.
+Ses données doivent être reprises là aussi, pas seulement pendant l'assistant.
+
+Ce cas arrive **plus tard** dans la feuille de route, et il est plus délicat que
+l'import d'installation : le foyer existe déjà, avec ses tâches et ses membres, donc
+il faut décider quoi faire de deux tâches « poubelles » ou de deux historiques
+parallèles. Des limitations seront posées à ce moment-là plutôt que maintenant —
+probablement : reprendre les tâches et compteurs qui n'existent pas déjà, et laisser
+l'historique local sur le téléphone.
 
 ## Étape 3 — Le foyer
 
