@@ -1,9 +1,9 @@
 # Auto-hébergement
 
-> ⚠️ **Document prospectif.** Le serveur n'est pas encore implémenté : rien de ce qui
-> suit n'est installable aujourd'hui. Cette page fixe la cible d'installation pour
-> que l'implémentation s'y conforme, et sert de référence pour discuter des choix de
-> déploiement dès maintenant.
+> ⚠️ **Le serveur est en v0.1** : il gère les comptes et les foyers, pas encore les
+> tâches, les compteurs ni les rendez-vous. L'installation décrite ici fonctionne,
+> mais l'application n'est pas encore utilisable au quotidien. Voir
+> [`roadmap.md`](roadmap.md).
 
 ## Matériel visé
 
@@ -14,20 +14,28 @@
 | VPS 1 vCPU / 1 Go | ✅ |
 | Raspberry Pi Zero, 512 Mo | ❌ PostgreSQL + Redis + Node ne tiennent pas |
 
-## Composition prévue
+## Composition
 
 Trois conteneurs : `api` (NestJS), `db` (PostgreSQL 16), `redis` (file de jobs).
 
+```bash
+cp .env.example .env        # puis remplir les CHANGEME
+docker compose up -d --build
+curl http://localhost:3000/health
 ```
-docker compose up -d        # démarrage
-docker compose exec api npx prisma migrate deploy
-```
+
+Les migrations sont appliquées au démarrage du conteneur `api` : une mise à jour
+d'image ne demande aucune étape manuelle oubliable.
+
+L'API n'est publiée que sur `127.0.0.1:3000` : l'accès depuis l'extérieur passe par
+un reverse proxy TLS, jamais en direct.
 
 ## Variables d'environnement
 
 | Variable | Obligatoire | Rôle |
 |---|---|---|
-| `DATABASE_URL` | ✅ | Connexion PostgreSQL |
+| `POSTGRES_PASSWORD` | ✅ | Mot de passe de la base, lu aussi par le conteneur `db` |
+| `DATABASE_URL` | ✅ | Connexion PostgreSQL. Avec docker-compose, composée automatiquement |
 | `REDIS_URL` | ✅ | File de jobs |
 | `MH_JWT_SECRET` | ✅ | Signature des tokens. 32 octets aléatoires |
 | `MH_ENCRYPTION_KEY` | ✅ | Chiffrement des identifiants d'agenda. 32 octets |
@@ -85,9 +93,8 @@ reconstructibles.
 ## Mise à jour
 
 ```bash
-docker compose pull
-docker compose up -d
-docker compose exec api npx prisma migrate deploy
+git pull
+docker compose up -d --build
 ```
 
 Les migrations seront toujours **rétrocompatibles d'une version majeure à la
@@ -124,3 +131,5 @@ docker compose logs -f api
 | Échéances décalées d'une heure | `timezone` du foyer mal réglé, ou conteneur en UTC avec une conversion manquante |
 | Agenda qui ne se met pas à jour | Délai normal des flux ICS (8 à 24 h), ou `lastError` sur le compte |
 | Déconnexions répétées de l'app | `MH_JWT_SECRET` qui change à chaque redémarrage (valeur non persistée) |
+| Refus de démarrer avec « Configuration invalide » | Un secret manquant ou trop court dans `.env` ; le message nomme la variable |
+| `429` à l'inscription du cinquième membre | Limite de 20 inscriptions par heure et par IP ; attendre, ou créer les comptes depuis le serveur |

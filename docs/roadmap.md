@@ -4,21 +4,26 @@ Les versions sont définies par ce qu'elles rendent **utilisable**, pas par un
 calendrier. Aucune date n'est promise : c'est un projet communautaire sans
 engagement de délai.
 
-## v0.1 — Fondations (en cours)
+## v0.1 — Fondations (faite)
 
 - [x] Licence non commerciale (PolyForm Noncommercial 1.0.0)
 - [x] Modèle de données complet
 - [x] Contrat d'API REST
 - [x] Protocole de synchronisation hors-ligne
 - [x] Stratégie de synchronisation d'agenda
-- [ ] Squelette NestJS + Docker Compose
-- [ ] Schéma Prisma et première migration
-- [ ] Authentification (inscription, connexion, rotation des refresh tokens)
-- [ ] Foyers, membres, rôles, invitations
+- [x] Squelette NestJS + Docker Compose
+- [x] Schéma Prisma et première migration
+- [x] Authentification (inscription, connexion, rotation des refresh tokens)
+- [x] Foyers, membres, rôles, invitations
+- [x] Isolation des foyers (404 pour un non-membre), rôles, dernier propriétaire protégé
+- [x] Enveloppe d'erreur unique à codes stables
+- [x] `scripts/smoke.sh` : parcours de bout en bout, 20 vérifications
+- [ ] Tests d'intégration automatisés (Testcontainers) en remplacement du script
 
-**Jalon :** deux comptes peuvent rejoindre un même foyer.
+**Jalon atteint :** deux comptes peuvent rejoindre un même foyer, avec des rôles
+distincts et une isolation vérifiée.
 
-## v0.2 — Tâches
+## v0.2 — Tâches (prochaine étape)
 
 - [ ] CRUD des définitions avec RRULE
 - [ ] Job de matérialisation des occurrences (60 jours glissants)

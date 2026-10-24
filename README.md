@@ -6,9 +6,10 @@ temps, rendez-vous et synchronisation des agendas personnels.
 Ce dépôt contient le **serveur auto-hébergé**. L'application mobile Android vit dans
 [MyHousehold-android](https://github.com/overline090/MyHousehold-android).
 
-> ⚠️ **Projet en phase de conception.** Aucun code applicatif n'est encore écrit.
-> Ce dépôt contient pour l'instant la spécification complète : modèle de données,
-> contrat d'API, stratégie de synchronisation. Les contributions sur la spec sont
+> ⚠️ **v0.1 — fondations.** Le serveur gère les **comptes et les foyers** (rôles,
+> invitations, isolation). Les tâches, compteurs, rendez-vous et agendas sont
+> entièrement **spécifiés** mais pas encore écrits : voir
+> [`docs/roadmap.md`](docs/roadmap.md). Les contributions sur la spécification sont
 > aussi bienvenues que celles sur le code.
 
 ## L'idée
@@ -54,6 +55,33 @@ La différence entre une tâche et un compteur est importante et volontaire :
 
 Les raisons de ces choix et les alternatives écartées sont dans
 [`docs/architecture.md`](docs/architecture.md).
+
+## Démarrage
+
+```bash
+cp .env.example .env            # puis remplacer les CHANGEME
+docker compose up -d --build
+curl http://localhost:3000/health
+```
+
+Installation détaillée, sauvegardes et reverse proxy :
+[`docs/self-hosting.md`](docs/self-hosting.md).
+
+### En développement
+
+```bash
+npm ci
+docker compose up -d db redis   # seules les dépendances
+npx prisma migrate deploy
+npm run start:dev
+
+npm test                        # tests unitaires
+npm run lint
+./scripts/smoke.sh http://localhost:3000   # parcours de bout en bout
+```
+
+`scripts/smoke.sh` écrit dans la base du serveur visé : à n'utiliser que sur une
+instance de développement.
 
 ## Documentation
 

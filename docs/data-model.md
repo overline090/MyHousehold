@@ -14,6 +14,9 @@ Conventions :
   logique, nécessaire pour propager les suppressions aux clients hors-ligne).
 - `householdId` est présent sur toutes les tables métier : c'est la frontière
   d'isolation, vérifiée dans une garde unique côté serveur.
+- En base, **les tables sont en `snake_case` et les colonnes en `camelCase`**
+  (`task_occurrence.taskDefinitionId`). C'est la convention Prisma ; en SQL manuel,
+  les noms de colonnes doivent donc être entre guillemets doubles.
 
 ## Vue d'ensemble
 
@@ -86,7 +89,14 @@ Permissions par rôle :
 | Supprimer le foyer | ✅ | ❌ | ❌ | ❌ |
 
 Un foyer garde **toujours au moins un `OWNER`** : le dernier propriétaire ne peut ni
-partir ni se rétrograder sans transmettre le rôle. Contrainte vérifiée en base.
+partir ni se rétrograder sans transmettre le rôle, sinon plus personne ne peut
+inviter ni gérer les rôles et le foyer est définitivement bloqué.
+
+La règle est appliquée **côté serveur** (`HouseholdsService`, erreur `LAST_OWNER`,
+HTTP 409), pas par une contrainte PostgreSQL : l'exprimer en base demanderait un
+déclencheur, et le faire correctement avec des suppressions logiques est délicat. La
+conséquence à connaître : une écriture directe en base peut contourner la règle. Un
+déclencheur reste une piste de durcissement.
 
 ### Invite
 
@@ -126,6 +136,7 @@ l'**occurrence** (une instance datée, complétable).
 | `graceHours` | int | Délai après échéance avant de passer en `MISSED` (24 par défaut) |
 | `points` | int | Poids pour les statistiques d'équité |
 | `isActive` | bool | Mettre en pause sans supprimer l'historique |
+| `rotationCursor` | int | Position courante du tour de rôle |
 | `startsOn` / `endsOn` | date? | Bornes de la règle |
 | `createdBy` | uuid | |
 
@@ -196,7 +207,7 @@ hors-ligne ne s'écrasent pas mutuellement.
 | `title` | text | « Changer les draps » |
 | `description` | text? | |
 | `category` | text? | |
-| `targetInterval` | interval? | Ex. `14 days`. `null` = compteur purement informatif |
+| `targetIntervalSeconds` | int? | Ex. `1209600` (14 jours). `null` = compteur purement informatif |
 | `warnRatio` | numeric | 0.8 par défaut : prévenir à 80 % de l'intervalle |
 | `assignmentMode` | enum | `ANYONE` \| `FIXED` \| `ROTATION` |
 | `isActive` | bool | |
@@ -223,10 +234,10 @@ moment où le réseau revient.
 lastEvent    = max(occurredAt) des événements non supprimés
 elapsed      = now - lastEvent
 status       = NEVER_DONE        si aucun événement
-               OK                si elapsed < targetInterval * warnRatio
-               DUE_SOON          si elapsed < targetInterval
+               OK                si elapsed < targetIntervalSeconds * warnRatio
+               DUE_SOON          si elapsed < targetIntervalSeconds
                OVERDUE           sinon
-nextDueAt    = lastEvent + targetInterval
+nextDueAt    = lastEvent + targetIntervalSeconds
 ```
 
 Pourquoi calculer et ne pas stocker : un événement peut être ajouté *dans le passé*
@@ -357,19 +368,36 @@ doit rester lisible même après suppression de l'objet concerné.
 | `summary` | text | Texte figé au moment de l'événement |
 | `createdAt` | timestamptz | |
 
-## Index à créer dès la première migration
+## Index
+
+Créés par la migration initiale (`prisma/migrations/20261024180000_init`). Les noms
+de colonnes sont entre guillemets parce qu'ils sont en `camelCase` :
 
 ```sql
-CREATE INDEX ON task_occurrence (household_id, scheduled_for, status);
-CREATE INDEX ON task_occurrence (assignee_id, status) WHERE deleted_at IS NULL;
-CREATE UNIQUE INDEX ON task_occurrence (task_definition_id, scheduled_for);
-CREATE INDEX ON counter_event (counter_definition_id, occurred_at DESC);
-CREATE INDEX ON appointment (household_id, start_at, end_at);
-CREATE UNIQUE INDEX ON external_event (calendar_account_id, external_uid);
--- curseur de synchronisation du mobile
-CREATE INDEX ON task_occurrence (household_id, updated_at);
-CREATE INDEX ON appointment (household_id, updated_at);
+-- l'écran « Aujourd'hui » du mobile
+CREATE INDEX ON task_occurrence ("householdId", "scheduledFor", status);
+CREATE INDEX ON task_occurrence ("assigneeId", status);
+-- rend le job de matérialisation idempotent
+CREATE UNIQUE INDEX ON task_occurrence ("taskDefinitionId", "scheduledFor");
+-- dernier événement d'un compteur, en une lecture
+CREATE INDEX ON counter_event ("counterDefinitionId", "occurredAt" DESC);
+CREATE INDEX ON appointment ("householdId", "startAt", "endAt");
+CREATE UNIQUE INDEX ON external_event ("calendarAccountId", "externalUid");
+-- curseur de synchronisation du mobile, une entrée par table synchronisée
+CREATE INDEX ON task_occurrence ("householdId", "updatedAt");
+CREATE INDEX ON appointment ("householdId", "updatedAt");
 ```
+
+## Tables techniques
+
+Deux tables ne portent pas de données de foyer :
+
+- **`processed_mutation`** — déduplication des mutations poussées par le mobile
+  (`clientMutationId`, et la réponse renvoyée la première fois). Conservée 30 jours :
+  c'est elle qui garantit l'idempotence quand une réponse se perd. Voir
+  [`sync.md`](sync.md).
+- **`refresh_token`** — jetons de rafraîchissement hachés, avec leur chaîne de
+  rotation (`replacedById`) qui détecte le rejeu d'un jeton volé.
 
 ## Questions ouvertes
 

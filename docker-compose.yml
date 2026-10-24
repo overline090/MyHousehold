@@ -1,0 +1,56 @@
+# MyHousehold — déploiement auto-hébergé.
+# Copier .env.example en .env et remplir les secrets avant le premier
+# démarrage (voir docs/self-hosting.md).
+
+services:
+  api:
+    build: .
+    image: myhousehold-server:local
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://myhousehold:${POSTGRES_PASSWORD}@db:5432/myhousehold
+      REDIS_URL: redis://redis:6379
+    ports:
+      # Exposé seulement sur la machine locale : l'accès depuis
+      # l'extérieur passe par un reverse proxy TLS, jamais en direct.
+      - '127.0.0.1:3000:3000'
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # Les migrations sont appliquées au démarrage : une mise à jour de
+    # l'image ne doit pas demander d'étape manuelle oubliable.
+    command: >
+      sh -c "npx prisma migrate deploy && node dist/main.js"
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: myhousehold
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?définissez POSTGRES_PASSWORD dans .env}
+      POSTGRES_DB: myhousehold
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U myhousehold -d myhousehold']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # Pas de persistance : Redis ne contient que des jobs en attente,
+    # tous reconstructibles. Rien à sauvegarder.
+    command: ['redis-server', '--save', '', '--appendonly', 'no']
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  db-data:

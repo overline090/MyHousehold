@@ -6,6 +6,12 @@ Ce document est le contrat entre le serveur et l'app Android. Toute modification
 cassante passe par une nouvelle version de préfixe (`/api/v2`), jamais par une
 mutation silencieuse de `v1`.
 
+**État d'implémentation** (v0.1) : les sections *Authentification* et *Foyers* sont
+implémentées et couvertes par `scripts/smoke.sh`. Tout le reste — tâches, compteurs,
+rendez-vous, agendas, synchronisation, notifications, activité — est **spécifié mais
+pas encore écrit** ; c'est le périmètre des v0.2 et v0.3 de
+[`roadmap.md`](roadmap.md). Les sections concernées sont marquées *(à venir)*.
+
 ## Conventions
 
 - **Dates** : ISO 8601 en UTC avec `Z` (`2026-10-24T17:30:00Z`). Les champs de type
@@ -59,6 +65,15 @@ hors de vos foyers*, `409` conflit d'état, `429` débit dépassé.
 Access token : 15 min, porté par `Authorization: Bearer`. Refresh : 60 jours, rotatif
 — sa réutilisation après rotation révoque toute la chaîne (détection de vol).
 
+Limites de débit, par IP et par route :
+
+| Route | Limite | Pourquoi |
+|---|---|---|
+| `POST /auth/login` | 5 / 15 min | Seule porte réellement exposée à la force brute |
+| `POST /auth/register` | 20 / 1 h | Un foyer qui s'installe crée cinq ou six comptes d'affilée derrière la même IP familiale : la limite de la connexion bloquait le dernier arrivé |
+| `POST /auth/refresh` | 30 / 15 min | Appelé automatiquement par chaque appareil |
+| tout le reste | 300 / min | Garde-fou général |
+
 ## Foyers
 
 | Méthode | Route | Rôle requis |
@@ -77,7 +92,7 @@ Access token : 15 min, porté par `Authorization: Bearer`. Refresh : 60 jours, r
 
 Toutes les routes ci-dessous sont préfixées par `/households/:householdId`.
 
-## Tâches
+## Tâches *(à venir — v0.2)*
 
 | Méthode | Route | Description |
 |---|---|---|
@@ -135,7 +150,7 @@ résoudre les définitions, et un client hors-ligne reste lisible.
 une occurrence déjà `DONE` : `409 TASK_ALREADY_COMPLETED` (sauf si c'est le même
 utilisateur avec le même instant, auquel cas `200` — tolérance au rejeu réseau).
 
-## Compteurs
+## Compteurs *(à venir — v0.3)*
 
 | Méthode | Route | Description |
 |---|---|---|
@@ -176,7 +191,7 @@ affiche « il y a 14 jours » sans dépendre de l'horloge du téléphone, souven
 L'UUID client rend l'appel idempotent — un double tap ou un rejeu hors-ligne ne crée
 pas deux événements.
 
-## Rendez-vous
+## Rendez-vous *(à venir — v0.3)*
 
 | Méthode | Route | Description |
 |---|---|---|
@@ -193,7 +208,7 @@ chaque entrée portant son `type` (`APPOINTMENT`, `TASK`, `COUNTER_DUE`). Fusion
 côté serveur évite de réimplémenter trois fois le tri et la gestion des fuseaux dans
 le client.
 
-## Agendas externes
+## Agendas externes *(à venir — v0.5)*
 
 | Méthode | Route | Description |
 |---|---|---|
@@ -209,7 +224,7 @@ le client.
 Les identifiants sont **écrits seulement** : aucune route ne les relit, y compris
 pour le propriétaire.
 
-## Synchronisation mobile
+## Synchronisation mobile *(à venir — v0.4)*
 
 | Méthode | Route | Description |
 |---|---|---|
@@ -219,7 +234,7 @@ pour le propriétaire.
 Détails du protocole, résolution des conflits et format des lots :
 [`sync.md`](sync.md).
 
-## Notifications
+## Notifications *(à venir — v0.6)*
 
 | Méthode | Route | Description |
 |---|---|---|
@@ -228,7 +243,7 @@ Détails du protocole, résolution des conflits et format des lots :
 | `GET` | `/users/me/notification-prefs` | |
 | `PATCH` | `/users/me/notification-prefs` | Heures de silence, canaux |
 
-## Activité et statistiques
+## Activité et statistiques *(à venir — v0.3)*
 
 | Méthode | Route | Description |
 |---|---|---|
@@ -241,10 +256,19 @@ points) et ne produit **aucun classement**. Un outil de foyer qui désigne un ma
 
 ## Santé
 
+Hors du préfixe `/api/v1`, pour rester triviales à interroger :
+
 | Méthode | Route | Description |
 |---|---|---|
-| `GET` | `/health` | Non authentifié. Base, Redis, dernière exécution des jobs |
-| `GET` | `/version` | Version et date de build |
+| `GET` | `/health` | Non authentifié. État de la base et de Redis |
+| `GET` | `/version` | Version du serveur et environnement |
+
+```json
+{ "status": "ok", "components": { "database": { "status": "up" }, "redis": { "status": "up" } } }
+```
+
+`status` vaut `degraded` si Redis est indisponible mais la base accessible : Redis ne
+porte que la file de jobs, son absence n'empêche pas de répondre.
 
 ## OpenAPI
 

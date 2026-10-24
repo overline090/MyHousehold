@@ -21,19 +21,22 @@ privilégient la simplicité d'exploitation sur la capacité à monter en charge
 
 ## Modules NestJS
 
-| Module | Responsabilité |
-|---|---|
-| `auth` | Inscription, connexion, rotation des refresh tokens, gardes |
-| `users` | Profil, préférences, appareils |
-| `households` | Foyers, membres, rôles, invitations |
-| `tasks` | Définitions, assignation, occurrences, complétion |
-| `counters` | Définitions et événements de remise à zéro |
-| `appointments` | Rendez-vous et participants |
-| `calendar` | Comptes externes, adaptateurs de synchronisation |
-| `sync` | Endpoint de delta pour le client mobile |
-| `notifications` | Rappels, échéances, envoi push |
-| `scheduler` | Jobs BullMQ (génération, retards, synchro, rappels) |
-| `activity` | Fil d'activité du foyer |
+« ✅ » = implémenté en v0.1, « · » = spécifié, pas encore écrit.
+
+| Module | État | Responsabilité |
+|---|---|---|
+| `auth` | ✅ | Inscription, connexion, rotation des refresh tokens, gardes |
+| `households` | ✅ | Foyers, membres, rôles, invitations |
+| `health` | ✅ | `/health` et `/version` |
+| `users` | · | Profil, préférences, appareils |
+| `tasks` | · | Définitions, assignation, occurrences, complétion |
+| `counters` | · | Définitions et événements de remise à zéro |
+| `appointments` | · | Rendez-vous et participants |
+| `calendar` | · | Comptes externes, adaptateurs de synchronisation |
+| `sync` | · | Endpoint de delta pour le client mobile |
+| `notifications` | · | Rappels, échéances, envoi push |
+| `scheduler` | · | Jobs BullMQ (génération, retards, synchro, rappels) |
+| `activity` | · | Fil d'activité du foyer (la table existe et est alimentée) |
 
 Chaque module expose un `Service` (métier, testable sans HTTP) et un `Controller`
 (validation et transport). La règle : **aucune logique métier dans un contrôleur**.
@@ -45,11 +48,18 @@ donnée du foyer B.
 
 1. Le JWT porte `sub` (userId), **pas** la liste des foyers — elle changerait sans
    que le token expire.
-2. Un `HouseholdMemberGuard` résout l'appartenance à chaque requête (avec un cache
-   de 30 s) et rejette en `404` — pas `403`, pour ne pas confirmer l'existence d'un
-   foyer qu'on n'a pas le droit de voir.
-3. Toute requête porte `householdId` dans sa clause `WHERE`, et un test
-   d'intégration par endpoint vérifie l'isolation. C'est non négociable à la revue.
+2. Un `HouseholdMemberGuard` résout l'appartenance à chaque requête et rejette en
+   `404` — pas `403`, pour ne pas confirmer l'existence d'un foyer qu'on n'a pas le
+   droit de voir. `403` est réservé au cas « membre, mais rôle insuffisant ».
+3. Le cache des appartenances (30 s) vit dans un fournisseur distinct,
+   `MembershipCacheService`, et **pas** dans le garde : Nest peut créer sa propre
+   instance d'un garde déclaré par `@UseGuards`, et un cache porté par le garde
+   n'est alors pas celui que le service invalide. Symptôme observé avant correction :
+   un membre exclu gardait l'accès pendant 30 secondes.
+4. Toute requête porte `householdId` dans sa clause `WHERE`. L'isolation doit être
+   vérifiée par un test pour chaque endpoint : c'est non négociable à la revue. En
+   v0.1 cette vérification est faite par `scripts/smoke.sh` faute de tests
+   d'intégration automatisés — c'est une dette, pas une cible.
 
 ## Jobs planifiés
 
@@ -96,7 +106,12 @@ Concrètement, `tasks.materialize` déroule la RRULE dans le fuseau du foyer
 - Mots de passe en **Argon2id** (jamais bcrypt pour un nouveau projet).
 - Identifiants d'agenda chiffrés en **AES-256-GCM**, clé hors base
   (`MH_ENCRYPTION_KEY`). Une fuite du dump SQL ne donne pas accès aux agendas.
-- Limitation de débit sur `/auth/*` : 5 tentatives / 15 min / IP.
+  *(v0.5 ; la variable est déjà exigée au démarrage, car la clé doit être fixée et
+  sauvegardée avant que des identifiants soient chiffrés avec elle.)*
+- Limitation de débit par route : connexion 5 / 15 min, inscription 20 / h, le reste
+  300 / min, par IP. **Un limiteur nommé déclaré dans `ThrottlerModule` s'applique à
+  toutes les routes** : la limite stricte se pose route par route avec `@Throttle`,
+  jamais globalement.
 - Pas de secret dans les logs : un intercepteur masque `password`, `credentials`,
   `token`, `code`.
 - CORS fermé par défaut — le client est une app mobile, pas un navigateur.
@@ -107,7 +122,8 @@ Concrètement, `tasks.materialize` déroule la RRULE dans le fuseau du foyer
 | Niveau | Portée | Outil |
 |---|---|---|
 | Unitaire | Récurrence, calcul d'état des compteurs, rotation, fuseaux | Jest |
-| Intégration | Un test d'isolation de foyer **par endpoint** | Jest + Testcontainers |
+| Intégration | Un test d'isolation de foyer **par endpoint** | Jest + Testcontainers *(à écrire)* |
+| Bout en bout | 20 vérifications : rôles, isolation, invitations, débit | `scripts/smoke.sh` |
 | Contrat | Les réponses respectent le schéma OpenAPI publié | Jest + validateur |
 
 La logique temporelle se teste avec une horloge injectée, jamais avec `new Date()` en

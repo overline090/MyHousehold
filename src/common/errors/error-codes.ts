@@ -1,0 +1,30 @@
+/**
+ * Codes d'erreur stables, destinés au code client. Le message, lui, est
+ * destiné à l'humain et peut changer : l'app n'affiche jamais le code et
+ * ne teste jamais le message.
+ *
+ * Ajouter un code est non cassant ; en renommer un l'est.
+ */
+export const ErrorCode = {
+  VALIDATION_FAILED: 'VALIDATION_FAILED',
+  UNAUTHENTICATED: 'UNAUTHENTICATED',
+  INVALID_CREDENTIALS: 'INVALID_CREDENTIALS',
+  EMAIL_ALREADY_USED: 'EMAIL_ALREADY_USED',
+  REGISTRATION_CLOSED: 'REGISTRATION_CLOSED',
+  REFRESH_TOKEN_INVALID: 'REFRESH_TOKEN_INVALID',
+  REFRESH_TOKEN_REUSED: 'REFRESH_TOKEN_REUSED',
+
+  NOT_FOUND: 'NOT_FOUND',
+  FORBIDDEN_ROLE: 'FORBIDDEN_ROLE',
+
+  INVITE_INVALID: 'INVITE_INVALID',
+  INVITE_EXPIRED: 'INVITE_EXPIRED',
+  INVITE_EXHAUSTED: 'INVITE_EXHAUSTED',
+  ALREADY_MEMBER: 'ALREADY_MEMBER',
+  LAST_OWNER: 'LAST_OWNER',
+
+  RATE_LIMITED: 'RATE_LIMITED',
+  INTERNAL: 'INTERNAL',
+} as const;
+
+export type ErrorCodeValue = (typeof ErrorCode)[keyof typeof ErrorCode];

@@ -47,8 +47,8 @@ Lisez [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). En résumé : on se parle correc
 
 ## Par où commencer
 
-Le projet est en **phase de conception** : le serveur n'est pas encore écrit. Les
-contributions les plus utiles aujourd'hui ne sont pas du code :
+Le serveur est en **v0.1** : comptes et foyers fonctionnent, le reste est spécifié
+mais pas écrit. Les contributions utiles aujourd'hui, par ordre d'impact :
 
 1. **Relire la conception** — [`docs/data-model.md`](docs/data-model.md),
    [`docs/api.md`](docs/api.md), [`docs/sync.md`](docs/sync.md). Les erreurs de
@@ -57,7 +57,11 @@ contributions les plus utiles aujourd'hui ne sont pas du code :
 3. **Décrire votre foyer** — comment vous organisez-vous réellement ? Le modèle
    couvre-t-il votre cas ? Les cas limites (garde alternée, colocation tournante,
    semaine décalée) sont précieux.
-4. **Prendre un élément de la v0.1** dans [`docs/roadmap.md`](docs/roadmap.md).
+4. **Prendre un élément de la v0.2** dans [`docs/roadmap.md`](docs/roadmap.md) — les
+   tâches récurrentes sont la prochaine étape, et la plus intéressante : récurrence
+   RRULE, matérialisation des occurrences, rotation entre membres.
+5. **Remplacer `scripts/smoke.sh` par des tests d'intégration** (Testcontainers).
+   C'est le manque le plus criant de la v0.1.
 
 Ouvrez une issue avant de commencer une fonctionnalité conséquente : cela évite deux
 personnes sur le même sujet, et permet de valider l'approche avant l'effort.
@@ -93,14 +97,36 @@ Rien n'est encore figé puisque le code n'existe pas, mais les règles posées d
 - **Pas de secret dans les logs.**
 - **Les migrations ne se réécrivent pas.** Une migration livrée est immuable ;
   on en ajoute une nouvelle.
+- **Pas de limiteur de débit nommé déclaré globalement.** `ThrottlerGuard` applique
+  tous les limiteurs configurés à toutes les routes : un limiteur « pour
+  l'authentification » déclaré dans `ThrottlerModule` plafonnait l'API entière à 5
+  requêtes par quart d'heure. Les routes sensibles se resserrent avec `@Throttle`.
+
+### Mise en route
+
+```bash
+npm ci
+cp .env.example .env            # remplacer les CHANGEME
+docker compose up -d db redis
+npx prisma migrate deploy
+npm run start:dev
+```
+
+Après toute modification du schéma Prisma : `npx prisma migrate dev --name <sujet>`,
+jamais une modification manuelle d'une migration déjà livrée.
 
 Avant d'ouvrir une pull request :
 
 ```bash
 npm run lint
-npm run test
+npm test
 npm run build
+./scripts/smoke.sh http://localhost:3000   # si vous touchez à l'API
 ```
+
+Les tests tournent en mode ESM (`node --experimental-vm-modules`) : Jest 30 sous
+Node 22 ne sait pas charger un paquet ESM depuis un module CommonJS, et NestJS 12
+est publié en ESM. C'est la raison du drapeau dans le script `test`.
 
 ## Pull requests
 
