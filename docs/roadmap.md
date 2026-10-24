@@ -45,27 +45,53 @@ de bout en bout à l'API.
 
 **Jalon :** les quatre besoins du README sont couverts côté serveur.
 
-## v0.4 — Application Android
+## v0.4 — Application Android, utilisable seule
 
 Voir [MyHousehold-android](https://github.com/overline090/MyHousehold-android).
 
-- [ ] Connexion à une instance (URL du serveur saisie par l'utilisateur)
-- [ ] Écran « Aujourd'hui »
-- [ ] Tâches, compteurs, agenda
+- [ ] Maquettes validées avant toute ligne d'interface
+- [ ] Écran « Aujourd'hui », tâches, compteurs, agenda
 - [ ] Persistance locale Room + file de mutations
+- [ ] **Mode sans serveur** : l'app s'installe et s'utilise seule
+      ([standalone.md](https://github.com/overline090/MyHousehold-android/blob/main/docs/standalone.md))
+- [ ] Moteur de récurrence en Kotlin, validé par les vecteurs de test partagés du serveur
+- [ ] Connexion à une instance, et adoption d'un serveur avec reprise des données locales
 - [ ] Synchronisation WorkManager
 
-**Jalon :** premier usage réel par un foyer. C'est ce jalon qui compte : tout ce qui
-précède est invérifiable sans lui.
+**Jalon :** premier usage réel par un foyer, **sans qu'un serveur soit nécessaire**.
+C'est ce jalon qui compte : tout ce qui précède est invérifiable sans lui.
 
-## v0.5 — Agendas externes
+## v0.5 — Interface web et assistant d'installation
+
+- [ ] Maquettes validées avant toute ligne d'interface
+- [ ] Interface web ([web-ui.md](web-ui.md)) : session par cookie, application à page unique servie par Nest
+- [ ] Assistant d'installation pas à pas ([setup-wizard.md](setup-wizard.md))
+- [ ] Reprise de la configuration depuis l'app (étape 2 de l'assistant)
+- [ ] Premier compte créé depuis le téléphone, par appariement
+- [ ] Vue « Aujourd'hui », tâches et compteurs au navigateur
+- [ ] Zone d'administration : comptes, santé, balayages
+
+**Jalon :** on branche un serveur et on arrive à un foyer fonctionnel sans ouvrir de
+terminal.
+
+## v0.6 — Raspberry Pi et distribution
+
+- [ ] Images Docker multi-architecture (arm64 + amd64)
+- [ ] Image de carte SD « clés en main », avec configuration réseau au premier démarrage
+      ([raspberry-pi.md](raspberry-pi.md))
+- [ ] Publication mDNS de `myhousehold.local`
+- [ ] Mesures réelles sur Pi 4 (2 Go) : mémoire, durée des balayages, écritures sur carte SD
+- [ ] Mise à jour de l'app hors magasin : détection, téléchargement, vérification
+      ([updates.md](https://github.com/overline090/MyHousehold-android/blob/main/docs/updates.md))
+
+## v0.7 — Agendas externes
 
 - [ ] Import de flux ICS
 - [ ] CalDAV avec synchro incrémentale
 - [ ] OAuth Google en lecture seule
 - [ ] Mode `busyOnly`
 
-## v0.6 — Notifications
+## v0.8 — Notifications
 
 - [ ] Rappels configurables
 - [ ] Push FCM
@@ -79,6 +105,7 @@ précède est invérifiable sans lui.
 - [ ] Traductions (fr, en)
 - [ ] Guide de sauvegarde et de restauration testé
 - [ ] Publication F-Droid
+- [ ] Sauvegarde configurable depuis l'assistant d'installation
 
 **Critère de la 1.0 :** quelqu'un qui ne connaît pas le projet installe le serveur et
 l'app en moins d'une heure, en suivant la seule documentation.
@@ -87,10 +114,12 @@ l'app en moins d'une heure, en suivant la seule documentation.
 
 | Idée | Note |
 |---|---|
+| Mode « écran de cuisine » | Affichage permanent en gros caractères de la vue « Aujourd'hui ». Peu de travail une fois l'interface web faite |
+| Fusion de deux foyers déjà peuplés | Conflits d'identité à résoudre (deux « Marie », deux tâches « poubelles »). Hors sujet pour une installation |
+| Migration d'un serveur vers un autre | Distinct de l'adoption d'un serveur neuf, et plus risqué |
 | Écriture vers les agendas externes | Risque de destruction de données chez l'utilisateur — prérequis stricts dans `calendar-sync.md` |
 | Liste de courses partagée | Très demandé sur ce type d'outil, mais c'est un domaine à part entière |
 | Validation des tâches des enfants | `completedBy` prépare déjà le modèle |
-| Client web | Le modèle de données et l'API le permettent ; demande des mainteneurs supplémentaires |
 | Budget / dépenses partagées | Hors périmètre : des outils dédiés le font déjà bien |
 | Client iOS | Aucune compétence disponible dans le projet aujourd'hui |
 | Quitter un foyer sans supprimer son compte | Volontairement absent. À reconsidérer seulement si l'usage multi-foyer devient courant (voir les questions ouvertes de `data-model.md`) |

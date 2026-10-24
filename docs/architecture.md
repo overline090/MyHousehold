@@ -5,9 +5,12 @@
 ```
 ┌─────────────────┐        HTTPS/REST        ┌──────────────────────────┐
 │  App Android    │ ───────────────────────► │  Serveur MyHousehold     │
-│  (hors-ligne    │ ◄─────────────────────── │  NestJS + PostgreSQL     │
-│   d'abord)      │     push (FCM/UP)        └────────────┬─────────────┘
-└─────────────────┘                                       │
+│  (utilisable    │ ◄─────────────────────── │  NestJS + PostgreSQL     │
+│   sans serveur) │     push (FCM/UP)        │  + interface web         │
+└─────────────────┘                          └────────────┬─────────────┘
+         ▲                                                │
+         │  navigateur ──────────────────────────────────► │
+         │  (installation, administration, usage)          │
                                                           │ OAuth / CalDAV / HTTP
                                           ┌───────────────▼────────────────┐
                                           │ Google Calendar, Nextcloud,    │
@@ -38,6 +41,9 @@ privilégient la simplicité d'exploitation sur la capacité à monter en charge
 | `sync` | · | Endpoint de delta pour le client mobile |
 | `notifications` | · | Rappels, échéances, envoi push |
 | `activity` | · | Fil d'activité du foyer (la table existe et est alimentée) |
+| `setup` | · | Assistant d'installation ([setup-wizard.md](setup-wizard.md)) |
+| `web` | · | Service de l'interface web en statique ([web-ui.md](web-ui.md)) |
+| `releases` | · | Version d'app attendue, miroir de l'APK pour le foyer |
 
 Chaque module expose un `Service` (métier, testable sans HTTP) et un `Controller`
 (validation et transport). La règle : **aucune logique métier dans un contrôleur**.

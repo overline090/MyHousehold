@@ -34,6 +34,9 @@ La différence entre une tâche et un compteur est importante et volontaire :
 
 - **Auto-hébergé d'abord.** Tourne sur un Raspberry Pi, un NAS ou un petit VPS. Pas
   de service cloud obligatoire, pas de compte chez nous — il n'y a pas de « chez nous ».
+- **Installable sans terminal.** On branche, on ouvre une page, on suit l'assistant.
+- **L'app marche sans serveur.** Le serveur sert à *partager* un foyer, pas à
+  l'utiliser.
 - **Vos données restent chez vous.** Les identifiants d'agenda sont chiffrés au repos
   et ne quittent jamais votre serveur.
 - **Hors-ligne d'abord côté mobile.** L'app reste utilisable sans réseau et se
@@ -54,7 +57,8 @@ La différence entre une tâche et un compteur est importante et volontaire :
 | Tâches planifiées | BullMQ + Redis |
 | Auth | JWT (access court + refresh rotatif) |
 | Agendas | OAuth 2.0 (Google), CalDAV (RFC 4791), ICS (RFC 5545) |
-| Déploiement | Docker Compose |
+| Interface web | Svelte + Vite, servie en statique par Nest |
+| Déploiement | Docker Compose, et image Raspberry Pi |
 
 Les raisons de ces choix et les alternatives écartées sont dans
 [`docs/architecture.md`](docs/architecture.md).
@@ -95,7 +99,10 @@ instance de développement.
 | [`docs/api.md`](docs/api.md) | Contrat REST complet, endpoint par endpoint |
 | [`docs/sync.md`](docs/sync.md) | Protocole de synchronisation hors-ligne du mobile |
 | [`docs/calendar-sync.md`](docs/calendar-sync.md) | Intégration Google / CalDAV / ICS |
+| [`docs/web-ui.md`](docs/web-ui.md) | Interface web : périmètre, choix techniques |
+| [`docs/setup-wizard.md`](docs/setup-wizard.md) | Assistant d'installation pas à pas |
 | [`docs/self-hosting.md`](docs/self-hosting.md) | Installation, sauvegardes, reverse proxy |
+| [`docs/raspberry-pi.md`](docs/raspberry-pi.md) | Déploiement sur Raspberry Pi |
 | [`docs/roadmap.md`](docs/roadmap.md) | Jalons et périmètre de chaque version |
 
 ## Contribuer
