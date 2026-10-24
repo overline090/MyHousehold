@@ -18,7 +18,7 @@ engagement de délai.
 - [x] Isolation des foyers (404 pour un non-membre), rôles, dernier propriétaire protégé
 - [x] Enveloppe d'erreur unique à codes stables
 - [x] Suppression de compte : anonymisation, transfert de propriété, rôle d'administrateur d'instance
-- [x] `scripts/smoke.sh` : parcours de bout en bout, 55 vérifications
+- [x] `scripts/smoke.sh` : parcours de bout en bout, 76 vérifications
 - [ ] Tests d'intégration automatisés (Testcontainers) en remplacement du script
 
 **Jalon atteint :** deux comptes peuvent rejoindre un même foyer, avec des rôles
@@ -36,16 +36,17 @@ distincts et une isolation vérifiée.
 **Jalon atteint :** « sortir les poubelles chaque lundi, à tour de rôle » fonctionne
 de bout en bout à l'API.
 
-## v0.3 — Compteurs et rendez-vous (prochaine étape)
+## v0.3 — Compteurs et rendez-vous (faite)
 
-- [ ] Compteurs : définitions, événements, état dérivé
-- [ ] Rendez-vous : CRUD, participants, réponses
-- [ ] Vue fusionnée `/agenda`
-- [ ] Fil d'activité
+- [x] Compteurs : définitions, événements, état dérivé jamais stocké
+- [x] Rendez-vous : CRUD, participants, réponses, visibilité privée
+- [x] Récurrence des rendez-vous déroulée à la lecture, en heure locale
+- [x] Vue fusionnée `/agenda`
+- [x] Fil d'activité paginé
 
-**Jalon :** les quatre besoins du README sont couverts côté serveur.
+**Jalon atteint :** les quatre besoins du README sont couverts côté serveur.
 
-## v0.4 — Application Android, utilisable seule
+## v0.4 — Application Android, utilisable seule (prochaine étape)
 
 Voir [MyHousehold-android](https://github.com/overline090/MyHousehold-android).
 

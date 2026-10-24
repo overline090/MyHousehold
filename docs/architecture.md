@@ -35,12 +35,13 @@ privilégient la simplicité d'exploitation sur la capacité à monter en charge
 | `health` | ✅ | `/health` et `/version` |
 | `tasks` | ✅ | Définitions, assignation, occurrences, complétion |
 | `scheduler` | ✅ | Jobs BullMQ : matérialisation, passage en « manquée » |
-| `counters` | · | Définitions et événements de remise à zéro |
-| `appointments` | · | Rendez-vous et participants |
+| `counters` | ✅ | Définitions et événements de remise à zéro |
+| `appointments` | ✅ | Rendez-vous, participants, récurrences déroulées |
+| `agenda` | ✅ | Vue fusionnée rendez-vous + tâches + compteurs |
 | `calendar` | · | Comptes externes, adaptateurs de synchronisation |
 | `sync` | · | Endpoint de delta pour le client mobile |
 | `notifications` | · | Rappels, échéances, envoi push |
-| `activity` | · | Fil d'activité du foyer (la table existe et est alimentée) |
+| `activity` | ✅ | Fil d'activité du foyer |
 | `setup` | · | Assistant d'installation ([setup-wizard.md](setup-wizard.md)) |
 | `web` | · | Service de l'interface web en statique ([web-ui.md](web-ui.md)) |
 | `releases` | · | Version d'app attendue, miroir de l'APK pour le foyer |

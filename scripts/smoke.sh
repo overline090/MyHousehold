@@ -3,7 +3,8 @@
 # Parcours de bout en bout contre un serveur qui tourne : inscription,
 # rotation des jetons, création de foyer, invitation, rôles, isolation
 # entre foyers, tâches récurrentes (récurrence, tour de rôle, complétion,
-# jobs), suppression de compte avec transfert de propriété et
+# jobs), compteurs de temps, rendez-vous, agenda fusionné, fil
+# d'activité, suppression de compte avec transfert de propriété et
 # anonymisation, limitation de débit.
 #
 # Les vérifications d'administration de l'instance ne tournent que si le
@@ -268,6 +269,114 @@ check "un adulte réassigne" "Paul" \
   "$(curl -s -X PATCH "$BASE/households/$HID/occurrences/$OCC_ID" -H "authorization: Bearer $OWNER" \
     -H 'content-type: application/json' -d "{\"assigneeId\":\"$MEMBER_ID\"}" | py "
 import json,sys; print((json.load(sys.stdin)['assignee'] or {}).get('displayName'))")"
+
+echo
+echo "Compteurs de temps"
+COUNTER_ID=$(curl -s -X POST "$BASE/households/$HID/counters" -H "authorization: Bearer $OWNER" \
+  -H 'content-type: application/json' \
+  -d '{"title":"Changer les draps","targetIntervalSeconds":1209600}' | field "['id']")
+check "un compteur est créé" "NEVER_DONE" \
+  "$(curl -s "$BASE/households/$HID/counters/$COUNTER_ID" -H "authorization: Bearer $OWNER" | field "['status']")"
+check "un enfant ne crée pas de compteur" "403" \
+  "$(status -X POST "$BASE/households/$HID/counters" -H "authorization: Bearer $OUTSIDER" \
+    -H 'content-type: application/json' -d '{"title":"X"}')"
+
+OLD_EVENT=$(py "import datetime; print((datetime.datetime.now(datetime.UTC) - datetime.timedelta(days=20)).isoformat().replace('+00:00','Z'))")
+check "une action déclarée il y a vingt jours met le compteur en retard" "OVERDUE" \
+  "$(curl -s -X POST "$BASE/households/$HID/counters/$COUNTER_ID/events" -H "authorization: Bearer $OUTSIDER" \
+    -H 'content-type: application/json' -d "{\"occurredAt\":\"$OLD_EVENT\"}" | field "['status']")"
+check "le temps écoulé est renvoyé en secondes" "20" \
+  "$(curl -s "$BASE/households/$HID/counters/$COUNTER_ID" -H "authorization: Bearer $OWNER" | py "
+import json,sys; print(round(json.load(sys.stdin)['elapsedSeconds'] / 86400))")"
+
+EVENT_UUID=$(py "import uuid; print(uuid.uuid4())")
+curl -s -X POST "$BASE/households/$HID/counters/$COUNTER_ID/events" -H "authorization: Bearer $OUTSIDER" \
+  -H 'content-type: application/json' -d "{\"id\":\"$EVENT_UUID\"}" > /dev/null
+check "remettre à zéro repart de l'état OK" "OK" \
+  "$(curl -s "$BASE/households/$HID/counters/$COUNTER_ID" -H "authorization: Bearer $OWNER" | field "['status']")"
+curl -s -X POST "$BASE/households/$HID/counters/$COUNTER_ID/events" -H "authorization: Bearer $OUTSIDER" \
+  -H 'content-type: application/json' -d "{\"id\":\"$EVENT_UUID\"}" > /dev/null
+check "le même événement rejoué n'en crée pas un second" "2" \
+  "$(curl -s "$BASE/households/$HID/counters/$COUNTER_ID/events" -H "authorization: Bearer $OWNER" | py "
+import json,sys; print(len(json.load(sys.stdin)['data']))")"
+check "une action datée dans le futur est refusée" "400" \
+  "$(status -X POST "$BASE/households/$HID/counters/$COUNTER_ID/events" -H "authorization: Bearer $OUTSIDER" \
+    -H 'content-type: application/json' \
+    -d "{\"occurredAt\":\"$(py "import datetime; print((datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=1)).isoformat().replace('+00:00','Z'))")\"}")"
+
+LAST_EVENT=$(curl -s "$BASE/households/$HID/counters/$COUNTER_ID/events" -H "authorization: Bearer $OWNER" | py "
+import json,sys; print(json.load(sys.stdin)['data'][0]['id'])")
+check "supprimer une saisie erronée recalcule l'état" "OVERDUE" \
+  "$(status -X DELETE "$BASE/households/$HID/counters/$COUNTER_ID/events/$LAST_EVENT" -H "authorization: Bearer $OUTSIDER" > /dev/null
+     curl -s "$BASE/households/$HID/counters/$COUNTER_ID" -H "authorization: Bearer $OWNER" | field "['status']")"
+
+echo
+echo "Rendez-vous"
+RDV_START=$(py "import datetime; print((datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=1)).replace(hour=15, minute=30, second=0, microsecond=0).isoformat().replace('+00:00','Z'))")
+RDV_END=$(py "import datetime; print((datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=1)).replace(hour=16, minute=15, second=0, microsecond=0).isoformat().replace('+00:00','Z'))")
+RDV_TO=$(py "import datetime; print((datetime.date.today() + datetime.timedelta(days=28)).isoformat())")
+RDV_ID=$(curl -s -X POST "$BASE/households/$HID/appointments" -H "authorization: Bearer $OWNER" \
+  -H 'content-type: application/json' \
+  -d "{\"title\":\"Dentiste\",\"location\":\"Cabinet Martin\",\"startAt\":\"$RDV_START\",\"endAt\":\"$RDV_END\",\"rrule\":\"FREQ=WEEKLY\",\"attendees\":[\"$MEMBER_ID\"]}" | field "['id']")
+check "un rendez-vous hebdomadaire est créé" "ok" "$([[ -n $RDV_ID ]] && echo ok)"
+check "ses instances sont déroulées sur la fenêtre" "yes" \
+  "$(curl -s "$BASE/households/$HID/appointments?from=$TODAY&to=$RDV_TO" -H "authorization: Bearer $OWNER" | py "
+import json,sys
+mine = [a for a in json.load(sys.stdin) if a['appointmentId'] == '$RDV_ID']
+print('yes' if len(mine) >= 4 and all(a['isRecurring'] for a in mine) else len(mine))")"
+check "l'heure locale est conservée d'une semaine à l'autre" "yes" \
+  "$(curl -s "$BASE/households/$HID/appointments?from=$TODAY&to=$RDV_TO" -H "authorization: Bearer $OWNER" | py "
+import json, sys, zoneinfo, datetime
+tz = zoneinfo.ZoneInfo('Europe/Paris')
+heures = {datetime.datetime.fromisoformat(a['startAt'].replace('Z','+00:00')).astimezone(tz).strftime('%H:%M')
+          for a in json.load(sys.stdin) if a['appointmentId'] == '$RDV_ID'}
+print('yes' if len(heures) == 1 else heures)")"
+check "un invité répond pour lui-même" "ACCEPTED" \
+  "$(curl -s -X POST "$BASE/households/$HID/appointments/$RDV_ID/respond" -H "authorization: Bearer $MEMBER" \
+    -H 'content-type: application/json' -d '{"response":"ACCEPTED"}' | py "
+import json,sys
+print(next(a['response'] for a in json.load(sys.stdin)['attendees'] if a['id'] == '$MEMBER_ID'))")"
+check "quelqu'un qui n'est pas invité ne répond pas" "400" \
+  "$(status -X POST "$BASE/households/$HID/appointments/$RDV_ID/respond" -H "authorization: Bearer $OUTSIDER" \
+    -H 'content-type: application/json' -d '{"response":"ACCEPTED"}')"
+check "une fin avant le début est refusée" "400" \
+  "$(status -X POST "$BASE/households/$HID/appointments" -H "authorization: Bearer $OWNER" \
+    -H 'content-type: application/json' -d "{\"title\":\"X\",\"startAt\":\"$RDV_END\",\"endAt\":\"$RDV_START\"}")"
+check "un invité hors du foyer est refusé" "400" \
+  "$(status -X POST "$BASE/households/$HID/appointments" -H "authorization: Bearer $OWNER" \
+    -H 'content-type: application/json' -d "{\"title\":\"X\",\"startAt\":\"$RDV_START\",\"endAt\":\"$RDV_END\",\"attendees\":[\"$ADMIN_ID\"]}")"
+
+PRIVE_ID=$(curl -s -X POST "$BASE/households/$HID/appointments" -H "authorization: Bearer $OWNER" \
+  -H 'content-type: application/json' \
+  -d "{\"title\":\"Rendez-vous perso\",\"startAt\":\"$RDV_START\",\"endAt\":\"$RDV_END\",\"visibility\":\"PRIVATE\"}" | field "['id']")
+check "un rendez-vous privé est introuvable pour les autres" "404" \
+  "$(status "$BASE/households/$HID/appointments/$PRIVE_ID" -H "authorization: Bearer $MEMBER")"
+check "il n'apparaît pas non plus dans leur liste" "False" \
+  "$(curl -s "$BASE/households/$HID/appointments?from=$TODAY&to=$RDV_TO" -H "authorization: Bearer $MEMBER" | py "
+import json,sys; print(any(a['appointmentId'] == '$PRIVE_ID' for a in json.load(sys.stdin)))")"
+check "son auteur le voit" "True" \
+  "$(curl -s "$BASE/households/$HID/appointments?from=$TODAY&to=$RDV_TO" -H "authorization: Bearer $OWNER" | py "
+import json,sys; print(any(a['appointmentId'] == '$PRIVE_ID' for a in json.load(sys.stdin)))")"
+
+echo
+echo "Agenda fusionné et fil d'activité"
+check "l'agenda mêle rendez-vous, tâches et compteurs en retard" "yes" \
+  "$(curl -s "$BASE/households/$HID/agenda?from=$TODAY&to=$(py "import datetime; print((datetime.date.today() + datetime.timedelta(days=2)).isoformat())")" \
+    -H "authorization: Bearer $OWNER" | py "
+import json,sys
+types = {e['type'] for e in json.load(sys.stdin)['data']}
+print('yes' if {'APPOINTMENT','TASK','COUNTER_DUE'} <= types else sorted(types))")"
+check "l'agenda est trié par instant" "yes" \
+  "$(curl -s "$BASE/households/$HID/agenda?from=$TODAY&to=$RDV_TO" -H "authorization: Bearer $OWNER" | py "
+import json,sys
+ats = [e['at'] for e in json.load(sys.stdin)['data']]
+print('yes' if ats == sorted(ats) else 'non trié')")"
+check "le fil d'activité retrace ce qui s'est passé" "yes" \
+  "$(curl -s "$BASE/households/$HID/activity?limit=50" -H "authorization: Bearer $OWNER" | py "
+import json,sys
+verbes = {a['verb'] for a in json.load(sys.stdin)['data']}
+attendus = {'COUNTER_RESET','APPOINTMENT_CREATED','TASK_COMPLETED','MEMBER_JOINED'}
+print('yes' if attendus <= verbes else sorted(attendus - verbes))")"
 
 echo
 echo "Changer la règle, supprimer la tâche"

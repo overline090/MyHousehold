@@ -6,12 +6,11 @@ Ce document est le contrat entre le serveur et l'app Android. Toute modification
 cassante passe par une nouvelle version de préfixe (`/api/v2`), jamais par une
 mutation silencieuse de `v1`.
 
-**État d'implémentation** (v0.2) : les sections *Authentification*, *Foyers*,
-*Tâches*, *Compte* et *Administration de l'instance* sont implémentées et couvertes
-par `scripts/smoke.sh`. Tout le reste — compteurs, rendez-vous,
-agendas, synchronisation, notifications, activité — est **spécifié mais pas encore
-écrit** ; c'est le périmètre des versions suivantes de
-[`roadmap.md`](roadmap.md). Les sections concernées sont marquées *(à venir)*.
+**État d'implémentation** (v0.3) : tout est implémenté et couvert par
+`scripts/smoke.sh`, sauf les **agendas externes**, la **synchronisation mobile** et
+les **notifications**, qui restent spécifiés mais pas écrits — périmètre des versions
+suivantes de [`roadmap.md`](roadmap.md). Les sections concernées sont marquées
+*(à venir)*.
 
 ## Conventions
 
@@ -207,65 +206,99 @@ Rejeu et conflits :
 `PATCH /occurrences/:id` accepte `assigneeId` à `null`, ce qui rend l'occurrence
 ouverte à tous — à distinguer d'un champ absent, qui ne change rien.
 
-## Compteurs *(à venir — v0.3)*
+## Compteurs
 
 | Méthode | Route | Description |
 |---|---|---|
-| `GET` | `/counters` | Avec l'état dérivé calculé |
-| `POST` | `/counters` | Création |
-| `GET` | `/counters/:id` | Définition + 20 derniers événements |
+| `GET` | `/counters` | Avec l'état dérivé. `?isActive=true` |
+| `POST` | `/counters` | Création (rôle `ADULT`+) |
+| `GET` | `/counters/:id` | Définition + vingt derniers événements |
 | `PATCH` | `/counters/:id` | |
-| `DELETE` | `/counters/:id` | |
-| `POST` | `/counters/:id/events` | **Remet le compteur à zéro** |
-| `GET` | `/counters/:id/events` | Historique paginé |
-| `DELETE` | `/counters/:id/events/:eventId` | Corrige une erreur de saisie |
+| `DELETE` | `/counters/:id` | Suppression logique |
+| `POST` | `/counters/:id/events` | **Remet le compteur à zéro**. `200` |
+| `GET` | `/counters/:id/events` | Historique paginé par curseur |
+| `DELETE` | `/counters/:id/events/:eventId` | Corrige une saisie erronée |
 
 `GET /counters` :
 
 ```json
+[
+  {
+    "id": "...",
+    "title": "Changer les draps",
+    "targetIntervalSeconds": 1209600,
+    "warnRatio": 0.8,
+    "lastEventAt": "2026-10-04T09:00:00Z",
+    "elapsedSeconds": 1728000,
+    "status": "OVERDUE",
+    "nextDueAt": "2026-10-18T09:00:00Z"
+  }
+]
+```
+
+`status` vaut `NEVER_DONE`, `OK`, `DUE_SOON` ou `OVERDUE`, et n'est **jamais stocké** :
+un événement peut être ajouté dans le passé ou supprimé, ce qui invaliderait n'importe
+quel champ mis en cache. `elapsedSeconds` est fourni en plus de `lastEventAt` pour que
+l'app affiche « il y a 20 jours » sans dépendre de l'horloge du téléphone, souvent
+décalée.
+
+Un compteur sans `targetIntervalSeconds` ne fait que compter : il ne passe jamais en
+retard, et `nextDueAt` reste `null`.
+
+`POST /counters/:id/events` : `{ "id": "<uuid client>", "occurredAt": "...", "note": "..." }`.
+L'UUID client rend l'appel idempotent — un double tap ou un rejeu hors-ligne ne crée
+pas deux événements. `occurredAt` permet de déclarer dimanche soir une action faite
+samedi matin ; un instant futur est refusé (`400`).
+
+Remettre à zéro demande le rôle `CHILD`+ : c'est faire l'action. Créer ou modifier un
+compteur demande `ADULT`+.
+
+## Rendez-vous
+
+| Méthode | Route | Description |
+|---|---|---|
+| `GET` | `/appointments` | `?from=&to=` (obligatoires, `YYYY-MM-DD`) |
+| `POST` | `/appointments` | Rôle `ADULT`+ |
+| `GET` | `/appointments/:id` | |
+| `PATCH` | `/appointments/:id` | `409 APPOINTMENT_READ_ONLY` si importé |
+| `DELETE` | `/appointments/:id` | |
+| `POST` | `/appointments/:id/respond` | `{ "response": "ACCEPTED" }`. `200` |
+| `GET` | `/agenda` | Vue fusionnée, ci-dessous |
+
+Les récurrences sont **déroulées à la lecture**, pas matérialisées : un rendez-vous ne
+s'assigne pas et ne se complète pas, il n'y a rien à y accrocher. Chaque instance
+porte `appointmentId` et `isRecurring` ; comme pour les tâches, la règle est déroulée
+en heure locale du foyer, donc un rendez-vous hebdomadaire à 15 h 30 reste à 15 h 30
+après un changement d'heure.
+
+**Visibilité.** Un rendez-vous `PRIVATE` n'est visible que de son auteur et de ses
+invités ; pour les autres il n'existe pas — `404`, pas `403`, et absent des listes.
+
+Répondre à une invitation ne demande aucun rôle particulier, mais on ne répond que
+pour soi : `400 NOT_INVITED` si l'on n'est pas dans la liste.
+
+`GET /agenda?from=&to=` est ce qu'affiche l'écran d'accueil : une liste unique triée
+par instant, chaque entrée portant son `type`.
+
+```json
 {
+  "from": "2026-10-24",
+  "to": "2026-10-26",
   "data": [
-    {
-      "id": "...",
-      "title": "Changer les draps",
-      "targetInterval": "P14D",
-      "lastEvent": {
-        "occurredAt": "2026-10-10T09:00:00Z",
-        "recordedBy": { "id": "...", "displayName": "Marie" }
-      },
-      "elapsedSeconds": 1241400,
-      "status": "OVERDUE",
-      "nextDueAt": "2026-10-24T09:00:00Z"
-    }
+    { "type": "TASK", "id": "...", "title": "Sortir les poubelles", "at": "2026-10-24T17:00:00Z", "status": "PENDING", "assignee": { "id": "...", "displayName": "Paul" }, "points": 2 },
+    { "type": "APPOINTMENT", "id": "...", "title": "Dentiste", "at": "2026-10-25T15:30:00Z", "endAt": "2026-10-25T16:15:00Z", "location": "Cabinet Martin" },
+    { "type": "COUNTER_DUE", "id": "...", "title": "Changer les draps", "at": "2026-10-18T09:00:00Z", "status": "OVERDUE" }
   ]
 }
 ```
 
-`elapsedSeconds` est fourni **en plus** de `lastEvent.occurredAt` pour que l'app
-affiche « il y a 14 jours » sans dépendre de l'horloge du téléphone, souvent décalée.
+Fusionner côté serveur évite de réimplémenter le tri, les fuseaux et les règles de
+visibilité dans l'app Android, dans l'interface web, et dans tout ce qui viendra
+ensuite. Un compteur n'entre dans l'agenda que s'il arrive à échéance dans la fenêtre
+— ou s'il est déjà en retard, sinon il disparaîtrait de la vue au moment où il compte
+le plus.
 
-`POST /counters/:id/events` : `{ "id": "<uuid client>", "occurredAt": "...", "note": "..." }`.
-L'UUID client rend l'appel idempotent — un double tap ou un rejeu hors-ligne ne crée
-pas deux événements.
-
-## Rendez-vous *(à venir — v0.3)*
-
-| Méthode | Route | Description |
-|---|---|---|
-| `GET` | `/appointments` | `?from=&to=` (obligatoires, fenêtre max 1 an) |
-| `POST` | `/appointments` | |
-| `GET` | `/appointments/:id` | |
-| `PATCH` | `/appointments/:id` | `409 APPOINTMENT_READ_ONLY` si importé |
-| `DELETE` | `/appointments/:id` | |
-| `POST` | `/appointments/:id/respond` | `{ "response": "ACCEPTED" }` |
-| `GET` | `/agenda` | Vue fusionnée : rdv + occurrences + échéances de compteurs |
-
-`GET /agenda?from=&to=` est ce qu'affiche l'écran d'accueil : une liste unique triée,
-chaque entrée portant son `type` (`APPOINTMENT`, `TASK`, `COUNTER_DUE`). Fusionner
-côté serveur évite de réimplémenter trois fois le tri et la gestion des fuseaux dans
-le client.
-
-## Agendas externes *(à venir — v0.5)*
+## Agendas externes *(à venir — v0.7)*
 
 | Méthode | Route | Description |
 |---|---|---|
@@ -291,7 +324,7 @@ pour le propriétaire.
 Détails du protocole, résolution des conflits et format des lots :
 [`sync.md`](sync.md).
 
-## Notifications *(à venir — v0.6)*
+## Notifications *(à venir — v0.8)*
 
 | Méthode | Route | Description |
 |---|---|---|
@@ -300,64 +333,21 @@ Détails du protocole, résolution des conflits et format des lots :
 | `GET` | `/users/me/notification-prefs` | |
 | `PATCH` | `/users/me/notification-prefs` | Heures de silence, canaux |
 
-## Activité et statistiques *(à venir — v0.3)*
+## Activité et statistiques
 
 | Méthode | Route | Description |
 |---|---|---|
-| `GET` | `/activity` | Fil du foyer, paginé |
-| `GET` | `/stats/contributions` | `?from=&to=` — points et tâches par membre |
+| `GET` | `/activity` | Fil du foyer, paginé par curseur |
+| `GET` | `/stats/contributions` | *(à venir)* `?from=&to=` — points et tâches par membre |
 
-`/stats/contributions` est volontairement factuel (qui a fait quoi, combien de
-points) et ne produit **aucun classement**. Un outil de foyer qui désigne un mauvais
+Le fil est dénormalisé : son texte est figé à l'écriture, pour rester lisible après
+suppression de l'objet concerné. En revanche le **nom de l'auteur n'y est pas
+recopié** — il est résolu depuis la table des comptes, ce qui fait qu'anonymiser un
+compte supprimé anonymise tout son historique d'un coup.
+
+`/stats/contributions` sera volontairement factuel (qui a fait quoi, combien de
+points) et ne produira **aucun classement**. Un outil de foyer qui désigne un mauvais
 élève crée des conflits au lieu d'en résoudre.
-
-## Compte
-
-| Méthode | Route | Description |
-|---|---|---|
-| `DELETE` | `/users/me` | Supprimer son compte. Corps : `{ "password": "..." }` |
-
-Irréversible. Le mot de passe est exigé parce qu'une session volée ne doit pas
-suffire à déclencher une suppression. Réponse `204`, et le jeton d'accès est
-immédiatement invalide.
-
-Ce que la suppression fait, en une phrase : le compte est **anonymisé** (`Ancien
-membre`, adresse rendue inutilisable), ses secrets (jetons, appareils, agendas) sont
-effacés, et l'historique du foyer reste intact sous ce nom anonyme. Si le compte
-était le dernier propriétaire d'un foyer, la propriété passe au membre le plus ancien
-(adulte d'abord, sinon enfant) ; sans successeur, le foyer est supprimé. Détail
-complet dans [`data-model.md`](data-model.md#suppression-de-compte).
-
-Erreurs : `401 INVALID_CREDENTIALS` si le mot de passe est faux.
-
-## Administration de l'instance
-
-Réservé aux comptes `isServerAdmin`. Un non-administrateur reçoit `404` — l'existence
-de cette zone n'a pas à lui être confirmée.
-
-| Méthode | Route | Description |
-|---|---|---|
-| `GET` | `/admin/users` | Comptes de l'instance. `?includeDeleted=true` inclut les comptes anonymisés |
-| `DELETE` | `/admin/users/:userId` | Supprimer le compte d'un membre. Corps : `{ "password": "..." }` (celui de l'administrateur) |
-| `POST` | `/admin/jobs/:name/run` | Déclencher un balayage sans attendre son passage. `202`. Noms : `tasks.materialize`, `tasks.markMissed` |
-
-```json
-[
-  {
-    "id": "...",
-    "email": "marie@example.com",
-    "displayName": "Marie",
-    "isServerAdmin": true,
-    "householdCount": 1,
-    "createdAt": "2026-10-24T18:00:00Z",
-    "deletedAt": null
-  }
-]
-```
-
-Ce n'est pas une exclusion déguisée : le compte disparaît de l'instance entière, il
-n'est pas retiré d'un foyer. Si le dernier administrateur supprime son compte, le
-compte actif le plus ancien devient administrateur.
 
 ## Santé
 

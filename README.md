@@ -6,11 +6,12 @@ temps, rendez-vous et synchronisation des agendas personnels.
 Ce dépôt contient le **serveur auto-hébergé**. L'application mobile Android vit dans
 [MyHousehold-android](https://github.com/overline090/MyHousehold-android).
 
-> ⚠️ **v0.1 — fondations.** Le serveur gère les **comptes et les foyers** (rôles,
-> invitations, isolation, suppression de compte). Les tâches, compteurs, rendez-vous et agendas sont
-> entièrement **spécifiés** mais pas encore écrits : voir
-> [`docs/roadmap.md`](docs/roadmap.md). Les contributions sur la spécification sont
-> aussi bienvenues que celles sur le code.
+> ⚠️ **v0.3.** Les quatre besoins ci-dessus sont couverts **côté serveur** : comptes
+> et foyers (rôles, invitations, isolation), tâches récurrentes, compteurs de temps,
+> rendez-vous et agenda fusionné. Restent à écrire l'**application Android**,
+> l'**interface web** avec son assistant d'installation, et la **synchronisation des
+> agendas externes** : voir [`docs/roadmap.md`](docs/roadmap.md). Les contributions
+> sur la spécification sont aussi bienvenues que celles sur le code.
 
 ## L'idée
 

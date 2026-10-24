@@ -11,7 +11,11 @@ import { PrismaModule } from './common/prisma/prisma.module';
 import { RedisModule } from './common/redis/redis.module';
 import { validateConfig } from './config/configuration';
 import { HealthModule } from './health/health.module';
+import { ActivityModule } from './activity/activity.module';
 import { AdminModule } from './admin/admin.module';
+import { AgendaModule } from './agenda/agenda.module';
+import { AppointmentsModule } from './appointments/appointments.module';
+import { CountersModule } from './counters/counters.module';
 import { HouseholdsModule } from './households/households.module';
 import { SchedulerModule } from './scheduler/scheduler.module';
 import { TasksModule } from './tasks/tasks.module';
@@ -62,6 +66,10 @@ import { UsersModule } from './users/users.module';
     AuthModule,
     HouseholdsModule,
     TasksModule,
+    CountersModule,
+    AppointmentsModule,
+    AgendaModule,
+    ActivityModule,
     SchedulerModule,
     UsersModule,
     AdminModule,
