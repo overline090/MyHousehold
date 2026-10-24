@@ -1,0 +1,384 @@
+# Modèle de données
+
+Ce document est la source de vérité du domaine. Toute évolution de l'API ou du
+schéma de base part d'ici.
+
+Conventions :
+
+- Toutes les clés primaires sont des **UUID v7** (triables par date de création), et
+  sont **générées par le client** quand c'est possible — c'est ce qui rend les
+  créations idempotentes et le mode hors-ligne réalisable (voir [`sync.md`](sync.md)).
+- Tous les instants sont stockés en **UTC** (`timestamptz`). L'affichage se fait dans
+  le fuseau du foyer.
+- Toute table synchronisée porte `createdAt`, `updatedAt` et `deletedAt` (suppression
+  logique, nécessaire pour propager les suppressions aux clients hors-ligne).
+- `householdId` est présent sur toutes les tables métier : c'est la frontière
+  d'isolation, vérifiée dans une garde unique côté serveur.
+
+## Vue d'ensemble
+
+```
+Household ──┬── HouseholdMember ──── User ──┬── CalendarAccount ─── ExternalEvent
+            │                               └── Device
+            ├── TaskDefinition ──── TaskOccurrence
+            ├── CounterDefinition ─── CounterEvent
+            ├── Appointment ──── AppointmentAttendee
+            ├── Invite
+            └── ActivityLog
+```
+
+---
+
+## Identité et foyer
+
+### User
+
+Un compte sur **cette** instance. Il n'y a pas d'annuaire central : un utilisateur
+est local au serveur auto-hébergé.
+
+| Champ | Type | Notes |
+|---|---|---|
+| `id` | uuid | |
+| `email` | citext unique | Sert d'identifiant de connexion |
+| `displayName` | text | Nom affiché dans le foyer |
+| `passwordHash` | text | Argon2id |
+| `avatarColor` | text | Couleur générée, évite d'avoir à héberger des images en v1 |
+| `locale` | text | `fr-FR` par défaut |
+| `timezone` | text | IANA, hérité du foyer si absent |
+| `createdAt` / `updatedAt` | timestamptz | |
+
+Un utilisateur peut appartenir à **plusieurs** foyers (colocation + famille, garde
+alternée). L'app mobile impose donc un sélecteur de foyer, même s'il n'y en a qu'un.
+
+### Household
+
+| Champ | Type | Notes |
+|---|---|---|
+| `id` | uuid | |
+| `name` | text | « Maison des Dupont » |
+| `timezone` | text | IANA. **Référence** pour calculer les échéances |
+| `weekStartsOn` | int | 1 = lundi |
+| `createdAt` / `updatedAt` | timestamptz | |
+
+Le fuseau du foyer est structurant : « chaque lundi à 19h » doit rester 19h locales
+même après un changement d'heure, donc les occurrences sont calculées en heure locale
+puis converties en UTC — jamais l'inverse.
+
+### HouseholdMember
+
+Table de liaison portant le rôle.
+
+| Champ | Type | Notes |
+|---|---|---|
+| `householdId` / `userId` | uuid | Clé primaire composite |
+| `role` | enum | `OWNER` \| `ADULT` \| `CHILD` \| `GUEST` |
+| `nickname` | text? | Surnom propre à ce foyer |
+| `joinedAt` | timestamptz | |
+
+Permissions par rôle :
+
+| Action | OWNER | ADULT | CHILD | GUEST |
+|---|---|---|---|---|
+| Lire le contenu du foyer | ✅ | ✅ | ✅ | ✅ |
+| Compléter une tâche / un compteur assigné | ✅ | ✅ | ✅ | ❌ |
+| Créer / modifier tâches, compteurs, rdv | ✅ | ✅ | ❌ | ❌ |
+| Inviter, exclure, changer les rôles | ✅ | ❌ | ❌ | ❌ |
+| Supprimer le foyer | ✅ | ❌ | ❌ | ❌ |
+
+Un foyer garde **toujours au moins un `OWNER`** : le dernier propriétaire ne peut ni
+partir ni se rétrograder sans transmettre le rôle. Contrainte vérifiée en base.
+
+### Invite
+
+Rejoindre un foyer passe par un code à usage limité, jamais par une recherche
+d'utilisateur (un serveur familial n'a pas à être un annuaire).
+
+| Champ | Type | Notes |
+|---|---|---|
+| `id` | uuid | |
+| `householdId` | uuid | |
+| `code` | text unique | 8 caractères, alphabet sans ambiguïté (pas de `0`/`O`/`1`/`l`) |
+| `role` | enum | Rôle attribué à l'arrivée |
+| `maxUses` / `useCount` | int | |
+| `expiresAt` | timestamptz | 7 jours par défaut |
+| `createdBy` | uuid | |
+
+---
+
+## Tâches récurrentes
+
+Deux niveaux, et c'est le cœur du modèle : la **définition** (la règle) et
+l'**occurrence** (une instance datée, complétable).
+
+### TaskDefinition
+
+| Champ | Type | Notes |
+|---|---|---|
+| `id` | uuid | |
+| `householdId` | uuid | |
+| `title` | text | « Sortir les poubelles » |
+| `description` | text? | |
+| `category` | text? | Libre : `cuisine`, `animaux`… |
+| `rrule` | text | RRULE RFC 5545, ex. `FREQ=WEEKLY;BYDAY=MO` |
+| `dueTime` | time? | Heure locale d'échéance. `null` = toute la journée |
+| `durationMinutes` | int? | Estimation, sert à l'équilibrage de charge |
+| `assignmentMode` | enum | `FIXED` \| `ROTATION` \| `ANYONE` |
+| `graceHours` | int | Délai après échéance avant de passer en `MISSED` (24 par défaut) |
+| `points` | int | Poids pour les statistiques d'équité |
+| `isActive` | bool | Mettre en pause sans supprimer l'historique |
+| `startsOn` / `endsOn` | date? | Bornes de la règle |
+| `createdBy` | uuid | |
+
+Modes d'assignation :
+
+- **`FIXED`** — toujours les mêmes personnes (`TaskAssignee`).
+- **`ROTATION`** — tour de rôle dans l'ordre de `TaskAssignee.position`. La
+  rotation avance à la **génération** de l'occurrence, pas à sa complétion : sinon
+  une tâche oubliée bloquerait le tour de tout le monde.
+- **`ANYONE`** — non assignée, le premier qui la fait la prend.
+
+### TaskAssignee
+
+| Champ | Type | Notes |
+|---|---|---|
+| `taskDefinitionId` / `userId` | uuid | Clé composite |
+| `position` | int | Ordre de rotation |
+
+### TaskOccurrence
+
+Instances matérialisées en base, pas calculées à la volée. C'est ce qui permet
+d'assigner, de commenter, de reporter et de garder un historique fiable même si la
+règle change ensuite.
+
+| Champ | Type | Notes |
+|---|---|---|
+| `id` | uuid | |
+| `taskDefinitionId` | uuid | |
+| `householdId` | uuid | Dupliqué pour pouvoir filtrer sans jointure |
+| `scheduledFor` | date | Jour d'échéance en heure locale du foyer |
+| `dueAt` | timestamptz | Instant calculé depuis `scheduledFor` + `dueTime` |
+| `assigneeId` | uuid? | `null` si `ANYONE` |
+| `status` | enum | `PENDING` \| `DONE` \| `SKIPPED` \| `MISSED` |
+| `completedAt` | timestamptz? | |
+| `completedBy` | uuid? | Peut différer de l'assigné — quelqu'un a dépanné |
+| `note` | text? | |
+
+**Contrainte unique : `(taskDefinitionId, scheduledFor)`.** C'est elle qui rend le job
+de génération idempotent et rejouable sans danger.
+
+Règles métier :
+
+- Un job quotidien matérialise les occurrences sur une **fenêtre glissante de 60
+  jours**. Horizon borné pour ne pas générer l'infini sur une règle sans `endsOn`.
+- `MISSED` est posé par un job sur les occurrences `PENDING` dépassant
+  `dueAt + graceHours`. Ce n'est pas calculé à l'affichage : on veut l'instant exact
+  du constat dans l'historique.
+- Modifier une `TaskDefinition` **ne réécrit pas le passé** : seules les occurrences
+  futures encore `PENDING` sont regénérées.
+- Supprimer une définition conserve les occurrences `DONE` (statistiques), les
+  `PENDING` futures sont supprimées logiquement.
+
+---
+
+## Compteurs de temps
+
+Le besoin : « une action qui enclenche un compteur, remis à zéro en accomplissant à
+nouveau l'action ». Modélisé comme un **journal d'événements** plutôt qu'un champ
+`lastResetAt` modifiable — on garde l'historique, on peut annuler, et deux clients
+hors-ligne ne s'écrasent pas mutuellement.
+
+### CounterDefinition
+
+| Champ | Type | Notes |
+|---|---|---|
+| `id` | uuid | |
+| `householdId` | uuid | |
+| `title` | text | « Changer les draps » |
+| `description` | text? | |
+| `category` | text? | |
+| `targetInterval` | interval? | Ex. `14 days`. `null` = compteur purement informatif |
+| `warnRatio` | numeric | 0.8 par défaut : prévenir à 80 % de l'intervalle |
+| `assignmentMode` | enum | `ANYONE` \| `FIXED` \| `ROTATION` |
+| `isActive` | bool | |
+| `createdBy` | uuid | |
+
+### CounterEvent
+
+| Champ | Type | Notes |
+|---|---|---|
+| `id` | uuid | |
+| `counterDefinitionId` | uuid | |
+| `householdId` | uuid | |
+| `occurredAt` | timestamptz | **Quand l'action a été faite**, pas quand elle a été saisie |
+| `recordedBy` | uuid | |
+| `note` | text? | |
+
+`occurredAt` est distinct de `createdAt` : on doit pouvoir déclarer dimanche soir une
+action faite samedi matin, et la saisie hors-ligne est datée à l'action, pas au
+moment où le réseau revient.
+
+État dérivé (jamais stocké, toujours calculé) :
+
+```
+lastEvent    = max(occurredAt) des événements non supprimés
+elapsed      = now - lastEvent
+status       = NEVER_DONE        si aucun événement
+               OK                si elapsed < targetInterval * warnRatio
+               DUE_SOON          si elapsed < targetInterval
+               OVERDUE           sinon
+nextDueAt    = lastEvent + targetInterval
+```
+
+Pourquoi calculer et ne pas stocker : un événement peut être ajouté *dans le passé*
+ou supprimé, ce qui invaliderait n'importe quel champ dérivé mis en cache. Le coût
+est négligeable (un `max()` sur un index `(counterDefinitionId, occurredAt DESC)`).
+
+---
+
+## Rendez-vous
+
+### Appointment
+
+| Champ | Type | Notes |
+|---|---|---|
+| `id` | uuid | |
+| `householdId` | uuid | |
+| `title` | text | |
+| `description` | text? | |
+| `location` | text? | |
+| `startAt` / `endAt` | timestamptz | |
+| `isAllDay` | bool | Si vrai, `startAt` est minuit dans le fuseau du foyer |
+| `rrule` | text? | Rendez-vous récurrents |
+| `visibility` | enum | `HOUSEHOLD` (visible par tous) \| `PRIVATE` (créateur + invités) |
+| `source` | enum | `LOCAL` \| `IMPORTED` |
+| `calendarAccountId` | uuid? | Renseigné si importé |
+| `externalUid` | text? | UID iCalendar de l'événement source |
+| `createdBy` | uuid | |
+
+Les événements importés d'un agenda externe sont **en lecture seule** côté MyHousehold
+en v1 : l'écriture bidirectionnelle est un sujet à part entière (voir
+[`calendar-sync.md`](calendar-sync.md)).
+
+### AppointmentAttendee
+
+| Champ | Type | Notes |
+|---|---|---|
+| `appointmentId` / `userId` | uuid | Clé composite |
+| `response` | enum | `NEEDS_ACTION` \| `ACCEPTED` \| `DECLINED` \| `TENTATIVE` |
+
+### Reminder
+
+Rappels, communs aux tâches et aux rendez-vous.
+
+| Champ | Type | Notes |
+|---|---|---|
+| `id` | uuid | |
+| `targetType` | enum | `APPOINTMENT` \| `TASK_OCCURRENCE` \| `COUNTER` |
+| `targetId` | uuid | |
+| `offsetMinutes` | int | Négatif = avant l'échéance |
+| `userId` | uuid? | `null` = tous les membres concernés |
+| `sentAt` | timestamptz? | Garde-fou anti-doublon |
+
+---
+
+## Synchronisation d'agenda
+
+### CalendarAccount
+
+| Champ | Type | Notes |
+|---|---|---|
+| `id` | uuid | |
+| `userId` | uuid | Un agenda appartient à **une personne**, pas au foyer |
+| `provider` | enum | `GOOGLE` \| `CALDAV` \| `ICS_URL` |
+| `displayName` | text | |
+| `credentials` | bytea | **Chiffré** (AES-256-GCM, clé depuis `MH_ENCRYPTION_KEY`) |
+| `syncDirection` | enum | `PULL` \| `PUSH` \| `BOTH` (seul `PULL` en v1) |
+| `defaultVisibility` | enum | Visibilité appliquée aux événements importés |
+| `busyOnly` | bool | Si vrai, n'importe que la plage horaire sans le titre |
+| `syncCursor` | text? | `syncToken` Google, `ctag` CalDAV, `ETag` ICS |
+| `lastSyncAt` / `lastErrorAt` | timestamptz? | |
+| `lastError` | text? | |
+| `isActive` | bool | |
+
+`busyOnly` est important pour l'acceptabilité : partager ses disponibilités avec son
+foyer ne doit pas obliger à partager le contenu de son agenda professionnel.
+
+### ExternalEvent
+
+Table de correspondance entre un événement distant et son `Appointment` local.
+
+| Champ | Type | Notes |
+|---|---|---|
+| `calendarAccountId` / `externalUid` | — | Clé composite |
+| `appointmentId` | uuid | |
+| `etag` | text? | Permet de ne retoucher que ce qui a changé |
+| `lastSeenAt` | timestamptz | Un événement non revu après une synchro complète est supprimé |
+
+---
+
+## Technique
+
+### Device
+
+| Champ | Type | Notes |
+|---|---|---|
+| `id` | uuid | |
+| `userId` | uuid | |
+| `pushToken` | text? | FCM ou endpoint UnifiedPush |
+| `pushProvider` | enum | `FCM` \| `UNIFIEDPUSH` \| `NONE` |
+| `platform` / `appVersion` | text | |
+| `lastSeenAt` | timestamptz | |
+
+UnifiedPush est prévu dès le modèle : une app distribuée hors Play Store ne peut pas
+dépendre uniquement de FCM.
+
+### RefreshToken
+
+| Champ | Type | Notes |
+|---|---|---|
+| `id` | uuid | |
+| `userId` / `deviceId` | uuid | |
+| `tokenHash` | text | SHA-256 — le token en clair n'est jamais stocké |
+| `expiresAt` | timestamptz | |
+| `revokedAt` | timestamptz? | |
+| `replacedById` | uuid? | Chaîne de rotation : détecte le rejeu d'un token volé |
+
+### ActivityLog
+
+Fil d'activité du foyer (« Marie a sorti les poubelles »). Dénormalisé exprès : il
+doit rester lisible même après suppression de l'objet concerné.
+
+| Champ | Type | Notes |
+|---|---|---|
+| `id` | uuid | |
+| `householdId` / `actorId` | uuid | |
+| `verb` | enum | `TASK_COMPLETED`, `COUNTER_RESET`, `MEMBER_JOINED`… |
+| `subjectType` / `subjectId` | — | |
+| `summary` | text | Texte figé au moment de l'événement |
+| `createdAt` | timestamptz | |
+
+## Index à créer dès la première migration
+
+```sql
+CREATE INDEX ON task_occurrence (household_id, scheduled_for, status);
+CREATE INDEX ON task_occurrence (assignee_id, status) WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX ON task_occurrence (task_definition_id, scheduled_for);
+CREATE INDEX ON counter_event (counter_definition_id, occurred_at DESC);
+CREATE INDEX ON appointment (household_id, start_at, end_at);
+CREATE UNIQUE INDEX ON external_event (calendar_account_id, external_uid);
+-- curseur de synchronisation du mobile
+CREATE INDEX ON task_occurrence (household_id, updated_at);
+CREATE INDEX ON appointment (household_id, updated_at);
+```
+
+## Questions ouvertes
+
+1. **Équité des rotations** — faut-il pondérer par `points` pour rééquilibrer sur le
+   mois, ou garder un tour de rôle strict et prévisible ? Le strict est plus simple à
+   comprendre pour les utilisateurs, donc retenu en v1.
+2. **Tâches des enfants** — faut-il une validation par un adulte avant de passer
+   `DONE` ? Repoussé en v2, mais `completedBy` distinct de `assigneeId` prépare déjà
+   le terrain.
+3. **Multi-foyer et vie privée** — si un utilisateur est dans deux foyers, un agenda
+   synchronisé doit-il alimenter les deux ? Décision actuelle : oui par défaut, car
+   les disponibilités de la personne sont les mêmes partout.

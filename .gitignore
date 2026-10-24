@@ -1,0 +1,43 @@
+# Dépendances
+node_modules/
+
+# Build
+dist/
+build/
+*.tsbuildinfo
+
+# Environnement — ne jamais committer : contient MH_JWT_SECRET et MH_ENCRYPTION_KEY
+.env
+.env.*
+!.env.example
+
+# Secrets
+*.pem
+*.key
+google-service-account*.json
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Tests
+coverage/
+.nyc_output/
+
+# Prisma
+prisma/*.db
+prisma/*.db-journal
+
+# Éditeurs
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker (volumes locaux)
+docker-data/
