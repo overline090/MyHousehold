@@ -12,19 +12,23 @@ L'assistant est servi par le serveur lui-même. Tant que l'installation n'est pa
 terminée, **toutes les routes web redirigent vers `/setup`** ; une fois terminée,
 `/setup` répond `404`.
 
+**Quatre étapes, et rien d'autre.** Elles sont celles décidées pour le projet ; en
+ajouter relève d'une décision, pas d'une initiative d'implémentation.
+
 ```
-0. Bienvenue              langue, et ce que l'assistant va faire
 1. Réseau                 Wi-Fi ou Ethernet          (image Raspberry Pi seulement)
 2. Reprendre depuis l'app importer une configuration existante, ou continuer à vide
-3. Le foyer               nom, fuseau horaire, premier jour de la semaine
+3. Le foyer               son nom
 4. Premier compte         créé depuis le téléphone, devient administrateur
-5. Terminé                adresse du serveur, code d'invitation pour les autres
 ```
 
-D'autres étapes viendront (agenda, notifications, sauvegardes, mises à jour
-automatiques). L'assistant est donc construit comme une **liste d'étapes
-déclarées**, chacune sachant dire si elle est applicable, obligatoire et terminée :
-en ajouter une ne doit pas demander de retoucher les autres.
+Puis un écran de fin, qui ne configure rien : il donne l'adresse du serveur et de
+quoi faire venir les autres.
+
+D'autres étapes pourront être décidées plus tard. L'assistant est donc construit
+comme une **liste d'étapes déclarées**, chacune sachant dire si elle est applicable,
+obligatoire et terminée : en ajouter une ne doit pas demander de retoucher les
+autres. Mais la liste ci-dessus est la liste complète d'aujourd'hui.
 
 ## L'état de l'installation vit côté serveur
 
@@ -137,11 +141,18 @@ l'historique local sur le téléphone.
 
 ## Étape 3 — Le foyer
 
-Nom, fuseau horaire, premier jour de la semaine. Le fuseau est proposé d'après celui
-du système, le nom est pré-rempli si l'étape 2 a importé quelque chose.
+**Son nom, et rien de plus.** Pré-rempli si l'étape 2 a importé quelque chose.
 
-Le fuseau est demandé ici et pas plus tard parce qu'il est **structurant** : c'est lui
-qui fait référence pour calculer les échéances des tâches.
+Deux réglages existent pourtant sur un foyer et ne sont pas demandés ici :
+
+- le **fuseau horaire**, détecté depuis le système ;
+- le **premier jour de la semaine**, lundi par défaut.
+
+Tous deux se changent ensuite dans les réglages du foyer. Le fuseau est structurant —
+c'est lui qui fait référence pour calculer les échéances — mais le détecter donne la
+bonne valeur dans l'immense majorité des cas, et une étape de plus pour confirmer ce
+que la machine sait déjà n'en vaut pas le prix. L'écran l'affiche donc à titre
+d'information, sans le demander.
 
 ## Étape 4 — Premier compte, depuis le téléphone
 
@@ -175,16 +186,15 @@ le navigateur : un blocage dur serait pire que le risque qu'il évite, par exemp
 quelqu'un sans téléphone Android sous la main. L'assistant dit alors clairement ce que
 cela implique.
 
-## Étape 5 — Terminé
+## Écran de fin
 
-Affiche l'adresse du serveur, rappelle de la noter, propose un code d'invitation pour
-les autres membres du foyer, et **ferme les inscriptions libres** : à partir de là, on
-rejoint le foyer sur invitation. C'est ce que `MH_ALLOW_REGISTRATION=false` fait
-aujourd'hui à la main dans le fichier d'environnement.
+Ce n'est pas une étape : il ne configure rien. Il affiche l'adresse du serveur,
+rappelle de la noter, et donne un code d'invitation pour les autres membres du foyer.
 
-Propose aussi, sans les imposer : configurer une sauvegarde, connecter un agenda,
-activer les mises à jour automatiques. Ces étapes deviendront des étapes de
-l'assistant quand elles existeront.
+Il **ferme aussi les inscriptions libres** — à partir de là, on rejoint le foyer sur
+invitation. C'est ce que `MH_ALLOW_REGISTRATION=false` fait aujourd'hui à la main dans
+le fichier d'environnement ; le faire ici évite de laisser un serveur exposé accepter
+les inscriptions de n'importe qui parce que personne n'a pensé à éditer un fichier.
 
 ## API
 
@@ -200,7 +210,7 @@ Routes hors de `/api/v1`, puisqu'elles précèdent l'existence de tout compte.
 | `POST` | `/setup/household` | Nom, fuseau, premier jour |
 | `POST` | `/setup/import` | Appelé **par l'app** : pousse sa configuration locale |
 | `POST` | `/setup/claim` | Appelé **par l'app** : crée le compte administrateur |
-| `POST` | `/setup/complete` | Verrouille l'assistant |
+| `POST` | `/setup/complete` | Verrouille l'assistant et ferme les inscriptions |
 
 Toutes refusent une adresse source publique, et répondent `409 SETUP_ALREADY_DONE`
 une fois l'installation terminée.
@@ -217,3 +227,6 @@ une fois l'installation terminée.
    part entière.
 3. **Plusieurs foyers sur une instance** : l'assistant n'en crée qu'un. Créer les
    suivants se fait depuis l'app, comme aujourd'hui.
+4. **Le fuseau horaire détecté suffit-il ?** Il n'est pas demandé, seulement affiché.
+   S'il faut le confirmer, cela devient une étape — donc une décision à prendre, pas
+   une initiative à prendre ici.
