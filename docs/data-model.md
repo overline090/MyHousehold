@@ -198,17 +198,32 @@ l'**occurrence** (une instance datée, complétable).
 | `graceHours` | int | Délai après échéance avant de passer en `MISSED` (24 par défaut) |
 | `points` | int | Poids pour les statistiques d'équité |
 | `isActive` | bool | Mettre en pause sans supprimer l'historique |
-| `rotationCursor` | int | Position courante du tour de rôle |
 | `startsOn` / `endsOn` | date? | Bornes de la règle |
 | `createdBy` | uuid | |
 
 Modes d'assignation :
 
-- **`FIXED`** — toujours les mêmes personnes (`TaskAssignee`).
-- **`ROTATION`** — tour de rôle dans l'ordre de `TaskAssignee.position`. La
-  rotation avance à la **génération** de l'occurrence, pas à sa complétion : sinon
-  une tâche oubliée bloquerait le tour de tout le monde.
+- **`FIXED`** — toujours la **même** personne. Exactement un `TaskAssignee` : une
+  occurrence n'a qu'un assigné, « plusieurs personnes fixes » n'aurait pas de
+  traduction. Pour plusieurs personnes, c'est un tour de rôle.
+- **`ROTATION`** — tour de rôle dans l'ordre de `TaskAssignee.position`, au moins
+  deux personnes.
 - **`ANYONE`** — non assignée, le premier qui la fait la prend.
+
+### Le tour de rôle est déterministe
+
+L'assigné d'une occurrence se **déduit de sa position dans la série** :
+`assignees[ordinal % assignees.length]`, où `ordinal` est le rang de l'occurrence
+depuis le premier jour de la série.
+
+Rien n'est stocké pour cela — pas de curseur. Un curseur que l'on incrémente à
+chaque génération dérive : changer la règle, ou supprimer une occurrence future,
+redistribue les tours et plus personne ne comprend pourquoi c'est son tour. Une
+position, elle, est stable : regénérer la série redonne exactement les mêmes
+assignations.
+
+La rotation ne dépend pas non plus de la complétion : une tâche oubliée ne bloque
+pas le tour des autres.
 
 ### TaskAssignee
 
@@ -241,13 +256,20 @@ de génération idempotent et rejouable sans danger.
 
 Règles métier :
 
-- Un job quotidien matérialise les occurrences sur une **fenêtre glissante de 60
-  jours**. Horizon borné pour ne pas générer l'infini sur une règle sans `endsOn`.
+- Un job horaire matérialise les occurrences sur une fenêtre glissante allant de
+  **14 jours en arrière à 60 jours en avant**. L'horizon est borné pour ne pas
+  dérouler l'infini sur une règle sans `endsOn` ; le rattrapage du passé sert au cas
+  où le serveur est resté éteint — les occurrences de la semaine écoulée doivent
+  exister pour pouvoir être cochées ou marquées manquées.
+- La matérialisation est aussi déclenchée **immédiatement** à la création et à la
+  modification d'une tâche : on vient de la créer, on s'attend à voir ses prochaines
+  échéances tout de suite, pas à l'heure suivante.
 - `MISSED` est posé par un job sur les occurrences `PENDING` dépassant
   `dueAt + graceHours`. Ce n'est pas calculé à l'affichage : on veut l'instant exact
   du constat dans l'historique.
 - Modifier une `TaskDefinition` **ne réécrit pas le passé** : seules les occurrences
-  futures encore `PENDING` sont regénérées.
+  futures encore `PENDING` sont supprimées puis regénérées. Une tâche déjà faite
+  reste faite, même si la règle change ensuite.
 - Supprimer une définition conserve les occurrences `DONE` (statistiques), les
   `PENDING` futures sont supprimées logiquement.
 

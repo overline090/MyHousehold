@@ -13,6 +13,8 @@ import { validateConfig } from './config/configuration';
 import { HealthModule } from './health/health.module';
 import { AdminModule } from './admin/admin.module';
 import { HouseholdsModule } from './households/households.module';
+import { SchedulerModule } from './scheduler/scheduler.module';
+import { TasksModule } from './tasks/tasks.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -59,6 +61,8 @@ import { UsersModule } from './users/users.module';
     ClockModule,
     AuthModule,
     HouseholdsModule,
+    TasksModule,
+    SchedulerModule,
     UsersModule,
     AdminModule,
     HealthModule,

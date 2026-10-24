@@ -6,11 +6,11 @@ Ce document est le contrat entre le serveur et l'app Android. Toute modification
 cassante passe par une nouvelle version de préfixe (`/api/v2`), jamais par une
 mutation silencieuse de `v1`.
 
-**État d'implémentation** (v0.1) : les sections *Authentification*, *Foyers*,
-*Compte* et *Administration de l'instance* sont implémentées et couvertes par
-`scripts/smoke.sh`. Tout le reste — tâches, compteurs,
-rendez-vous, agendas, synchronisation, notifications, activité — est **spécifié mais
-pas encore écrit** ; c'est le périmètre des v0.2 et v0.3 de
+**État d'implémentation** (v0.2) : les sections *Authentification*, *Foyers*,
+*Tâches*, *Compte* et *Administration de l'instance* sont implémentées et couvertes
+par `scripts/smoke.sh`. Tout le reste — compteurs, rendez-vous,
+agendas, synchronisation, notifications, activité — est **spécifié mais pas encore
+écrit** ; c'est le périmètre des versions suivantes de
 [`roadmap.md`](roadmap.md). Les sections concernées sont marquées *(à venir)*.
 
 ## Conventions
@@ -110,20 +110,24 @@ possible — la propriété est alors transmise automatiquement.
 
 Toutes les routes ci-dessous sont préfixées par `/households/:householdId`.
 
-## Tâches *(à venir — v0.2)*
+## Tâches
 
 | Méthode | Route | Description |
 |---|---|---|
 | `GET` | `/tasks` | Définitions. `?isActive=true` |
 | `POST` | `/tasks` | Création (rôle `ADULT`+) |
-| `GET` | `/tasks/:id` | Définition + 10 prochaines occurrences |
-| `PATCH` | `/tasks/:id` | Modifie la règle ; regénère les occurrences futures `PENDING` |
-| `DELETE` | `/tasks/:id` | Suppression logique ; conserve l'historique `DONE` |
+| `GET` | `/tasks/:id` | Définition + dix prochaines échéances |
+| `PATCH` | `/tasks/:id` | Modifie la règle ; regénère les échéances futures en attente |
+| `DELETE` | `/tasks/:id` | Suppression logique ; conserve l'historique |
 | `GET` | `/occurrences` | **L'endpoint principal de l'app** |
 | `POST` | `/occurrences/:id/complete` | Marque faite |
 | `POST` | `/occurrences/:id/uncomplete` | Annule (fenêtre de 48 h) |
 | `POST` | `/occurrences/:id/skip` | Passe son tour avec un motif |
-| `PATCH` | `/occurrences/:id` | Réassigner, reporter (`dueAt`), annoter |
+| `PATCH` | `/occurrences/:id` | Réassigner, reporter, annoter (rôle `ADULT`+) |
+
+Les trois actions sur une occurrence renvoient **`200`, pas `201`** : elles ne créent
+pas de ressource, elles changent un état. Le rejeu renvoie donc le même code que le
+premier envoi.
 
 `POST /tasks` :
 
@@ -140,6 +144,22 @@ Toutes les routes ci-dessous sont préfixées par `/households/:householdId`.
 }
 ```
 
+Contraintes refusées en `400 INVALID_RRULE` ou `400 INVALID_ASSIGNMENT` :
+
+| Règle | Pourquoi |
+|---|---|
+| `FREQ` plus fin que `DAILY` | Une tâche de foyer ne se répète pas toutes les heures, et une telle règle générerait des millions d'occurrences |
+| `COUNT` et `UNTIL` ensemble | Interdit par la RFC 5545 |
+| `INTERVAL` hors de 1–366 | |
+| `FIXED` sans exactement une personne | Une occurrence n'a qu'un assigné : « plusieurs personnes fixes » n'a pas de traduction. Pour plusieurs personnes, c'est `ROTATION` |
+| `ROTATION` à moins de deux personnes | Un tour de rôle à une personne est une tâche fixe |
+| `ANYONE` avec une liste | Une tâche ouverte à tous ne désigne personne |
+| Un assigné hors du foyer, ou invité | Un invité n'a pas le droit de compléter : l'assigner serait une impasse |
+
+`dueTime` absent signifie « toute la journée » : l'échéance est alors la **fin de la
+journée locale**, pas minuit — une tâche « du lundi » n'est pas en retard à 00 h 01
+le lundi.
+
 `GET /occurrences?from=2026-10-24&to=2026-10-31&assigneeId=me&status=PENDING` :
 
 ```json
@@ -149,24 +169,43 @@ Toutes les routes ci-dessous sont préfixées par `/households/:householdId`.
       "id": "...",
       "taskDefinitionId": "...",
       "title": "Sortir les poubelles",
-      "scheduledFor": "2026-10-27",
-      "dueAt": "2026-10-27T18:00:00Z",
-      "assignee": { "id": "...", "displayName": "Paul" },
+      "category": null,
+      "points": 2,
+      "scheduledFor": "2026-10-26",
+      "dueAt": "2026-10-26T18:00:00Z",
       "status": "PENDING",
-      "points": 2
+      "assignee": { "id": "...", "displayName": "Paul" },
+      "completedAt": null,
+      "completedBy": null,
+      "note": null
     }
   ],
   "nextCursor": null
 }
 ```
 
-`title` est dupliqué depuis la définition : l'app affiche une liste sans avoir à
-résoudre les définitions, et un client hors-ligne reste lisible.
+`title`, `category` et `points` sont recopiés depuis la définition : l'app affiche
+une liste sans résoudre les définitions, et reste lisible hors-ligne. `from` et `to`
+valent par défaut aujourd'hui et dans sept jours, **en heure locale du foyer**.
+`assigneeId=me` évite au client de connaître son propre identifiant.
 
-`POST /occurrences/:id/complete` accepte `{ "completedAt": "...", "note": "..." }` —
-`completedAt` est optionnel et sert à déclarer une action faite plus tôt. Rejeu sur
-une occurrence déjà `DONE` : `409 TASK_ALREADY_COMPLETED` (sauf si c'est le même
-utilisateur avec le même instant, auquel cas `200` — tolérance au rejeu réseau).
+`POST /occurrences/:id/complete` accepte `{ "completedAt": "...", "note": "..." }`.
+`completedAt` sert à déclarer une action faite plus tôt — dimanche soir pour samedi
+matin, ou une saisie hors-ligne qui remonte avec sa date réelle. Un instant dans le
+futur est refusé (`400`).
+
+Rejeu et conflits :
+
+| Situation | Réponse |
+|---|---|
+| La même personne recoche, sans `completedAt` | `200`, l'occurrence inchangée. Un double tap n'est pas un conflit avec soi-même |
+| La même personne rejoue avec le même `completedAt` | `200`. C'est ce qui rend la file de mutations hors-ligne idempotente |
+| Quelqu'un d'autre recoche | `409 TASK_ALREADY_COMPLETED`, avec `details.completedBy` et `details.completedAt` pour que l'app puisse afficher « déjà fait par Marie » |
+| Décocher une tâche non faite | `409 TASK_NOT_COMPLETED` |
+| Décocher au-delà de 48 h | `409 UNCOMPLETE_WINDOW_CLOSED` |
+
+`PATCH /occurrences/:id` accepte `assigneeId` à `null`, ce qui rend l'occurrence
+ouverte à tous — à distinguer d'un champ absent, qui ne change rien.
 
 ## Compteurs *(à venir — v0.3)*
 
@@ -300,6 +339,7 @@ de cette zone n'a pas à lui être confirmée.
 |---|---|---|
 | `GET` | `/admin/users` | Comptes de l'instance. `?includeDeleted=true` inclut les comptes anonymisés |
 | `DELETE` | `/admin/users/:userId` | Supprimer le compte d'un membre. Corps : `{ "password": "..." }` (celui de l'administrateur) |
+| `POST` | `/admin/jobs/:name/run` | Déclencher un balayage sans attendre son passage. `202`. Noms : `tasks.materialize`, `tasks.markMissed` |
 
 ```json
 [

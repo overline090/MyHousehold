@@ -225,10 +225,6 @@ model TaskDefinition {
   isActive        Boolean        @default(true)
   startsOn        DateTime?      @db.Date
   endsOn          DateTime?      @db.Date
-  /// Position courante dans le tour de rôle. Avance à la *génération* de
-  /// l'occurrence et non à sa complétion : sinon une tâche oubliée
-  /// bloquerait le tour de tout le monde.
-  rotationCursor  Int            @default(0)
   createdById     String         @db.Uuid
 
   createdAt DateTime  @default(now()) @db.Timestamptz

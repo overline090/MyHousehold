@@ -1,7 +1,7 @@
 # Auto-hébergement
 
-> ⚠️ **Le serveur est en v0.1** : il gère les comptes et les foyers, pas encore les
-> tâches, les compteurs ni les rendez-vous. L'installation décrite ici fonctionne,
+> ⚠️ **Le serveur est en v0.2** : il gère les comptes, les foyers et les tâches
+> récurrentes, pas encore les compteurs ni les rendez-vous. L'installation décrite ici fonctionne,
 > mais l'application n'est pas encore utilisable au quotidien. Voir
 > [`roadmap.md`](roadmap.md).
 
@@ -133,7 +133,7 @@ docker compose logs -f api
 
 | Symptôme | Piste |
 |---|---|
-| Tâches non générées | Redis injoignable, ou job `tasks.materialize` en échec — voir `/health` |
+| Tâches non générées | Redis injoignable, ou job `tasks.materialize` en échec — voir `/health`, puis relancer avec `POST /api/v1/admin/jobs/tasks.materialize/run` |
 | Échéances décalées d'une heure | `timezone` du foyer mal réglé, ou conteneur en UTC avec une conversion manquante |
 | Agenda qui ne se met pas à jour | Délai normal des flux ICS (8 à 24 h), ou `lastError` sur le compte |
 | Déconnexions répétées de l'app | `MH_JWT_SECRET` qui change à chaque redémarrage (valeur non persistée) |

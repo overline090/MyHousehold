@@ -30,13 +30,13 @@ privilégient la simplicité d'exploitation sur la capacité à monter en charge
 | `users` | ✅ | Suppression de compte avec anonymisation (profil et préférences à venir) |
 | `admin` | ✅ | Administration de l'instance : comptes, suppression |
 | `health` | ✅ | `/health` et `/version` |
-| `tasks` | · | Définitions, assignation, occurrences, complétion |
+| `tasks` | ✅ | Définitions, assignation, occurrences, complétion |
+| `scheduler` | ✅ | Jobs BullMQ : matérialisation, passage en « manquée » |
 | `counters` | · | Définitions et événements de remise à zéro |
 | `appointments` | · | Rendez-vous et participants |
 | `calendar` | · | Comptes externes, adaptateurs de synchronisation |
 | `sync` | · | Endpoint de delta pour le client mobile |
 | `notifications` | · | Rappels, échéances, envoi push |
-| `scheduler` | · | Jobs BullMQ (génération, retards, synchro, rappels) |
 | `activity` | · | Fil d'activité du foyer (la table existe et est alimentée) |
 
 Chaque module expose un `Service` (métier, testable sans HTTP) et un `Controller`
@@ -87,7 +87,7 @@ contrainte qui permet de les relancer après une coupure sans rien corrompre.
 
 | Job | Fréquence | Rôle |
 |---|---|---|
-| `tasks.materialize` | 1×/h | Matérialise les occurrences sur 60 jours |
+| `tasks.materialize` | 1×/h (à :07) | Matérialise les occurrences de −14 à +60 jours |
 | `tasks.markMissed` | 15 min | Passe en `MISSED` au-delà du délai de grâce |
 | `calendar.sync` | 15 min / compte | Synchronisation incrémentale des agendas |
 | `notifications.dispatch` | 1 min | Envoie les rappels dus |
@@ -96,6 +96,15 @@ contrainte qui permet de les relancer après une coupure sans rien corrompre.
 Pourquoi des jobs plutôt que du calcul à la volée : les occurrences et les retards
 sont des **faits** que l'on veut dans l'historique, et le mobile hors-ligne a besoin
 d'un état stable à synchroniser, pas d'un résultat qui change à chaque lecture.
+
+Un balayage peut être relancé à la main — `POST /api/v1/admin/jobs/:name/run`,
+réservé aux administrateurs de l'instance — ce qui sert quand Redis a été
+indisponible. Comme les jobs sont idempotents, un déclenchement manuel ne risque
+rien.
+
+Redis indisponible n'empêche pas le serveur de démarrer : l'API répond, seuls les
+balayages automatiques manquent, et `/health` le signale. Un serveur domestique
+redémarre sans prévenir, l'API ne doit pas en dépendre.
 
 ## Fuseaux horaires
 

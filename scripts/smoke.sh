@@ -2,7 +2,8 @@
 #
 # Parcours de bout en bout contre un serveur qui tourne : inscription,
 # rotation des jetons, création de foyer, invitation, rôles, isolation
-# entre foyers, suppression de compte avec transfert de propriété et
+# entre foyers, tâches récurrentes (récurrence, tour de rôle, complétion,
+# jobs), suppression de compte avec transfert de propriété et
 # anonymisation, limitation de débit.
 #
 # Les vérifications d'administration de l'instance ne tournent que si le
@@ -50,6 +51,7 @@ echo "Comptes"
 # vérifications d'administration restent possibles à la fin.
 ADMIN_JSON=$(register admin Admin)
 ADMIN=$(echo "$ADMIN_JSON" | field "['accessToken']")
+ADMIN_ID=$(echo "$ADMIN_JSON" | field "['user']['id']")
 if [[ "$(echo "$ADMIN_JSON" | field "['user']['isServerAdmin']")" == "True" ]]; then
   ADMIN_AVAILABLE=yes
 else
@@ -137,6 +139,156 @@ check "la route d'exclusion n'existe pas" "404" \
   "$(status -X DELETE "$BASE/households/$HID/members/$MEMBER_ID" -H "authorization: Bearer $OWNER")"
 
 echo
+echo "Tâches récurrentes"
+TASK_JSON=$(curl -s -X POST "$BASE/households/$HID/tasks" -H "authorization: Bearer $OWNER" \
+  -H 'content-type: application/json' -d "{
+    \"title\": \"Sortir les poubelles\",
+    \"rrule\": \"FREQ=WEEKLY;BYDAY=MO\",
+    \"dueTime\": \"19:00\",
+    \"assignmentMode\": \"ROTATION\",
+    \"assignees\": [\"$OWNER_ID\", \"$MEMBER_ID\"],
+    \"points\": 2
+  }")
+TASK_ID=$(echo "$TASK_JSON" | field "['id']")
+check "une tâche hebdomadaire en tour de rôle est créée" "ok" \
+  "$([[ -n $TASK_ID ]] && echo ok)"
+check "ses échéances sont matérialisées aussitôt" "yes" \
+  "$(echo "$TASK_JSON" | py "
+import json,sys
+print('yes' if len(json.load(sys.stdin)['upcoming']) > 0 else 'no')")"
+check "toutes ses échéances tombent un lundi" "yes" \
+  "$(echo "$TASK_JSON" | py "
+import json,sys,datetime
+days = {datetime.date.fromisoformat(o['scheduledFor']).weekday() for o in json.load(sys.stdin)['upcoming']}
+print('yes' if days == {0} else days)")"
+check "le tour de rôle alterne entre les deux membres" "yes" \
+  "$(echo "$TASK_JSON" | py "
+import json,sys
+up = json.load(sys.stdin)['upcoming']
+first, second = up[0]['assigneeId'], up[1]['assigneeId']
+print('yes' if first != second and first == '$OWNER_ID' else f'{first} {second}')")"
+
+check "un enfant ne crée pas de tâche" "403" \
+  "$(status -X POST "$BASE/households/$HID/tasks" -H "authorization: Bearer $OUTSIDER" \
+    -H 'content-type: application/json' -d '{"title":"X","rrule":"FREQ=DAILY"}')"
+check "une récurrence plus fréquente qu'une fois par jour est refusée" "400" \
+  "$(status -X POST "$BASE/households/$HID/tasks" -H "authorization: Bearer $OWNER" \
+    -H 'content-type: application/json' -d '{"title":"X","rrule":"FREQ=HOURLY"}')"
+check "une règle illisible est refusée" "400" \
+  "$(status -X POST "$BASE/households/$HID/tasks" -H "authorization: Bearer $OWNER" \
+    -H 'content-type: application/json' -d '{"title":"X","rrule":"tous les lundis"}')"
+check "un tour de rôle à une seule personne est refusé" "400" \
+  "$(status -X POST "$BASE/households/$HID/tasks" -H "authorization: Bearer $OWNER" \
+    -H 'content-type: application/json' -d "{\"title\":\"X\",\"rrule\":\"FREQ=DAILY\",\"assignmentMode\":\"ROTATION\",\"assignees\":[\"$OWNER_ID\"]}")"
+check "un assigné hors du foyer est refusé" "400" \
+  "$(status -X POST "$BASE/households/$HID/tasks" -H "authorization: Bearer $OWNER" \
+    -H 'content-type: application/json' -d "{\"title\":\"X\",\"rrule\":\"FREQ=DAILY\",\"assignmentMode\":\"FIXED\",\"assignees\":[\"$ADMIN_ID\"]}")"
+
+echo
+echo "Faire, défaire, passer son tour"
+TODAY=$(py "import datetime; print(datetime.date.today().isoformat())")
+FROM_PAST=$(py "import datetime; print((datetime.date.today() - datetime.timedelta(days=3)).isoformat())")
+DAILY_JSON=$(curl -s -X POST "$BASE/households/$HID/tasks" -H "authorization: Bearer $OWNER" \
+  -H 'content-type: application/json' -d "{
+    \"title\": \"Vider le lave-vaisselle\",
+    \"rrule\": \"FREQ=DAILY\",
+    \"dueTime\": \"09:00\",
+    \"startsOn\": \"$FROM_PAST\",
+    \"graceHours\": 0
+  }")
+DAILY_ID=$(echo "$DAILY_JSON" | field "['id']")
+check "les jours écoulés sont rattrapés" "yes" \
+  "$(curl -s "$BASE/households/$HID/occurrences?from=$FROM_PAST&to=$TODAY" \
+    -H "authorization: Bearer $OWNER" | py "
+import json,sys
+mine = [o for o in json.load(sys.stdin)['data'] if o['taskDefinitionId'] == '$DAILY_ID']
+print('yes' if len(mine) == 4 else len(mine))")"
+if [[ "$ADMIN_AVAILABLE" == "yes" ]]; then
+  echo
+  echo "Balayages planifiés"
+  check "un non-administrateur ne déclenche pas un job" "404" \
+    "$(status -X POST "$BASE/admin/jobs/tasks.markMissed/run" -H "authorization: Bearer $MEMBER")"
+  check "un nom de job inconnu est refusé" "400" \
+    "$(status -X POST "$BASE/admin/jobs/tasks.inexistant/run" -H "authorization: Bearer $ADMIN")"
+  check "l'administrateur déclenche le passage en « manquée »" "202" \
+    "$(status -X POST "$BASE/admin/jobs/tasks.markMissed/run" -H "authorization: Bearer $ADMIN")"
+  # Le job passe par Redis : on laisse au worker le temps de le traiter.
+  check "la file traite le job et les échéances dépassées deviennent manquées" "yes" \
+    "$(py "
+import json, time, urllib.request
+url = '$BASE/households/$HID/occurrences?from=$FROM_PAST&to=$TODAY'
+for _ in range(20):
+    time.sleep(0.25)
+    req = urllib.request.Request(url, headers={'authorization': 'Bearer $OWNER'})
+    try:
+        data = json.loads(urllib.request.urlopen(req).read())
+    except Exception:
+        continue
+    mine = [o for o in data['data'] if o['taskDefinitionId'] == '$DAILY_ID']
+    if any(o['status'] == 'MISSED' for o in mine):
+        print('yes'); break
+else:
+    print('aucune occurrence marquée manquée')")"
+else
+  echo
+  echo "Balayages planifiés"
+  echo "  — ignoré : déclencher un job demande un compte administrateur."
+fi
+
+
+OCC_ID=$(curl -s "$BASE/households/$HID/occurrences?from=$TODAY&to=$TODAY" -H "authorization: Bearer $OWNER" \
+  | py "import json,sys; print(json.load(sys.stdin)['data'][0]['id'])")
+check "un enfant peut cocher une tâche" "DONE" \
+  "$(curl -s -X POST "$BASE/households/$HID/occurrences/$OCC_ID/complete" \
+    -H "authorization: Bearer $OUTSIDER" -H 'content-type: application/json' -d '{}' | field "['status']")"
+check "le même geste rejoué reste un succès" "200" \
+  "$(status -X POST "$BASE/households/$HID/occurrences/$OCC_ID/complete" \
+    -H "authorization: Bearer $OUTSIDER" -H 'content-type: application/json' -d '{}')"
+check "quelqu'un d'autre reçoit un conflit explicite" "409" \
+  "$(status -X POST "$BASE/households/$HID/occurrences/$OCC_ID/complete" \
+    -H "authorization: Bearer $OWNER" -H 'content-type: application/json' -d '{}')"
+check "le conflit nomme qui l'a faite" "Lou" \
+  "$(cat /tmp/mh-smoke-body | py "import json,sys; print(json.load(sys.stdin)['error']['details']['completedBy'])")"
+check "décocher ramène en attente" "PENDING" \
+  "$(curl -s -X POST "$BASE/households/$HID/occurrences/$OCC_ID/uncomplete" \
+    -H "authorization: Bearer $OUTSIDER" | field "['status']")"
+check "décocher une tâche non faite est refusé" "409" \
+  "$(status -X POST "$BASE/households/$HID/occurrences/$OCC_ID/uncomplete" -H "authorization: Bearer $OUTSIDER")"
+check "une action datée dans le futur est refusée" "400" \
+  "$(status -X POST "$BASE/households/$HID/occurrences/$OCC_ID/complete" \
+    -H "authorization: Bearer $OUTSIDER" -H 'content-type: application/json' \
+    -d "{\"completedAt\":\"$(py "import datetime; print((datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=1)).isoformat())")\"}")"
+check "passer son tour" "SKIPPED" \
+  "$(curl -s -X POST "$BASE/households/$HID/occurrences/$OCC_ID/skip" \
+    -H "authorization: Bearer $OUTSIDER" -H 'content-type: application/json' -d '{"note":"je suis malade"}' | field "['status']")"
+check "un enfant ne réassigne pas" "403" \
+  "$(status -X PATCH "$BASE/households/$HID/occurrences/$OCC_ID" -H "authorization: Bearer $OUTSIDER" \
+    -H 'content-type: application/json' -d "{\"assigneeId\":\"$MEMBER_ID\"}")"
+check "un adulte réassigne" "Paul" \
+  "$(curl -s -X PATCH "$BASE/households/$HID/occurrences/$OCC_ID" -H "authorization: Bearer $OWNER" \
+    -H 'content-type: application/json' -d "{\"assigneeId\":\"$MEMBER_ID\"}" | py "
+import json,sys; print((json.load(sys.stdin)['assignee'] or {}).get('displayName'))")"
+
+echo
+echo "Changer la règle, supprimer la tâche"
+check "changer la règle regénère les échéances à venir" "yes" \
+  "$(curl -s -X PATCH "$BASE/households/$HID/tasks/$TASK_ID" -H "authorization: Bearer $OWNER" \
+    -H 'content-type: application/json' -d '{"rrule":"FREQ=WEEKLY;BYDAY=SA"}' | py "
+import json,sys,datetime
+up = json.load(sys.stdin)['upcoming']
+days = {datetime.date.fromisoformat(o['scheduledFor']).weekday() for o in up}
+print('yes' if up and days == {5} else days)")"
+check "supprimer la tâche conserve l'historique" "yes" \
+  "$(status -X DELETE "$BASE/households/$HID/tasks/$DAILY_ID" -H "authorization: Bearer $OWNER" > /dev/null
+     curl -s "$BASE/households/$HID/occurrences?from=$FROM_PAST&to=$TODAY" \
+       -H "authorization: Bearer $OWNER" | py "
+import json,sys
+# Uniquement la tâche supprimée : le foyer en contient d'autres.
+mine = [o['status'] for o in json.load(sys.stdin)['data'] if o['taskDefinitionId'] == '$DAILY_ID']
+# Ce qui est en attente disparaît, ce qui porte une trace reste.
+print('yes' if 'SKIPPED' in mine and 'PENDING' not in mine else mine)")"
+
+echo
 echo "Suppression de compte"
 THROWAWAY_JSON=$(register throwaway Jetable)
 THROWAWAY=$(echo "$THROWAWAY_JSON" | field "['accessToken']")
@@ -180,6 +332,7 @@ for u in json.load(sys.stdin):
 import json,sys
 for u in json.load(sys.stdin):
     if u['id'] == '$OWNER_ID': print('yes' if u['email'].endswith('@invalide.local') else u['email'])")"
+
   check "l'administrateur supprime le compte d'un autre" "204" \
     "$(status -X DELETE "$BASE/admin/users/$MEMBER_ID" -H "authorization: Bearer $ADMIN" -H 'content-type: application/json' -d '{"password":"un mot de passe assez long"}')"
 else

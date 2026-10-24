@@ -18,25 +18,25 @@ engagement de délai.
 - [x] Isolation des foyers (404 pour un non-membre), rôles, dernier propriétaire protégé
 - [x] Enveloppe d'erreur unique à codes stables
 - [x] Suppression de compte : anonymisation, transfert de propriété, rôle d'administrateur d'instance
-- [x] `scripts/smoke.sh` : parcours de bout en bout, 30 vérifications
+- [x] `scripts/smoke.sh` : parcours de bout en bout, 55 vérifications
 - [ ] Tests d'intégration automatisés (Testcontainers) en remplacement du script
 
 **Jalon atteint :** deux comptes peuvent rejoindre un même foyer, avec des rôles
 distincts et une isolation vérifiée.
 
-## v0.2 — Tâches (prochaine étape)
+## v0.2 — Tâches (faite)
 
-- [ ] CRUD des définitions avec RRULE
-- [ ] Job de matérialisation des occurrences (60 jours glissants)
-- [ ] Assignation : `FIXED`, `ROTATION`, `ANYONE`
-- [ ] Complétion, annulation, passer son tour, report
-- [ ] Job de passage en `MISSED`
-- [ ] Tests de récurrence incluant les changements d'heure
+- [x] CRUD des définitions avec RRULE, et validation des règles aberrantes
+- [x] Job de matérialisation des occurrences (−14 / +60 jours glissants)
+- [x] Assignation : `FIXED`, `ROTATION` déterministe, `ANYONE`
+- [x] Complétion, annulation, passer son tour, réassignation, report
+- [x] Job de passage en `MISSED`, et déclenchement manuel des balayages
+- [x] Tests de récurrence incluant les changements d'heure
 
-**Jalon :** « sortir les poubelles chaque lundi, à tour de rôle » fonctionne de bout
-en bout à l'API.
+**Jalon atteint :** « sortir les poubelles chaque lundi, à tour de rôle » fonctionne
+de bout en bout à l'API.
 
-## v0.3 — Compteurs et rendez-vous
+## v0.3 — Compteurs et rendez-vous (prochaine étape)
 
 - [ ] Compteurs : définitions, événements, état dérivé
 - [ ] Rendez-vous : CRUD, participants, réponses
