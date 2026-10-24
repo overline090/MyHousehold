@@ -17,8 +17,15 @@ export interface HouseholdSummary {
   role: string;
 }
 
+export interface UserSummary {
+  id: string;
+  email: string;
+  displayName: string;
+  isServerAdmin: boolean;
+}
+
 export interface SessionResponse extends TokenPair {
-  user: { id: string; email: string; displayName: string };
+  user: UserSummary;
   households: HouseholdSummary[];
 }
 
@@ -44,14 +51,25 @@ export class AuthService {
     const passwordHash = await this.passwords.hash(dto.password);
 
     try {
-      const user = await this.prisma.user.create({
-        data: {
-          email,
-          displayName: dto.displayName.trim(),
-          passwordHash,
-          timezone: dto.timezone ?? null,
-        },
-        select: { id: true, email: true, displayName: true },
+      const user = await this.prisma.$transaction(async (tx) => {
+        // Le premier compte d'un serveur neuf devient administrateur de
+        // l'instance : quelqu'un doit pouvoir supprimer un compte dont le
+        // titulaire n'est plus joignable. Deux inscriptions exactement
+        // simultanées sur une base vide donneraient deux administrateurs
+        // — fenêtre de quelques millisecondes à l'installation, sans
+        // conséquence pratique, et corrigeable depuis la zone d'admin.
+        const isFirstAccount = (await tx.user.count()) === 0;
+
+        return tx.user.create({
+          data: {
+            email,
+            displayName: dto.displayName.trim(),
+            passwordHash,
+            timezone: dto.timezone ?? null,
+            isServerAdmin: isFirstAccount,
+          },
+          select: { id: true, email: true, displayName: true, isServerAdmin: true },
+        });
       });
 
       return this.buildSession(user, await this.tokens.issue(user.id));
@@ -95,7 +113,12 @@ export class AuthService {
       : null;
 
     return this.buildSession(
-      { id: user.id, email: user.email, displayName: user.displayName },
+      {
+        id: user.id,
+        email: user.email,
+        displayName: user.displayName,
+        isServerAdmin: user.isServerAdmin,
+      },
       await this.tokens.issue(user.id, deviceId),
     );
   }
@@ -111,7 +134,7 @@ export class AuthService {
   async me(userId: string): Promise<Omit<SessionResponse, keyof TokenPair>> {
     const user = await this.prisma.user.findFirstOrThrow({
       where: { id: userId, deletedAt: null },
-      select: { id: true, email: true, displayName: true },
+      select: { id: true, email: true, displayName: true, isServerAdmin: true },
     });
     return {
       user,
@@ -166,7 +189,7 @@ export class AuthService {
   }
 
   private async buildSession(
-    user: { id: string; email: string; displayName: string },
+    user: UserSummary,
     tokens: TokenPair,
   ): Promise<SessionResponse> {
     return { ...tokens, user, households: await this.householdsOf(user.id) };

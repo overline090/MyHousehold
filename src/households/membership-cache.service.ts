@@ -7,12 +7,12 @@ const TTL_MS = 30_000;
 /**
  * Cache des appartenances, partagé entre le garde (qui le remplit) et les
  * services (qui l'invalident après un changement de rôle ou une
- * exclusion).
+ * suppression de compte).
  *
  * Il est délibérément dans un fournisseur distinct : Nest peut créer sa
  * propre instance d'un garde déclaré par @UseGuards, et un cache porté
  * par le garde lui-même n'est alors pas celui que le service invalide.
- * Un départ restait visible pendant 30 secondes.
+ * Une suppression de compte restait sans effet pendant 30 secondes.
  *
  * Cache en mémoire du processus : à remplacer par Redis le jour où le
  * serveur tournera en plusieurs instances. Pour un foyer auto-hébergé,

@@ -27,8 +27,9 @@ privilégient la simplicité d'exploitation sur la capacité à monter en charge
 |---|---|---|
 | `auth` | ✅ | Inscription, connexion, rotation des refresh tokens, gardes |
 | `households` | ✅ | Foyers, membres, rôles, invitations |
+| `users` | ✅ | Suppression de compte avec anonymisation (profil et préférences à venir) |
+| `admin` | ✅ | Administration de l'instance : comptes, suppression |
 | `health` | ✅ | `/health` et `/version` |
-| `users` | · | Profil, préférences, appareils |
 | `tasks` | · | Définitions, assignation, occurrences, complétion |
 | `counters` | · | Définitions et événements de remise à zéro |
 | `appointments` | · | Rendez-vous et participants |
@@ -60,6 +61,24 @@ donnée du foyer B.
    vérifiée par un test pour chaque endpoint : c'est non négociable à la revue. En
    v0.1 cette vérification est faite par `scripts/smoke.sh` faute de tests
    d'intégration automatisés — c'est une dette, pas une cible.
+
+## Sortie d'un foyer
+
+Il n'y a **pas d'exclusion** : personne ne peut sortir quelqu'un d'autre d'un foyer,
+et il n'y a pas non plus de départ volontaire. La seule sortie est la suppression du
+compte, par son titulaire ou par un administrateur de l'instance.
+
+Deux conséquences de conception :
+
+1. **Une suppression ne peut pas être refusée.** Si le compte est le dernier
+   propriétaire d'un foyer, la propriété est transmise (adulte le plus ancien, sinon
+   enfant le plus ancien) ; sans successeur, le foyer est supprimé. Refuser la
+   suppression « parce que vous êtes le dernier propriétaire » reviendrait à retenir
+   quelqu'un dans le produit.
+2. **Le compte est anonymisé, pas effacé.** La ligne reste, vidée de toute donnée
+   personnelle, pour que l'historique du foyer garde un auteur. Comme les textes du
+   fil d'activité ne recopient pas le nom, anonymiser le compte anonymise tout son
+   historique d'un coup.
 
 ## Jobs planifiés
 

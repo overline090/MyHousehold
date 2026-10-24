@@ -17,7 +17,8 @@ engagement de délai.
 - [x] Foyers, membres, rôles, invitations
 - [x] Isolation des foyers (404 pour un non-membre), rôles, dernier propriétaire protégé
 - [x] Enveloppe d'erreur unique à codes stables
-- [x] `scripts/smoke.sh` : parcours de bout en bout, 20 vérifications
+- [x] Suppression de compte : anonymisation, transfert de propriété, rôle d'administrateur d'instance
+- [x] `scripts/smoke.sh` : parcours de bout en bout, 30 vérifications
 - [ ] Tests d'intégration automatisés (Testcontainers) en remplacement du script
 
 **Jalon atteint :** deux comptes peuvent rejoindre un même foyer, avec des rôles
@@ -92,6 +93,7 @@ l'app en moins d'une heure, en suivant la seule documentation.
 | Client web | Le modèle de données et l'API le permettent ; demande des mainteneurs supplémentaires |
 | Budget / dépenses partagées | Hors périmètre : des outils dédiés le font déjà bien |
 | Client iOS | Aucune compétence disponible dans le projet aujourd'hui |
+| Quitter un foyer sans supprimer son compte | Volontairement absent. À reconsidérer seulement si l'usage multi-foyer devient courant (voir les questions ouvertes de `data-model.md`) |
 
 ## Non-objectifs
 
@@ -102,5 +104,7 @@ Ces points sont refusés par principe, pas par manque de temps :
 - **Pas de télémétrie**, même anonyme, même optionnelle.
 - **Pas de classement entre membres.** Un outil qui désigne un mauvais élève crée des
   conflits domestiques au lieu d'en résoudre.
+- **Pas d'exclusion.** Personne ne peut sortir quelqu'un d'autre d'un foyer. Un
+  logiciel n'a pas à arbitrer qui vit sous un toit.
 - **Pas de compte obligatoire chez un tiers.** La synchro d'agenda est optionnelle et
   l'app doit être pleinement utilisable sans elle.

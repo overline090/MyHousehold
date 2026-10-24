@@ -152,8 +152,10 @@ export class InvitesService {
       }
 
       if (existing) {
-        // Membre précédemment exclu ou parti : on réactive la ligne
-        // plutôt que d'en créer une seconde.
+        // Filet de sécurité : une ligne d'appartenance supprimée ne peut
+        // venir que de la suppression du foyer, puisqu'on ne quitte pas
+        // un foyer et que personne ne peut en sortir quelqu'un. On la
+        // réactive plutôt que d'échouer sur la clé primaire.
         await tx.householdMember.update({
           where: {
             householdId_userId: { householdId: invite.householdId, userId },

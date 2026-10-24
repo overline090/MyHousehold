@@ -97,6 +97,11 @@ Rien n'est encore figé puisque le code n'existe pas, mais les règles posées d
 - **Pas de secret dans les logs.**
 - **Les migrations ne se réécrivent pas.** Une migration livrée est immuable ;
   on en ajoute une nouvelle.
+- **Pas d'exclusion, nulle part.** Personne ne peut sortir quelqu'un d'autre d'un
+  foyer. Une proposition de fonctionnalité qui revient à exclure un membre sera
+  refusée, même sous un autre nom. La seule sortie est la suppression du compte.
+- **Une suppression de compte ne se refuse pas.** Jamais de blocage pour une raison
+  d'organisation : s'il manque un propriétaire, on transmet le rôle.
 - **Pas de limiteur de débit nommé déclaré globalement.** `ThrottlerGuard` applique
   tous les limiteurs configurés à toutes les routes : un limiteur « pour
   l'authentification » déclaré dans `ThrottlerModule` plafonnait l'API entière à 5
@@ -114,6 +119,12 @@ npm run start:dev
 
 Après toute modification du schéma Prisma : `npx prisma migrate dev --name <sujet>`,
 jamais une modification manuelle d'une migration déjà livrée.
+
+Prisma 7 a besoin d'une base jetable pour comparer l'historique des migrations au
+schéma. Ajoutez `SHADOW_DATABASE_URL` à votre `.env` (une seconde base sur le même
+serveur suffit) : sans elle, `migrate dev` échoue avec un message sur
+`datasource.shadowDatabaseUrl`. Elle est inutile en production, où seul
+`migrate deploy` tourne.
 
 Avant d'ouvrir une pull request :
 

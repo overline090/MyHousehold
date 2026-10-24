@@ -42,9 +42,10 @@ est local au serveur auto-hébergé.
 | Champ | Type | Notes |
 |---|---|---|
 | `id` | uuid | |
-| `email` | citext unique | Sert d'identifiant de connexion |
+| `email` | text unique | Identifiant de connexion, normalisé en minuscules côté serveur |
 | `displayName` | text | Nom affiché dans le foyer |
 | `passwordHash` | text | Argon2id |
+| `isServerAdmin` | bool | Administrateur de l'**instance**, distinct du rôle dans un foyer |
 | `avatarColor` | text | Couleur générée, évite d'avoir à héberger des images en v1 |
 | `locale` | text | `fr-FR` par défaut |
 | `timezone` | text | IANA, hérité du foyer si absent |
@@ -85,8 +86,12 @@ Permissions par rôle :
 | Lire le contenu du foyer | ✅ | ✅ | ✅ | ✅ |
 | Compléter une tâche / un compteur assigné | ✅ | ✅ | ✅ | ❌ |
 | Créer / modifier tâches, compteurs, rdv | ✅ | ✅ | ❌ | ❌ |
-| Inviter, exclure, changer les rôles | ✅ | ❌ | ❌ | ❌ |
+| Inviter, changer les rôles | ✅ | ❌ | ❌ | ❌ |
 | Supprimer le foyer | ✅ | ❌ | ❌ | ❌ |
+
+**Personne ne peut sortir quelqu'un d'autre d'un foyer.** Il n'y a pas d'exclusion
+dans ce modèle : un propriétaire change des rôles et invite, il n'exclut pas. La
+seule sortie est la suppression du compte, décrite ci-dessous.
 
 Un foyer garde **toujours au moins un `OWNER`** : le dernier propriétaire ne peut ni
 partir ni se rétrograder sans transmettre le rôle, sinon plus personne ne peut
@@ -112,6 +117,63 @@ d'utilisateur (un serveur familial n'a pas à être un annuaire).
 | `maxUses` / `useCount` | int | |
 | `expiresAt` | timestamptz | 7 jours par défaut |
 | `createdBy` | uuid | |
+
+---
+
+## Suppression de compte
+
+C'est la seule façon de sortir d'un foyer. Il n'y a ni départ volontaire ni
+exclusion : un foyer n'est pas un groupe qu'on quitte, c'est un lieu où l'on vit.
+
+Qui peut supprimer un compte :
+
+- **son titulaire**, toujours ;
+- **un administrateur de l'instance** (`User.isServerAdmin`), pour un compte dont le
+  titulaire n'est plus joignable. Ce rôle est au niveau du serveur et n'a rien à voir
+  avec `OWNER` dans un foyer : le propriétaire d'un foyer n'administre pas l'instance.
+
+Le premier compte créé sur un serveur neuf devient administrateur : sans cela, une
+instance où plus personne ne répond n'est plus administrable.
+
+Dans les deux cas, le **mot de passe de l'appelant** est exigé : une suppression est
+irréversible, une session volée ne doit pas suffire.
+
+### Anonymisation plutôt qu'effacement
+
+La ligne `user` est conservée, vidée de toute donnée personnelle :
+
+| Champ | Devient |
+|---|---|
+| `email` | `supprime+<id>@invalide.local` — unique, inutilisable pour se connecter |
+| `displayName` | `Ancien membre` |
+| `passwordHash` | 32 octets aléatoires : pas une empreinte Argon2 valide, donc aucune vérification ne peut réussir |
+| `timezone`, `isServerAdmin` | `null` / `false` |
+| `deletedAt` | maintenant |
+
+Sont **supprimées pour de bon**, car elles ne portent aucun historique utile au foyer
+mais des secrets qui n'ont plus de raison d'exister : `refresh_token`, `device`,
+`calendar_account`, `notification_preference`, `reminder`. Les invitations émises par
+ce compte sont révoquées.
+
+Pourquoi ne pas tout effacer : les tâches faites et les compteurs remis à zéro
+resteraient sans auteur, et les totaux du foyer changeraient rétroactivement. Garder
+le nom, à l'inverse, conserverait une donnée personnelle de quelqu'un qui a demandé
+son effacement. L'anonymisation garde l'historique cohérent — « Ancien membre a sorti
+les poubelles » — sans garder l'identité.
+
+### Une suppression ne peut pas être refusée
+
+Elle n'échoue jamais pour une raison d'organisation : c'est un droit, pas une faveur.
+Si le compte est le dernier propriétaire d'un foyer, la propriété est transmise au
+**membre le plus ancien parmi les adultes**, à défaut au plus ancien des enfants. Les
+invités sont écartés : un invité n'a pas vocation à administrer un foyer.
+
+Sans aucun candidat — le compte était seul dans le foyer — le **foyer est supprimé**
+avec lui.
+
+Même logique au niveau de l'instance : si le dernier administrateur supprime son
+compte, le compte actif le plus ancien le devient. Une instance sans administrateur
+ne serait plus administrable.
 
 ---
 
@@ -357,13 +419,15 @@ dépendre uniquement de FCM.
 ### ActivityLog
 
 Fil d'activité du foyer (« Marie a sorti les poubelles »). Dénormalisé exprès : il
-doit rester lisible même après suppression de l'objet concerné.
+doit rester lisible même après suppression de l'objet concerné. Le nom de l'auteur
+n'est **pas** recopié dans `summary` : il est résolu depuis `user`, ce qui fait que
+l'anonymisation d'un compte anonymise automatiquement tout son historique.
 
 | Champ | Type | Notes |
 |---|---|---|
 | `id` | uuid | |
 | `householdId` / `actorId` | uuid | |
-| `verb` | enum | `TASK_COMPLETED`, `COUNTER_RESET`, `MEMBER_JOINED`… |
+| `verb` | enum | `TASK_COMPLETED`, `COUNTER_RESET`, `MEMBER_JOINED`, `MEMBER_ACCOUNT_DELETED`, `OWNERSHIP_TRANSFERRED`… |
 | `subjectType` / `subjectId` | — | |
 | `summary` | text | Texte figé au moment de l'événement |
 | `createdAt` | timestamptz | |
@@ -410,3 +474,7 @@ Deux tables ne portent pas de données de foyer :
 3. **Multi-foyer et vie privée** — si un utilisateur est dans deux foyers, un agenda
    synchronisé doit-il alimenter les deux ? Décision actuelle : oui par défaut, car
    les disponibilités de la personne sont les mêmes partout.
+4. **Multi-foyer et sortie** — comme la seule sortie est la suppression du compte,
+   quelqu'un qui appartient à une famille *et* à une colocation ne peut pas quitter
+   la colocation sans perdre son compte entier. Acceptable tant que le cas d'usage
+   dominant est un foyer unique ; à revoir si le multi-foyer devient courant.

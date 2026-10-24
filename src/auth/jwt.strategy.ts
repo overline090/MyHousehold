@@ -11,6 +11,8 @@ export interface AuthenticatedUser {
   id: string;
   email: string;
   displayName: string;
+  /// Administrateur de l'instance, distinct du rôle dans un foyer.
+  isServerAdmin: boolean;
 }
 
 @Injectable()
@@ -34,7 +36,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   async validate(payload: AccessTokenPayload): Promise<AuthenticatedUser> {
     const user = await this.prisma.user.findFirst({
       where: { id: payload.sub, deletedAt: null },
-      select: { id: true, email: true, displayName: true },
+      select: { id: true, email: true, displayName: true, isServerAdmin: true },
     });
 
     if (!user) {

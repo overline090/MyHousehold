@@ -167,32 +167,6 @@ export class HouseholdsService {
     return this.members(householdId);
   }
 
-  async removeMember(
-    householdId: string,
-    targetUserId: string,
-    actorId: string,
-  ): Promise<void> {
-    const target = await this.requireMember(householdId, targetUserId);
-
-    if (target.role === HouseholdRole.OWNER) {
-      await this.assertNotLastOwner(householdId, targetUserId);
-    }
-
-    await this.prisma.householdMember.update({
-      where: { householdId_userId: { householdId, userId: targetUserId } },
-      data: { deletedAt: this.clock.now() },
-    });
-
-    this.memberships.invalidate(targetUserId, householdId);
-
-    await this.logActivity(
-      householdId,
-      actorId,
-      ActivityVerb.MEMBER_LEFT,
-      targetUserId === actorId ? 'a quitté le foyer' : 'a exclu un membre',
-    );
-  }
-
   private async requireMember(householdId: string, userId: string) {
     const member = await this.prisma.householdMember.findFirst({
       where: { householdId, userId, deletedAt: null },

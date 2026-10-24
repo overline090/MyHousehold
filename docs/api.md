@@ -6,8 +6,9 @@ Ce document est le contrat entre le serveur et l'app Android. Toute modification
 cassante passe par une nouvelle version de préfixe (`/api/v2`), jamais par une
 mutation silencieuse de `v1`.
 
-**État d'implémentation** (v0.1) : les sections *Authentification* et *Foyers* sont
-implémentées et couvertes par `scripts/smoke.sh`. Tout le reste — tâches, compteurs,
+**État d'implémentation** (v0.1) : les sections *Authentification*, *Foyers*,
+*Compte* et *Administration de l'instance* sont implémentées et couvertes par
+`scripts/smoke.sh`. Tout le reste — tâches, compteurs,
 rendez-vous, agendas, synchronisation, notifications, activité — est **spécifié mais
 pas encore écrit** ; c'est le périmètre des v0.2 et v0.3 de
 [`roadmap.md`](roadmap.md). Les sections concernées sont marquées *(à venir)*.
@@ -57,10 +58,20 @@ hors de vos foyers*, `409` conflit d'état, `429` débit dépassé.
   "accessToken": "eyJ...",
   "refreshToken": "4f3c...",
   "expiresIn": 900,
-  "user": { "id": "...", "displayName": "Marie", "email": "..." },
-  "households": [{ "id": "...", "name": "Maison", "role": "OWNER" }]
+  "user": {
+    "id": "...",
+    "displayName": "Marie",
+    "email": "...",
+    "isServerAdmin": false
+  },
+  "households": [
+    { "id": "...", "name": "Maison", "timezone": "Europe/Paris", "role": "OWNER" }
+  ]
 }
 ```
+
+`isServerAdmin` distingue l'administrateur de l'**instance** du rôle dans un foyer.
+Le premier compte créé sur un serveur neuf l'obtient.
 
 Access token : 15 min, porté par `Authorization: Bearer`. Refresh : 60 jours, rotatif
 — sa réutilisation après rotation révoque toute la chaîne (détection de vol).
@@ -83,12 +94,19 @@ Limites de débit, par IP et par route :
 | `PATCH` | `/households/:id` | `OWNER` |
 | `DELETE` | `/households/:id` | `OWNER` |
 | `GET` | `/households/:id/members` | membre |
-| `PATCH` | `/households/:id/members/:userId` | `OWNER` (changer de rôle) |
-| `DELETE` | `/households/:id/members/:userId` | `OWNER`, ou soi-même |
+| `PATCH` | `/households/:id/members/:userId` | `OWNER` (changer de rôle, le surnom) |
 | `POST` | `/households/:id/invites` | `OWNER` |
 | `GET` | `/households/:id/invites` | `OWNER` |
 | `DELETE` | `/invites/:id` | `OWNER` |
 | `POST` | `/invites/:code/accept` | authentifié |
+
+**Il n'existe aucune route pour sortir quelqu'un d'un foyer**, pas même soi-même :
+ni exclusion, ni départ volontaire. La seule sortie est `DELETE /users/me`, décrite
+plus bas. Un `PATCH` sur un membre change son rôle ou son surnom, rien d'autre.
+
+Un `OWNER` ne peut pas se rétrograder s'il est le dernier (`409 LAST_OWNER`) : il
+doit d'abord transmettre le rôle. En revanche, supprimer son compte reste toujours
+possible — la propriété est alors transmise automatiquement.
 
 Toutes les routes ci-dessous sont préfixées par `/households/:householdId`.
 
@@ -253,6 +271,53 @@ Détails du protocole, résolution des conflits et format des lots :
 `/stats/contributions` est volontairement factuel (qui a fait quoi, combien de
 points) et ne produit **aucun classement**. Un outil de foyer qui désigne un mauvais
 élève crée des conflits au lieu d'en résoudre.
+
+## Compte
+
+| Méthode | Route | Description |
+|---|---|---|
+| `DELETE` | `/users/me` | Supprimer son compte. Corps : `{ "password": "..." }` |
+
+Irréversible. Le mot de passe est exigé parce qu'une session volée ne doit pas
+suffire à déclencher une suppression. Réponse `204`, et le jeton d'accès est
+immédiatement invalide.
+
+Ce que la suppression fait, en une phrase : le compte est **anonymisé** (`Ancien
+membre`, adresse rendue inutilisable), ses secrets (jetons, appareils, agendas) sont
+effacés, et l'historique du foyer reste intact sous ce nom anonyme. Si le compte
+était le dernier propriétaire d'un foyer, la propriété passe au membre le plus ancien
+(adulte d'abord, sinon enfant) ; sans successeur, le foyer est supprimé. Détail
+complet dans [`data-model.md`](data-model.md#suppression-de-compte).
+
+Erreurs : `401 INVALID_CREDENTIALS` si le mot de passe est faux.
+
+## Administration de l'instance
+
+Réservé aux comptes `isServerAdmin`. Un non-administrateur reçoit `404` — l'existence
+de cette zone n'a pas à lui être confirmée.
+
+| Méthode | Route | Description |
+|---|---|---|
+| `GET` | `/admin/users` | Comptes de l'instance. `?includeDeleted=true` inclut les comptes anonymisés |
+| `DELETE` | `/admin/users/:userId` | Supprimer le compte d'un membre. Corps : `{ "password": "..." }` (celui de l'administrateur) |
+
+```json
+[
+  {
+    "id": "...",
+    "email": "marie@example.com",
+    "displayName": "Marie",
+    "isServerAdmin": true,
+    "householdCount": 1,
+    "createdAt": "2026-10-24T18:00:00Z",
+    "deletedAt": null
+  }
+]
+```
+
+Ce n'est pas une exclusion déguisée : le compte disparaît de l'instance entière, il
+n'est pas retiré d'un foyer. Si le dernier administrateur supprime son compte, le
+compte actif le plus ancien devient administrateur.
 
 ## Santé
 

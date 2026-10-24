@@ -86,25 +86,36 @@ enum ActivityVerb {
   COUNTER_RESET
   APPOINTMENT_CREATED
   MEMBER_JOINED
-  MEMBER_LEFT
+  MEMBER_ACCOUNT_DELETED
   MEMBER_ROLE_CHANGED
+  OWNERSHIP_TRANSFERRED
 }
 
 // ──────────────────────── Identité et foyer ─────────────────────────────
 
 model User {
-  id           String  @id @default(uuid(7)) @db.Uuid
+  id String @id @default(uuid(7)) @db.Uuid
+  /// Normalisé en minuscules côté serveur avant écriture.
+  /// Après suppression du compte : remplacé par une valeur inutilisable.
   email        String  @unique
   displayName  String
   passwordHash String
+  /// Administrateur de l'instance, distinct du rôle dans un foyer. Le
+  /// premier compte créé sur un serveur neuf l'obtient automatiquement :
+  /// quelqu'un doit pouvoir supprimer un compte dont le titulaire n'est
+  /// plus joignable.
+  isServerAdmin Boolean @default(false)
   avatarColor  String  @default("#6750A4")
   locale       String  @default("fr-FR")
   /// Fuseau personnel. Null = celui du foyer, qui reste la référence
   /// pour calculer les échéances.
   timezone     String?
 
-  createdAt DateTime  @default(now()) @db.Timestamptz
-  updatedAt DateTime  @updatedAt @db.Timestamptz
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+  /// Compte supprimé : la ligne est conservée anonymisée pour que
+  /// l'historique du foyer reste cohérent (« Ancien membre a sorti les
+  /// poubelles »). Email, nom et empreinte sont écrasés à la suppression.
   deletedAt DateTime? @db.Timestamptz
 
   memberships          HouseholdMember[]
@@ -157,8 +168,11 @@ model HouseholdMember {
   /// et « Marc » dans sa colocation.
   nickname    String?
 
-  joinedAt  DateTime  @default(now()) @db.Timestamptz
-  updatedAt DateTime  @updatedAt @db.Timestamptz
+  joinedAt  DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+  /// Renseigné uniquement quand le compte du membre est supprimé, ou que
+  /// le foyer l'est. Personne ne peut sortir quelqu'un d'autre d'un
+  /// foyer : il n'y a pas d'exclusion dans ce modèle.
   deletedAt DateTime? @db.Timestamptz
 
   household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)

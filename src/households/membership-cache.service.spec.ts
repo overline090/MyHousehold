@@ -31,9 +31,9 @@ describe('MembershipCacheService', () => {
     expect(cache.get(USER, HOUSEHOLD)).toBeUndefined();
   });
 
-  it('invalide immédiatement après une exclusion ou un départ', () => {
-    // C'est le cœur du problème que ce cache partagé résout : un membre
-    // exclu gardait l'accès pendant 30 secondes.
+  it('invalide immédiatement après une suppression de compte', () => {
+    // C'est le cœur du problème que ce cache partagé résout : un compte
+    // supprimé gardait l'accès au foyer pendant 30 secondes.
     cache.set(USER, HOUSEHOLD, HouseholdRole.OWNER);
     cache.invalidate(USER, HOUSEHOLD);
     expect(cache.get(USER, HOUSEHOLD)).toBeUndefined();

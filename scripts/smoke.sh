@@ -2,7 +2,12 @@
 #
 # Parcours de bout en bout contre un serveur qui tourne : inscription,
 # rotation des jetons, création de foyer, invitation, rôles, isolation
-# entre foyers, protection du dernier propriétaire, limitation de débit.
+# entre foyers, suppression de compte avec transfert de propriété et
+# anonymisation, limitation de débit.
+#
+# Les vérifications d'administration de l'instance ne tournent que si le
+# serveur visé est vierge : le rôle d'administrateur va au premier compte
+# créé, que ce script ne peut obtenir que sur une base vide.
 #
 #   ./scripts/smoke.sh [URL_DE_BASE]
 #
@@ -40,6 +45,17 @@ register() {
 echo "Serveur : $BASE"
 echo
 echo "Comptes"
+# Le premier compte créé sur un serveur vierge devient administrateur de
+# l'instance. On le crée d'abord et on ne le supprime jamais, pour que les
+# vérifications d'administration restent possibles à la fin.
+ADMIN_JSON=$(register admin Admin)
+ADMIN=$(echo "$ADMIN_JSON" | field "['accessToken']")
+if [[ "$(echo "$ADMIN_JSON" | field "['user']['isServerAdmin']")" == "True" ]]; then
+  ADMIN_AVAILABLE=yes
+else
+  ADMIN_AVAILABLE=no
+fi
+
 OWNER_JSON=$(register owner Marie)
 OWNER=$(echo "$OWNER_JSON" | field "['accessToken']")
 OWNER_ID=$(echo "$OWNER_JSON" | field "['user']['id']")
@@ -47,8 +63,13 @@ OWNER_REFRESH=$(echo "$OWNER_JSON" | field "['refreshToken']")
 MEMBER_JSON=$(register member Paul)
 MEMBER=$(echo "$MEMBER_JSON" | field "['accessToken']")
 MEMBER_ID=$(echo "$MEMBER_JSON" | field "['user']['id']")
-OUTSIDER=$(register outsider Lou | field "['accessToken']")
-check "trois comptes créés" "ok" "$([[ -n $OWNER && -n $MEMBER && -n $OUTSIDER ]] && echo ok)"
+OUTSIDER_JSON=$(register outsider Lou)
+OUTSIDER=$(echo "$OUTSIDER_JSON" | field "['accessToken']")
+OUTSIDER_ID=$(echo "$OUTSIDER_JSON" | field "['user']['id']")
+check "quatre comptes créés" "ok" \
+  "$([[ -n $ADMIN && -n $OWNER && -n $MEMBER && -n $OUTSIDER ]] && echo ok)"
+check "un compte ordinaire n'est pas administrateur" "False" \
+  "$(echo "$OWNER_JSON" | field "['user']['isServerAdmin']")"
 
 echo
 echo "Rotation du jeton de rafraîchissement"
@@ -81,9 +102,12 @@ for route in "" "/members" "/invites"; do
 done
 
 echo
-echo "Invitation"
-CODE=$(curl -s -X POST "$BASE/households/$HID/invites" -H "authorization: Bearer $OWNER" \
-  -H 'content-type: application/json' -d '{"role":"CHILD","maxUses":1}' | field "['code']")
+echo "Invitations"
+invite() {
+  curl -s -X POST "$BASE/households/$HID/invites" -H "authorization: Bearer $OWNER" \
+    -H 'content-type: application/json' -d "{\"role\":\"$1\",\"maxUses\":1}" | field "['code']"
+}
+CODE=$(invite ADULT)
 LOOSE=$(py "print('${CODE}'.lower()[:4] + '-' + '${CODE}'.lower()[4:])")
 check "le code est accepté en minuscules et avec un tiret" "201" \
   "$(status -X POST "$BASE/invites/$LOOSE/accept" -H "authorization: Bearer $MEMBER")"
@@ -92,33 +116,76 @@ check "un code à usage unique ne sert pas deux fois" "400" \
 check "un code inexistant est refusé" "400" \
   "$(status -X POST "$BASE/invites/AAAA2222/accept" -H "authorization: Bearer $OUTSIDER")"
 
+CHILD_CODE=$(invite CHILD)
+curl -s -X POST "$BASE/invites/$CHILD_CODE/accept" -H "authorization: Bearer $OUTSIDER" > /dev/null
+
 echo
 echo "Rôles"
-check "un enfant lit le foyer" "200" "$(status "$BASE/households/$HID" -H "authorization: Bearer $MEMBER")"
+check "un enfant lit le foyer" "200" "$(status "$BASE/households/$HID" -H "authorization: Bearer $OUTSIDER")"
 check "un enfant ne modifie pas le foyer" "403" \
-  "$(status -X PATCH "$BASE/households/$HID" -H "authorization: Bearer $MEMBER" -H 'content-type: application/json' -d '{"name":"Chez moi"}')"
+  "$(status -X PATCH "$BASE/households/$HID" -H "authorization: Bearer $OUTSIDER" -H 'content-type: application/json' -d '{"name":"Chez moi"}')"
 check "un enfant ne crée pas d'invitation" "403" \
-  "$(status -X POST "$BASE/households/$HID/invites" -H "authorization: Bearer $MEMBER" -H 'content-type: application/json' -d '{}')"
+  "$(status -X POST "$BASE/households/$HID/invites" -H "authorization: Bearer $OUTSIDER" -H 'content-type: application/json' -d '{}')"
 check "le propriétaire modifie le foyer" "200" \
   "$(status -X PATCH "$BASE/households/$HID" -H "authorization: Bearer $OWNER" -H 'content-type: application/json' -d '{"name":"Foyer renommé"}')"
-
-echo
-echo "Dernier propriétaire"
-check "il ne peut pas se rétrograder" "409" \
+check "le dernier propriétaire ne peut pas se rétrograder" "409" \
   "$(status -X PATCH "$BASE/households/$HID/members/$OWNER_ID" -H "authorization: Bearer $OWNER" -H 'content-type: application/json' -d '{"role":"ADULT"}')"
-check "il ne peut pas quitter le foyer" "409" \
-  "$(status -X DELETE "$BASE/households/$HID/members/$OWNER_ID" -H "authorization: Bearer $OWNER")"
 
 echo
-echo "Départ et invalidation du cache d'appartenance"
-curl -s -X PATCH "$BASE/households/$HID/members/$MEMBER_ID" -H "authorization: Bearer $OWNER" \
-  -H 'content-type: application/json' -d '{"role":"OWNER"}' > /dev/null
-check "le rôle transmis, l'ancien propriétaire peut partir" "204" \
-  "$(status -X DELETE "$BASE/households/$HID/members/$OWNER_ID" -H "authorization: Bearer $OWNER")"
-check "son accès tombe immédiatement" "404" \
+echo "Pas d'exclusion possible"
+check "la route d'exclusion n'existe pas" "404" \
+  "$(status -X DELETE "$BASE/households/$HID/members/$MEMBER_ID" -H "authorization: Bearer $OWNER")"
+
+echo
+echo "Suppression de compte"
+THROWAWAY_JSON=$(register throwaway Jetable)
+THROWAWAY=$(echo "$THROWAWAY_JSON" | field "['accessToken']")
+check "un mauvais mot de passe ne suffit pas" "401" \
+  "$(status -X DELETE "$BASE/users/me" -H "authorization: Bearer $THROWAWAY" -H 'content-type: application/json' -d '{"password":"pas le bon"}')"
+check "son titulaire supprime son compte" "204" \
+  "$(status -X DELETE "$BASE/users/me" -H "authorization: Bearer $THROWAWAY" -H 'content-type: application/json' -d '{"password":"un mot de passe assez long"}')"
+check "son jeton ne vaut plus rien" "401" \
+  "$(status "$BASE/auth/me" -H "authorization: Bearer $THROWAWAY")"
+
+echo
+echo "Transfert de propriété et invalidation du cache"
+check "le propriétaire supprime son compte" "204" \
+  "$(status -X DELETE "$BASE/users/me" -H "authorization: Bearer $OWNER" -H 'content-type: application/json' -d '{"password":"un mot de passe assez long"}')"
+check "son accès au foyer tombe immédiatement" "401" \
   "$(status "$BASE/households/$HID" -H "authorization: Bearer $OWNER")"
-check "le nouveau propriétaire garde l'accès" "200" \
-  "$(status "$BASE/households/$HID" -H "authorization: Bearer $MEMBER")"
+check "l'adulte restant devient propriétaire" "OWNER" \
+  "$(curl -s "$BASE/households/$HID" -H "authorization: Bearer $MEMBER" > /dev/null; curl -s "$BASE/households/$HID/members" -H "authorization: Bearer $MEMBER" | py "
+import json,sys
+for m in json.load(sys.stdin):
+    if m['userId'] == '$MEMBER_ID': print(m['role'])")"
+check "l'ancien propriétaire n'apparaît plus dans le foyer" "0" \
+  "$(curl -s "$BASE/households/$HID/members" -H "authorization: Bearer $MEMBER" | py "
+import json,sys
+print(sum(1 for m in json.load(sys.stdin) if m['userId'] == '$OWNER_ID'))")"
+
+echo
+echo "Administration de l'instance"
+if [[ "$ADMIN_AVAILABLE" == "yes" ]]; then
+  check "un non-administrateur ne voit pas la zone d'admin" "404" \
+    "$(status "$BASE/admin/users" -H "authorization: Bearer $MEMBER")"
+  check "l'administrateur liste les comptes" "200" \
+    "$(status "$BASE/admin/users" -H "authorization: Bearer $ADMIN")"
+  check "l'historique d'un compte supprimé est anonymisé" "Ancien membre" \
+    "$(curl -s "$BASE/admin/users?includeDeleted=true" -H "authorization: Bearer $ADMIN" | py "
+import json,sys
+for u in json.load(sys.stdin):
+    if u['id'] == '$OWNER_ID': print(u['displayName'])")"
+  check "son adresse e-mail est rendue inutilisable" "yes" \
+    "$(curl -s "$BASE/admin/users?includeDeleted=true" -H "authorization: Bearer $ADMIN" | py "
+import json,sys
+for u in json.load(sys.stdin):
+    if u['id'] == '$OWNER_ID': print('yes' if u['email'].endswith('@invalide.local') else u['email'])")"
+  check "l'administrateur supprime le compte d'un autre" "204" \
+    "$(status -X DELETE "$BASE/admin/users/$MEMBER_ID" -H "authorization: Bearer $ADMIN" -H 'content-type: application/json' -d '{"password":"un mot de passe assez long"}')"
+else
+  echo "  — ignoré : le serveur visé n'est pas vierge, aucun compte de ce"
+  echo "    script n'est administrateur de l'instance."
+fi
 
 echo
 echo "Limitation de débit sur la connexion"

@@ -15,18 +15,12 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { HouseholdRole } from '@prisma/client';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
-import { AppException } from '../common/errors/app.exception';
-import { ErrorCode } from '../common/errors/error-codes';
-import { Membership } from './decorators/membership.decorator';
 import { RequireRole } from './decorators/require-role.decorator';
 import { CreateHouseholdDto } from './dto/create-household.dto';
 import { CreateInviteDto } from './dto/create-invite.dto';
 import { UpdateHouseholdDto } from './dto/update-household.dto';
 import { UpdateMemberDto } from './dto/update-member.dto';
-import {
-  HouseholdMemberGuard,
-  HouseholdMembershipContext,
-} from './guards/household-member.guard';
+import { HouseholdMemberGuard } from './guards/household-member.guard';
 import { HouseholdsService } from './households.service';
 import { InvitesService } from './invites.service';
 
@@ -89,29 +83,6 @@ export class HouseholdsController {
     @Body() dto: UpdateMemberDto,
   ) {
     return this.households.updateMember(householdId, userId, actor.id, dto);
-  }
-
-  @Delete(':householdId/members/:userId')
-  @UseGuards(HouseholdMemberGuard)
-  @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Exclure un membre, ou quitter le foyer soi-même' })
-  async removeMember(
-    @Param('householdId', ParseUUIDPipe) householdId: string,
-    @Param('userId', ParseUUIDPipe) userId: string,
-    @CurrentUser() actor: AuthenticatedUser,
-    @Membership() membership: HouseholdMembershipContext,
-  ): Promise<void> {
-    // Exclure quelqu'un d'autre demande d'être propriétaire ; partir
-    // soi-même, non. D'où la vérification ici plutôt qu'un @RequireRole
-    // sur toute la route.
-    const isSelf = userId === actor.id;
-    if (!isSelf && membership.role !== HouseholdRole.OWNER) {
-      throw AppException.forbidden(
-        ErrorCode.FORBIDDEN_ROLE,
-        'Seul un propriétaire peut exclure un autre membre.',
-      );
-    }
-    await this.households.removeMember(householdId, userId, actor.id);
   }
 
   @Post(':householdId/invites')

@@ -11,7 +11,9 @@ import { PrismaModule } from './common/prisma/prisma.module';
 import { RedisModule } from './common/redis/redis.module';
 import { validateConfig } from './config/configuration';
 import { HealthModule } from './health/health.module';
+import { AdminModule } from './admin/admin.module';
 import { HouseholdsModule } from './households/households.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -57,6 +59,8 @@ import { HouseholdsModule } from './households/households.module';
     ClockModule,
     AuthModule,
     HouseholdsModule,
+    UsersModule,
+    AdminModule,
     HealthModule,
   ],
   providers: [

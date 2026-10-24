@@ -7,7 +7,7 @@ Ce dépôt contient le **serveur auto-hébergé**. L'application mobile Android 
 [MyHousehold-android](https://github.com/overline090/MyHousehold-android).
 
 > ⚠️ **v0.1 — fondations.** Le serveur gère les **comptes et les foyers** (rôles,
-> invitations, isolation). Les tâches, compteurs, rendez-vous et agendas sont
+> invitations, isolation, suppression de compte). Les tâches, compteurs, rendez-vous et agendas sont
 > entièrement **spécifiés** mais pas encore écrits : voir
 > [`docs/roadmap.md`](docs/roadmap.md). Les contributions sur la spécification sont
 > aussi bienvenues que celles sur le code.
@@ -38,6 +38,9 @@ La différence entre une tâche et un compteur est importante et volontaire :
   et ne quittent jamais votre serveur.
 - **Hors-ligne d'abord côté mobile.** L'app reste utilisable sans réseau et se
   réconcilie ensuite.
+- **Pas d'exclusion entre membres.** On ne peut pas sortir quelqu'un d'un foyer : un
+  foyer n'est pas un groupe qu'on quitte, c'est un lieu où l'on vit. La seule sortie
+  est la suppression de son compte, qui anonymise l'historique sans le détruire.
 - **Non lucratif.** Voir [Licence](#licence).
 
 ## Stack technique

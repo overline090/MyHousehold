@@ -59,6 +59,12 @@ chiffrement.
 Après la création des comptes des membres, passer `MH_ALLOW_REGISTRATION=false` :
 sans cela, un serveur exposé sur Internet accepte les inscriptions de n'importe qui.
 
+**Le premier compte créé devient administrateur de l'instance** (`isServerAdmin`),
+ce qui lui donne accès à `/api/v1/admin/users` : lister les comptes et en supprimer.
+C'est le seul moyen de supprimer le compte de quelqu'un qui n'est plus joignable —
+il n'y a pas d'exclusion dans MyHousehold. Créez donc votre compte en premier, avant
+d'inviter le reste du foyer.
+
 ## Exposition sur Internet
 
 Nécessaire seulement pour l'accès hors du domicile et pour le callback OAuth Google.
@@ -133,3 +139,5 @@ docker compose logs -f api
 | Déconnexions répétées de l'app | `MH_JWT_SECRET` qui change à chaque redémarrage (valeur non persistée) |
 | Refus de démarrer avec « Configuration invalide » | Un secret manquant ou trop court dans `.env` ; le message nomme la variable |
 | `429` à l'inscription du cinquième membre | Limite de 20 inscriptions par heure et par IP ; attendre, ou créer les comptes depuis le serveur |
+| `404` sur `/api/v1/admin/users` | Votre compte n'est pas administrateur de l'instance. Le premier compte créé l'est ; la zone répond 404 et non 403 pour ne pas révéler son existence |
+| Un foyer a disparu | Son dernier membre a supprimé son compte : un foyer sans successeur possible est supprimé avec lui |
