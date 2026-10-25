@@ -12,7 +12,7 @@ L'assistant est servi par le serveur lui-même. Tant que l'installation n'est pa
 terminée, **toutes les routes web redirigent vers `/setup`** ; une fois terminée,
 `/setup` répond `404`.
 
-**Quatre étapes, et rien d'autre.** Elles sont celles décidées pour le projet ; en
+**Cinq étapes, et rien d'autre.** Elles sont celles décidées pour le projet ; en
 ajouter relève d'une décision, pas d'une initiative d'implémentation.
 
 ```
@@ -20,10 +20,12 @@ ajouter relève d'une décision, pas d'une initiative d'implémentation.
 2. Reprendre depuis l'app importer une configuration existante, ou continuer à vide
 3. Le foyer               son nom
 4. Premier compte         créé depuis le téléphone, devient administrateur
+5. Terminé                adresse du serveur, et de quoi faire venir les autres
 ```
 
-Puis un écran de fin, qui ne configure rien : il donne l'adresse du serveur et de
-quoi faire venir les autres.
+La cinquième ne configure rien : c'est l'arrivée. Elle reste une étape à part entière
+dans la barre de progression, qui affiche les cinq du début à la fin — savoir où l'on
+en est et combien il en reste fait partie de ce qui rend une installation supportable.
 
 D'autres étapes pourront être décidées plus tard. L'assistant est donc construit
 comme une **liste d'étapes déclarées**, chacune sachant dire si elle est applicable,
@@ -186,10 +188,10 @@ le navigateur : un blocage dur serait pire que le risque qu'il évite, par exemp
 quelqu'un sans téléphone Android sous la main. L'assistant dit alors clairement ce que
 cela implique.
 
-## Écran de fin
+## Étape 5 — Terminé
 
-Ce n'est pas une étape : il ne configure rien. Il affiche l'adresse du serveur,
-rappelle de la noter, et donne un code d'invitation pour les autres membres du foyer.
+Elle ne configure rien. Elle affiche l'adresse du serveur, rappelle de la noter, et
+donne un code d'invitation pour les autres membres du foyer.
 
 Il **ferme aussi les inscriptions libres** — à partir de là, on rejoint le foyer sur
 invitation. C'est ce que `MH_ALLOW_REGISTRATION=false` fait aujourd'hui à la main dans
