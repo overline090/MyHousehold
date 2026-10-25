@@ -97,7 +97,7 @@ Déroulé sur le Pi, premier démarrage :
 L'application est utilisable **sans serveur** (voir
 [standalone.md](https://github.com/overline090/MyHousehold-android/blob/main/docs/standalone.md)).
 Beaucoup de gens l'auront donc utilisée seuls avant d'installer un serveur : leur
-foyer, leurs tâches et leurs compteurs existent déjà sur le téléphone. Les leur faire
+foyer, leurs tâches récurrentes et leurs tâches de fond existent déjà sur le téléphone. Les leur faire
 ressaisir serait absurde.
 
 ```
@@ -106,10 +106,10 @@ Déjà une configuration dans l'app ?   [ Oui, l'importer ]  [ Non, continuer ]
 
 Si oui : la page affiche un code d'appariement et un QR code. Dans l'app,
 *Réglages → Connecter un serveur*, on scanne, et l'app **pousse** sa configuration
-locale : nom du foyer, fuseau, tâches, compteurs, rendez-vous, historique.
+locale : nom du foyer, fuseau, tâches, tâches de fond, rendez-vous, historique.
 
 L'assistant affiche ensuite un **récapitulatif de ce qui a été repris et de ce qui
-manque** — un foyer utilisé seul n'a ni membres, ni rôles, ni invitations.
+manque** — un foyer utilisé seul n'a ni membres, ni statuts, ni invitations.
 
 Ce récapitulatif n'est pas qu'une liste à lire : **chaque point s'y configure
 directement**. Deux façons d'avancer, et les deux doivent exister :
@@ -140,7 +140,7 @@ Ce cas arrive **plus tard** dans la feuille de route, et il est plus délicat qu
 l'import d'installation : le foyer existe déjà, avec ses tâches et ses membres, donc
 il faut décider quoi faire de deux tâches « poubelles » ou de deux historiques
 parallèles. Des limitations seront posées à ce moment-là plutôt que maintenant —
-probablement : reprendre les tâches et compteurs qui n'existent pas déjà, et laisser
+probablement : reprendre les tâches qui n'existent pas déjà, et laisser
 l'historique local sur le téléphone.
 
 ## Étape 3 — Le foyer
@@ -229,8 +229,8 @@ une fois l'installation terminée.
 2. **Reprise d'une app déjà connectée à un autre serveur** : refus, ou migration ?
    Proposition : refus explicite en v1, la migration entre serveurs est un sujet à
    part entière.
-3. **Plusieurs foyers sur une instance** : l'assistant n'en crée qu'un. Créer les
-   suivants se fait depuis l'app, comme aujourd'hui.
+3. ~~**Plusieurs foyers sur une instance**~~ : question close. Une machine sert un
+   seul foyer, l'assistant n'a donc qu'un foyer à créer.
 4. **Le fuseau horaire détecté suffit-il ?** Il n'est pas demandé, seulement affiché.
    S'il faut le confirmer, cela devient une étape — donc une décision à prendre, pas
    une initiative à prendre ici.

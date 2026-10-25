@@ -1,17 +1,23 @@
 # MyHousehold — Serveur
 
-Assistant de gestion du quotidien pour un foyer : tâches récurrentes, compteurs de
-temps, rendez-vous et synchronisation des agendas personnels.
+Assistant de gestion du quotidien pour un foyer : tâches récurrentes, tâches de fond,
+rendez-vous et synchronisation des agendas personnels.
 
 Ce dépôt contient le **serveur auto-hébergé**. L'application mobile Android vit dans
 [MyHousehold-android](https://github.com/overline090/MyHousehold-android).
 
-> ⚠️ **v0.3.** Les quatre besoins ci-dessus sont couverts **côté serveur** : comptes
-> et foyers (rôles, invitations, isolation), tâches récurrentes, compteurs de temps,
-> rendez-vous et agenda fusionné. Restent à écrire l'**application Android**,
-> l'**interface web** avec son assistant d'installation, et la **synchronisation des
-> agendas externes** : voir [`docs/roadmap.md`](docs/roadmap.md). Les contributions
-> sur la spécification sont aussi bienvenues que celles sur le code.
+> ⚠️ **v0.3.** Les quatre besoins ci-dessus sont couverts **côté serveur** : comptes,
+> membres et invitations, tâches récurrentes, compteurs de temps, rendez-vous et
+> agenda fusionné. Restent à écrire l'**application Android**, l'**interface web**
+> avec son assistant d'installation, et la **synchronisation des agendas externes** :
+> voir [`docs/roadmap.md`](docs/roadmap.md).
+>
+> Le modèle a été **révisé** depuis : un seul foyer par serveur, une seule notion de
+> tâche (récurrente, de fond ou ponctuelle), des statuts à droits configurables depuis
+> l'interface web, plus de points. C'est décidé dans
+> [`docs/data-model.md`](docs/data-model.md) et [`docs/api.md`](docs/api.md), et pas
+> encore dans le code : la reprise est le premier chantier de la feuille de route. Les
+> contributions sur la spécification sont aussi bienvenues que celles sur le code.
 
 ## L'idée
 
@@ -21,15 +27,17 @@ et un calendrier. MyHousehold répond à quatre besoins concrets :
 | Besoin | Réponse |
 |---|---|
 | « Qui sort les poubelles ce soir ? » | **Tâches récurrentes** avec temporalité et rotation entre membres |
-| « Ça fait combien de temps qu'on n'a pas changé les draps ? » | **Compteurs de temps** remis à zéro en refaisant l'action |
+| « Ça fait combien de temps qu'on n'a pas changé les draps ? » | **Tâches de fond**, à refaire dans un délai plutôt qu'à une date |
 | « On a rendez-vous chez le dentiste quand ? » | **Rendez-vous** partagés au niveau du foyer |
 | « Est-ce que je suis libre mardi ? » | **Synchronisation** de l'agenda personnel de chacun (Google, CalDAV, ICS) |
 
-La différence entre une tâche et un compteur est importante et volontaire :
+Tout est une **tâche** : ce qui change, c'est la façon dont elle est due.
 
-- une **tâche** est pilotée par le calendrier — « chaque lundi à 19h » ;
-- un **compteur** est piloté par le temps écoulé — « il s'est passé 23 jours depuis
-  la dernière fois », sans date imposée.
+- une tâche **récurrente** est pilotée par le calendrier — « chaque lundi à 19 h » ;
+- une tâche **de fond** est pilotée par le temps écoulé — « à refaire dans les
+  14 jours », sans date imposée. L'app montre le temps depuis la dernière fois ;
+- une tâche **ponctuelle** se fait une seule fois, avec ou sans date limite —
+  « changer le fusible avant le 15 novembre ».
 
 ## Principes
 

@@ -1,7 +1,8 @@
 # Auto-hébergement
 
-> ⚠️ **Le serveur est en v0.2** : il gère les comptes, les foyers et les tâches
-> récurrentes, pas encore les compteurs ni les rendez-vous. L'installation décrite ici fonctionne,
+> ⚠️ **Le serveur est en v0.3** : il gère les comptes, le foyer, les tâches
+> récurrentes, les compteurs et les rendez-vous — sur le modèle précédent, dont la
+> reprise est en cours ([`roadmap.md`](roadmap.md)). L'installation décrite ici fonctionne,
 > mais l'application n'est pas encore utilisable au quotidien. Voir
 > [`roadmap.md`](roadmap.md).
 

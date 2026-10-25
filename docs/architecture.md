@@ -18,26 +18,30 @@
                                           └────────────────────────────────┘
 ```
 
-Une instance = un ou plusieurs foyers, hébergée par un particulier. Dimensionnement
-cible : **10 utilisateurs, 50 tâches, 5 agendas**. Toutes les décisions ci-dessous
-privilégient la simplicité d'exploitation sur la capacité à monter en charge.
+Une machine = **un seul foyer**, hébergée par un particulier. Il n'y a ni
+multi-foyer, ni notion d'instance partagée : qui administre le serveur administre le
+foyer. Dimensionnement cible : **10 utilisateurs, 50 tâches, 5 agendas**. Toutes les
+décisions ci-dessous privilégient la simplicité d'exploitation sur la capacité à
+monter en charge.
 
 ## Modules NestJS
 
-« ✅ » = implémenté en v0.1, « · » = spécifié, pas encore écrit.
+« ✅ » = implémenté, « · » = spécifié, pas encore écrit, « ⟳ » = à reprendre pour le
+modèle décidé dans [`data-model.md`](data-model.md). L'ancien module `counters` est
+absorbé par `tasks` : une tâche de fond est une tâche, pas un autre objet.
 
 | Module | État | Responsabilité |
 |---|---|---|
 | `auth` | ✅ | Inscription, connexion, rotation des refresh tokens, gardes |
-| `households` | ✅ | Foyers, membres, rôles, invitations |
-| `users` | ✅ | Suppression de compte avec anonymisation (profil et préférences à venir) |
-| `admin` | ✅ | Administration de l'instance : comptes, suppression |
+| `household` | ✅ | Le foyer, ses membres, ses invitations (⟳ foyer unique) |
+| `statuses` | · | Statuts et droits, modifiables depuis l'interface web seulement |
+| `users` | ✅ | Profil, photo, suppression de compte avec anonymisation |
+| `admin` | ✅ | Administration du serveur : comptes, santé, balayages, mises à jour |
 | `health` | ✅ | `/health` et `/version` |
-| `tasks` | ✅ | Définitions, assignation, occurrences, complétion |
+| `tasks` | ✅ | Définitions, groupes, priorités, assignation, occurrences, complétion (⟳ types unifiés) |
 | `scheduler` | ✅ | Jobs BullMQ : matérialisation, passage en « manquée » |
-| `counters` | ✅ | Définitions et événements de remise à zéro |
 | `appointments` | ✅ | Rendez-vous, participants, récurrences déroulées |
-| `agenda` | ✅ | Vue fusionnée rendez-vous + tâches + compteurs |
+| `agenda` | ✅ | Vue fusionnée rendez-vous + tâches |
 | `calendar` | · | Comptes externes, adaptateurs de synchronisation |
 | `sync` | · | Endpoint de delta pour le client mobile |
 | `notifications` | · | Rappels, échéances, envoi push |
@@ -49,38 +53,44 @@ privilégient la simplicité d'exploitation sur la capacité à monter en charge
 Chaque module expose un `Service` (métier, testable sans HTTP) et un `Controller`
 (validation et transport). La règle : **aucune logique métier dans un contrôleur**.
 
-## Isolation des foyers
+## Un serveur, un foyer
 
-Tout l'enjeu de sécurité est là : un membre du foyer A ne doit jamais atteindre une
-donnée du foyer B.
+Il n'y a pas de frontière d'isolation à défendre : toutes les données appartiennent au
+même foyer, et tout compte authentifié en est membre. Cela retire la part la plus
+risquée de l'ancienne conception — un `householdId` oublié dans une clause `WHERE` —
+et la remplace par une question plus simple : **ce compte a-t-il le droit de faire
+cela ?**
 
-1. Le JWT porte `sub` (userId), **pas** la liste des foyers — elle changerait sans
-   que le token expire.
-2. Un `HouseholdMemberGuard` résout l'appartenance à chaque requête et rejette en
-   `404` — pas `403`, pour ne pas confirmer l'existence d'un foyer qu'on n'a pas le
-   droit de voir. `403` est réservé au cas « membre, mais rôle insuffisant ».
-3. Le cache des appartenances (30 s) vit dans un fournisseur distinct,
-   `MembershipCacheService`, et **pas** dans le garde : Nest peut créer sa propre
-   instance d'un garde déclaré par `@UseGuards`, et un cache porté par le garde
-   n'est alors pas celui que le service invalide. Symptôme observé avant correction :
-   un membre exclu gardait l'accès pendant 30 secondes.
-4. Toute requête porte `householdId` dans sa clause `WHERE`. L'isolation doit être
-   vérifiée par un test pour chaque endpoint : c'est non négociable à la revue. En
-   v0.1 cette vérification est faite par `scripts/smoke.sh` faute de tests
-   d'intégration automatisés — c'est une dette, pas une cible.
+1. Le JWT porte `sub` (userId), **pas** les droits : un statut modifié doit prendre
+   effet sans attendre l'expiration du jeton.
+2. Un `RightsGuard` résout le statut de l'appelant à chaque requête et compare ses
+   droits à ceux exigés par la route (`@RequiresRight('MANAGE_TASKS')`). Un droit
+   manquant est un `403` : il n'y a plus d'existence à cacher, donc plus de raison de
+   répondre `404`.
+3. Le cache des statuts (30 s) vit dans un fournisseur distinct, et **pas** dans le
+   garde : Nest peut créer sa propre instance d'un garde déclaré par `@UseGuards`, et
+   un cache porté par le garde n'est alors pas celui que le service invalide. Symptôme
+   observé avant correction sur l'ancien cache d'appartenance : un changement restait
+   sans effet pendant 30 secondes.
+4. Les routes exigent un **droit**, jamais un nom de statut. Un foyer qui renomme
+   « Adulte » en « Grand » ne doit pas changer de comportement, et un foyer qui crée
+   un statut « Colocataire » ne doit pas avoir à patcher le serveur.
+5. **Au moins un compte garde `MANAGE_STATUSES` et `MANAGE_SERVER`.** Sans cela, plus
+   personne ne peut administrer le foyer. La règle est vérifiée au changement de
+   statut comme à la suppression d'un compte, et a son test dédié.
 
 ## Sortie d'un foyer
 
-Il n'y a **pas d'exclusion** : personne ne peut sortir quelqu'un d'autre d'un foyer,
-et il n'y a pas non plus de départ volontaire. La seule sortie est la suppression du
-compte, par son titulaire ou par un administrateur de l'instance.
+Il n'y a **pas d'exclusion** : personne ne peut sortir quelqu'un d'autre du foyer, et
+il n'y a pas non plus de départ volontaire. La seule sortie est la suppression du
+compte, par son titulaire ou par un compte portant `MANAGE_SERVER`.
 
 Deux conséquences de conception :
 
-1. **Une suppression ne peut pas être refusée.** Si le compte est le dernier
-   propriétaire d'un foyer, la propriété est transmise (adulte le plus ancien, sinon
-   enfant le plus ancien) ; sans successeur, le foyer est supprimé. Refuser la
-   suppression « parce que vous êtes le dernier propriétaire » reviendrait à retenir
+1. **Une suppression ne peut pas être refusée.** Si le compte est le dernier à porter
+   `MANAGE_SERVER` ou `MANAGE_STATUSES`, ces droits passent au compte actif le plus
+   ancien ; s'il ne reste personne, le foyer est supprimé avec lui. Refuser la
+   suppression « parce que vous êtes le dernier administrateur » reviendrait à retenir
    quelqu'un dans le produit.
 2. **Le compte est anonymisé, pas effacé.** La ligne reste, vidée de toute donnée
    personnelle, pour que l'historique du foyer garde un auteur. Comme les textes du
@@ -133,7 +143,8 @@ Concrètement, `tasks.materialize` déroule la RRULE dans le fuseau du foyer
 | **PostgreSQL** | `timestamptz`, `interval`, contraintes d'exclusion, index partiels : le domaine est temporel, autant utiliser une base qui sait manipuler le temps. | SQLite — séduisant pour l'auto-hébergement, mais pas de type `interval` ni de vrai fuseau, et la concurrence des jobs devient un problème. |
 | **Prisma** | Migrations versionnées et types générés depuis le schéma : moins de divergence entre le code et la base. | TypeORM — historiquement instable sur les migrations. |
 | **Occurrences matérialisées** | Assignables, commentables, historisables ; et un client hors-ligne peut les porter. | Dérouler la RRULE à la lecture — impossible d'assigner ou de commenter une occurrence qui n'existe pas. |
-| **Compteurs en journal d'événements** | Historique, annulation, pas d'écrasement entre deux clients. | Un champ `lastResetAt` — perd l'historique et se corrompt dès deux saisies hors-ligne concurrentes. |
+| **Tâches de fond en journal d'occurrences** | Historique, annulation, pas d'écrasement entre deux clients — et le même objet que les autres tâches, donc la même synchro et le même écran. | Un champ `lastDoneAt` — perd l'historique et se corrompt dès deux saisies hors-ligne concurrentes. Une table `counters` séparée — deux listes là où le foyer n'en vit qu'une. |
+| **Priorités en entier signé (+3…−3)** | Tri évident en SQL, et un niveau s'ajoute sans migration de données. | Une énumération de libellés — renommer « Très basse » imposerait une migration. |
 | **JWT + refresh rotatif** | Pas d'état de session côté serveur, révocation possible appareil par appareil. | Sessions en base — lectures supplémentaires sur chaque requête d'un serveur modeste. |
 | **Docker Compose** | Trois conteneurs, une commande, sauvegarde triviale. | Kubernetes — hors sujet pour un Raspberry Pi. |
 
@@ -157,8 +168,8 @@ Concrètement, `tasks.materialize` déroule la RRULE dans le fuseau du foyer
 
 | Niveau | Portée | Outil |
 |---|---|---|
-| Unitaire | Récurrence, calcul d'état des compteurs, rotation, fuseaux | Jest |
-| Intégration | Un test d'isolation de foyer **par endpoint** | Jest + Testcontainers *(à écrire)* |
+| Unitaire | Récurrence, état dérivé des tâches de fond, rotation, fuseaux | Jest |
+| Intégration | Un test de **droit requis par endpoint**, et la règle du dernier administrateur | Jest + Testcontainers *(à écrire)* |
 | Bout en bout | 20 vérifications : rôles, isolation, invitations, débit | `scripts/smoke.sh` |
 | Contrat | Les réponses respectent le schéma OpenAPI publié | Jest + validateur |
 

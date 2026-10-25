@@ -12,9 +12,14 @@ deuxième application : c'est le même foyer, vu depuis un navigateur.
 | Domaine | Contenu | Pourquoi au navigateur plutôt qu'à l'app |
 |---|---|---|
 | **Installation** ✅ | L'assistant pas à pas ([setup-wizard.md](setup-wizard.md)) | Il faut bien une interface avant d'avoir un compte et un téléphone appairé |
-| **Administration** | Comptes, santé du serveur, balayages, sauvegardes, mises à jour, journaux | Se fait assis, rarement, et demande de lire des choses longues |
-| **Le foyer au quotidien** | Aujourd'hui, tâches, compteurs, agenda | Un écran dans la cuisine, un ordinateur portable sur la table, un membre sans téléphone Android |
+| **Administration** | Comptes, **statuts et droits**, santé du serveur, balayages, sauvegardes, mises à jour, journaux | Se fait assis, rarement, et demande de lire des choses longues |
+| **Le foyer au quotidien** | Accueil, tâches, tâches de fond, agenda | Un écran dans la cuisine, un ordinateur portable sur la table, un membre sans téléphone Android |
 | **Saisie confortable** | Créer une tâche récurrente compliquée, relire l'historique | Un vrai clavier et un grand écran valent mieux qu'un pouce sur un formulaire de récurrence |
+
+La **configuration des statuts et de leurs droits**, comme la configuration générale
+du foyer, ne se fait **que** là : un réglage qui engage la sécurité du foyer se fait
+assis, sur un vrai écran, pas au pouce entre deux portes. L'app Android affiche les
+statuts, elle ne les modifie pas.
 
 Ce qu'elle ne fait **pas** : notifications push, mode hors-ligne, scan de QR code.
 Ce sont des choses de téléphone, et prétendre les faire au navigateur donnerait une

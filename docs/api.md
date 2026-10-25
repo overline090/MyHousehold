@@ -2,25 +2,28 @@
 
 Base : `/api/v1` · `Content-Type: application/json` · UTF-8
 
-Ce document est le contrat entre le serveur et l'app Android. Toute modification
-cassante passe par une nouvelle version de préfixe (`/api/v2`), jamais par une
-mutation silencieuse de `v1`.
+Ce document est le contrat entre le serveur, l'app Android et l'interface web. Toute
+modification cassante passe par une nouvelle version de préfixe (`/api/v2`), jamais
+par une mutation silencieuse de `v1`.
 
-**État d'implémentation** (v0.3) : tout est implémenté et couvert par
-`scripts/smoke.sh`, sauf les **agendas externes**, la **synchronisation mobile** et
-les **notifications**, qui restent spécifiés mais pas écrits — périmètre des versions
-suivantes de [`roadmap.md`](roadmap.md). Les sections concernées sont marquées
-*(à venir)*.
+> ⚠️ **Révision en cours.** Ce document décrit le contrat **décidé**, aligné sur
+> [`data-model.md`](data-model.md) : un seul foyer par serveur, une seule notion de
+> tâche, des statuts à droits, pas de points. Le code servi en v0.3 expose encore le
+> contrat précédent (`/households/:householdId/...`, `/counters`, `points`). Les
+> différences sont listées à la fin, sous *Ce qui change par rapport à la v0.3*.
 
 ## Conventions
 
 - **Dates** : ISO 8601 en UTC avec `Z` (`2026-10-24T17:30:00Z`). Les champs de type
-  jour pur (`scheduledFor`) sont des `YYYY-MM-DD` en heure locale du foyer.
+  jour pur (`scheduledFor`, `dueDate`) sont des `YYYY-MM-DD` en heure locale du foyer.
 - **Identifiants** : UUID. Le client **génère** les UUID des objets qu'il crée, ce
   qui rend les `POST` idempotents (voir [`sync.md`](sync.md)).
 - **Pagination** : par curseur. `?limit=50&cursor=<opaque>`, réponse
   `{ "data": [...], "nextCursor": "..." | null }`. Pas d'offset : les listes bougent
   entre deux pages.
+- **Droits** : chaque route exige un droit du statut de l'appelant
+  (`COMPLETE_TASKS`, `MANAGE_TASKS`, …), jamais un nom de statut. Un foyer qui
+  renomme « Adulte » en « Grand » ne doit pas changer de comportement.
 - **Erreurs** : enveloppe unique.
 
 ```json
@@ -37,8 +40,8 @@ suivantes de [`roadmap.md`](roadmap.md). Les sections concernées sont marquées
 peut changer. L'app n'affiche jamais `code` et ne teste jamais `message`.
 
 Codes HTTP : `200` lecture, `201` création, `204` suppression, `400` validation,
-`401` non authentifié, `403` authentifié mais rôle insuffisant, `404` inexistant *ou
-hors de vos foyers*, `409` conflit d'état, `429` débit dépassé.
+`401` non authentifié, `403` droit manquant, `404` inexistant, `409` conflit d'état,
+`429` débit dépassé.
 
 ## Authentification
 
@@ -48,7 +51,7 @@ hors de vos foyers*, `409` conflit d'état, `429` débit dépassé.
 | `POST` | `/auth/login` | `{ email, password, deviceId, deviceName }` |
 | `POST` | `/auth/refresh` | Échange et **rotation** du refresh token |
 | `POST` | `/auth/logout` | Révoque le refresh token de cet appareil |
-| `GET` | `/auth/me` | Profil + liste des foyers et rôles |
+| `GET` | `/auth/me` | Profil, statut et droits effectifs |
 
 `POST /auth/login` →
 
@@ -59,21 +62,26 @@ hors de vos foyers*, `409` conflit d'état, `429` débit dépassé.
   "expiresIn": 900,
   "user": {
     "id": "...",
-    "displayName": "Marie",
-    "email": "...",
-    "isServerAdmin": false
+    "firstName": "Marie",
+    "lastName": "Dupont",
+    "birthDate": "1986-03-12",
+    "avatarUrl": "/api/v1/users/.../avatar",
+    "status": { "id": "...", "name": "Administrateur" },
+    "rights": ["VIEW", "COMPLETE_TASKS", "MANAGE_TASKS", "MANAGE_APPOINTMENTS",
+               "MANAGE_MEMBERS", "MANAGE_STATUSES", "MANAGE_SERVER"]
   },
-  "households": [
-    { "id": "...", "name": "Maison", "timezone": "Europe/Paris", "role": "OWNER" }
-  ]
+  "household": { "id": "...", "name": "Maison des Dupont", "timezone": "Europe/Paris" }
 }
 ```
 
-`isServerAdmin` distingue l'administrateur de l'**instance** du rôle dans un foyer.
-Le premier compte créé sur un serveur neuf l'obtient.
+Il n'y a **pas de liste de foyers** : un serveur sert un seul foyer, le client n'a
+donc rien à choisir et aucune route ne porte d'identifiant de foyer.
 
 Access token : 15 min, porté par `Authorization: Bearer`. Refresh : 60 jours, rotatif
 — sa réutilisation après rotation révoque toute la chaîne (détection de vol).
+
+L'interface web utilise les mêmes routes, mais pose le refresh token dans un cookie
+`httpOnly` : un jeton dans `localStorage` est lisible par n'importe quel script.
 
 Limites de débit, par IP et par route :
 
@@ -84,80 +92,166 @@ Limites de débit, par IP et par route :
 | `POST /auth/refresh` | 30 / 15 min | Appelé automatiquement par chaque appareil |
 | tout le reste | 300 / min | Garde-fou général |
 
-## Foyers
+## Mon compte
 
-| Méthode | Route | Rôle requis |
+| Méthode | Route | Droit | Description |
+|---|---|---|---|
+| `GET` | `/users/me` | — | Profil complet |
+| `PATCH` | `/users/me` | — | `firstName`, `lastName`, `birthDate`, `locale`, `timezone` |
+| `PUT` | `/users/me/avatar` | — | Photo de profil, `multipart/form-data` |
+| `DELETE` | `/users/me/avatar` | — | Retire la photo |
+| `POST` | `/users/me/password` | — | `{ currentPassword, newPassword }` |
+| `DELETE` | `/users/me` | — | Suppression de compte, voir plus bas |
+| `GET` | `/users/:id/avatar` | `VIEW` | Image, mise en cache par `ETag` |
+
+Chacun modifie son nom, son prénom, sa date de naissance et sa photo. **Personne ne
+modifie son propre statut** : il n'existe aucune route pour cela, pas même pour un
+administrateur sur lui-même. Changer un statut passe par `PATCH /members/:id`.
+
+`PUT /users/me/avatar` accepte JPEG, PNG et WebP jusqu'à 8 Mo, redimensionne à
+256 px et ne garde que le résultat : un foyer de six personnes ne doit pas coûter
+25 Mo de carte SD en photos d'origine.
+
+## Le foyer
+
+| Méthode | Route | Droit |
 |---|---|---|
-| `POST` | `/households` | — (devient `OWNER`) |
-| `GET` | `/households/:id` | membre |
-| `PATCH` | `/households/:id` | `OWNER` |
-| `DELETE` | `/households/:id` | `OWNER` |
-| `GET` | `/households/:id/members` | membre |
-| `PATCH` | `/households/:id/members/:userId` | `OWNER` (changer de rôle, le surnom) |
-| `POST` | `/households/:id/invites` | `OWNER` |
-| `GET` | `/households/:id/invites` | `OWNER` |
-| `DELETE` | `/invites/:id` | `OWNER` |
+| `GET` | `/household` | `VIEW` |
+| `PATCH` | `/household` | `MANAGE_SERVER` (nom, fuseau, premier jour de semaine) |
+| `GET` | `/members` | `VIEW` |
+| `PATCH` | `/members/:id` | `MANAGE_MEMBERS` (statut) |
+| `POST` | `/invites` | `MANAGE_MEMBERS` |
+| `GET` | `/invites` | `MANAGE_MEMBERS` |
+| `DELETE` | `/invites/:id` | `MANAGE_MEMBERS` |
 | `POST` | `/invites/:code/accept` | authentifié |
 
-**Il n'existe aucune route pour sortir quelqu'un d'un foyer**, pas même soi-même :
-ni exclusion, ni départ volontaire. La seule sortie est `DELETE /users/me`, décrite
-plus bas. Un `PATCH` sur un membre change son rôle ou son surnom, rien d'autre.
+**Il n'existe aucune route pour sortir quelqu'un du foyer**, pas même soi-même : ni
+exclusion, ni départ volontaire. La seule sortie est `DELETE /users/me`. Un `PATCH`
+sur un membre change son statut, rien d'autre.
 
-Un `OWNER` ne peut pas se rétrograder s'il est le dernier (`409 LAST_OWNER`) : il
-doit d'abord transmettre le rôle. En revanche, supprimer son compte reste toujours
-possible — la propriété est alors transmise automatiquement.
+`PATCH /members/:id` est refusé en `409 LAST_ADMIN` s'il retirerait le dernier compte
+portant `MANAGE_STATUSES` ou `MANAGE_SERVER` : un foyer sans administrateur est
+définitivement bloqué. En revanche supprimer son compte reste toujours possible — les
+droits sont alors transmis.
 
-Toutes les routes ci-dessous sont préfixées par `/households/:householdId`.
+## Statuts et droits
+
+| Méthode | Route | Droit |
+|---|---|---|
+| `GET` | `/statuses` | `VIEW` |
+| `POST` | `/statuses` | `MANAGE_STATUSES` |
+| `PATCH` | `/statuses/:id` | `MANAGE_STATUSES` |
+| `DELETE` | `/statuses/:id` | `MANAGE_STATUSES` |
+
+Les quatre mutations ne sont exposées **que par l'interface web** du serveur : l'app
+Android lit `/statuses` pour afficher le statut d'un membre, et n'offre aucun écran
+pour les modifier. Un réglage qui engage la sécurité du foyer se fait assis, sur un
+vrai écran, pas au pouce entre deux portes. Ce n'est pas une restriction technique —
+le serveur n'a aucun moyen fiable de savoir qui l'appelle — mais une décision de
+produit, tenue côté client.
+
+```json
+{
+  "id": "...",
+  "name": "Adulte",
+  "rights": ["VIEW", "COMPLETE_TASKS", "MANAGE_TASKS", "MANAGE_APPOINTMENTS"],
+  "isDefault": true,
+  "position": 2,
+  "memberCount": 2
+}
+```
+
+`DELETE /statuses/:id` est refusé en `409 STATUS_IN_USE` tant qu'un compte le porte :
+supprimer un statut utilisé reviendrait à retirer silencieusement des droits à
+quelqu'un. L'interface web demande d'abord vers quel statut déplacer ses membres.
 
 ## Tâches
 
-| Méthode | Route | Description |
-|---|---|---|
-| `GET` | `/tasks` | Définitions. `?isActive=true` |
-| `POST` | `/tasks` | Création (rôle `ADULT`+) |
-| `GET` | `/tasks/:id` | Définition + dix prochaines échéances |
-| `PATCH` | `/tasks/:id` | Modifie la règle ; regénère les échéances futures en attente |
-| `DELETE` | `/tasks/:id` | Suppression logique ; conserve l'historique |
-| `GET` | `/occurrences` | **L'endpoint principal de l'app** |
-| `POST` | `/occurrences/:id/complete` | Marque faite |
-| `POST` | `/occurrences/:id/uncomplete` | Annule (fenêtre de 48 h) |
-| `POST` | `/occurrences/:id/skip` | Passe son tour avec un motif |
-| `PATCH` | `/occurrences/:id` | Réassigner, reporter, annoter (rôle `ADULT`+) |
+Une seule ressource pour les trois façons d'être due — récurrente, de fond,
+ponctuelle. C'est le `kind` qui change, pas l'endpoint : le foyer ne vit qu'une liste
+de choses à faire.
+
+| Méthode | Route | Droit | Description |
+|---|---|---|---|
+| `GET` | `/tasks` | `VIEW` | `?kind=&groupId=&isActive=&minPriority=` |
+| `POST` | `/tasks` | `MANAGE_TASKS` | Création |
+| `GET` | `/tasks/:id` | `VIEW` | Définition + dix prochaines échéances, ou vingt dernières fois |
+| `PATCH` | `/tasks/:id` | `MANAGE_TASKS` | Regénère les échéances futures en attente |
+| `DELETE` | `/tasks/:id` | `MANAGE_TASKS` | Suppression logique ; conserve l'historique |
+| `GET` | `/occurrences` | `VIEW` | **L'endpoint principal de l'app** |
+| `POST` | `/occurrences/:id/complete` | `COMPLETE_TASKS` | Marque faite. `200` |
+| `POST` | `/occurrences/:id/uncomplete` | `COMPLETE_TASKS` | Annule (fenêtre de 48 h). `200` |
+| `POST` | `/occurrences/:id/skip` | `COMPLETE_TASKS` | Passe son tour avec un motif. `200` |
+| `PATCH` | `/occurrences/:id` | `MANAGE_TASKS` | Réassigner, reporter, annoter |
+| `POST` | `/tasks/:id/done` | `COMPLETE_TASKS` | **Tâche de fond faite**, voir plus bas. `201` |
 
 Les trois actions sur une occurrence renvoient **`200`, pas `201`** : elles ne créent
 pas de ressource, elles changent un état. Le rejeu renvoie donc le même code que le
 premier envoi.
 
-`POST /tasks` :
+### Créer une tâche
 
 ```json
 {
   "id": "0192f2a0-...",
   "title": "Sortir les poubelles",
-  "rrule": "FREQ=WEEKLY;BYDAY=MO",
+  "kind": "SCHEDULED",
+  "groupId": "0192f2b1-...",
+  "priority": 1,
+  "recurrence": { "form": "WEEKDAYS", "days": ["MO", "TH"] },
   "dueTime": "19:00",
-  "assignmentMode": "ROTATION",
-  "assignees": ["uuid-marie", "uuid-paul"],
   "graceHours": 24,
-  "points": 2
+  "assignmentMode": "ROTATION",
+  "assignees": ["uuid-marie", "uuid-paul"]
 }
 ```
 
-Contraintes refusées en `400 INVALID_RRULE` ou `400 INVALID_ASSIGNMENT` :
+`priority` est un entier de **+3 à −3** : `+3` urgente, `+2` très haute, `+1` haute,
+`0` normale, `−1` basse, `−2` très basse, `−3` en dernier. Absent, il vaut `0`.
+
+`recurrence` ne s'applique qu'à `SCHEDULED`, et prend l'une des **cinq formes** que
+le foyer formule spontanément :
+
+| `form` | Champs | Exemple |
+|---|---|---|
+| `DAILY` | `interval` (jours) | Vider le lave-vaisselle, tous les jours |
+| `WEEKDAYS` | `days` (`MO`…`SU`) | Poubelles le lundi et le jeudi |
+| `MONTH_DAYS` | `days` (1–31, `-1` = dernier jour) | Loyer le 1er, relevé le 15 |
+| `YEAR_DATES` | `dates` (`MM-DD`) | Entretien chaudière le 15 septembre |
+| `EVERY_N` | `unit` (`WEEK`\|`MONTH`), `interval`, `anchor` | Grand ménage toutes les 3 semaines |
+
+Le serveur traduit la forme en **RRULE RFC 5545** et la renvoie dans `rrule` à titre
+informatif ; un client peut envoyer `rrule` directement, mais l'interface ne montre
+jamais la règle brute — elle propose les cinq formes et affiche les trois prochaines
+dates, parce que personne ne vérifie une règle dans l'abstrait alors que tout le monde
+vérifie trois dates.
+
+Selon le `kind` :
+
+| Champ | `kind` | Notes |
+|---|---|---|
+| `recurrence`, `dueTime`, `graceHours` | `SCHEDULED` | `400 FIELD_NOT_APPLICABLE` sur les autres |
+| `maxIntervalSeconds`, `warnRatio` | `BACKGROUND` | Délai maximum, et seuil d'alerte (0,8) |
+| `dueDate` | `ONE_OFF` | Date limite, facultative |
+
+`dueTime` absent signifie « toute la journée » : l'échéance est alors la **fin de la
+journée locale**, pas minuit — une tâche « du lundi » n'est pas en retard à 00 h 01
+le lundi.
+
+Contraintes refusées en `400 INVALID_RECURRENCE` ou `400 INVALID_ASSIGNMENT` :
 
 | Règle | Pourquoi |
 |---|---|
 | `FREQ` plus fin que `DAILY` | Une tâche de foyer ne se répète pas toutes les heures, et une telle règle générerait des millions d'occurrences |
 | `COUNT` et `UNTIL` ensemble | Interdit par la RFC 5545 |
-| `INTERVAL` hors de 1–366 | |
+| `interval` hors de 1–366 | |
 | `FIXED` sans exactement une personne | Une occurrence n'a qu'un assigné : « plusieurs personnes fixes » n'a pas de traduction. Pour plusieurs personnes, c'est `ROTATION` |
 | `ROTATION` à moins de deux personnes | Un tour de rôle à une personne est une tâche fixe |
+| `ROTATION` sur une tâche `BACKGROUND` | Un tour de rôle suppose une suite d'échéances ; une tâche de fond n'en a pas |
 | `ANYONE` avec une liste | Une tâche ouverte à tous ne désigne personne |
-| Un assigné hors du foyer, ou invité | Un invité n'a pas le droit de compléter : l'assigner serait une impasse |
+| Un assigné sans `COMPLETE_TASKS` | Il n'aurait pas le droit de faire la tâche : l'assigner serait une impasse |
 
-`dueTime` absent signifie « toute la journée » : l'échéance est alors la **fin de la
-journée locale**, pas minuit — une tâche « du lundi » n'est pas en retard à 00 h 01
-le lundi.
+### Lire les échéances
 
 `GET /occurrences?from=2026-10-24&to=2026-10-31&assigneeId=me&status=PENDING` :
 
@@ -166,14 +260,15 @@ le lundi.
   "data": [
     {
       "id": "...",
-      "taskDefinitionId": "...",
+      "taskId": "...",
       "title": "Sortir les poubelles",
-      "category": null,
-      "points": 2,
+      "kind": "SCHEDULED",
+      "priority": 1,
+      "group": { "id": "...", "name": "Cuisine", "color": "#0F766E" },
       "scheduledFor": "2026-10-26",
       "dueAt": "2026-10-26T18:00:00Z",
       "status": "PENDING",
-      "assignee": { "id": "...", "displayName": "Paul" },
+      "assignee": { "id": "...", "firstName": "Paul", "avatarUrl": "..." },
       "completedAt": null,
       "completedBy": null,
       "note": null
@@ -183,10 +278,10 @@ le lundi.
 }
 ```
 
-`title`, `category` et `points` sont recopiés depuis la définition : l'app affiche
-une liste sans résoudre les définitions, et reste lisible hors-ligne. `from` et `to`
-valent par défaut aujourd'hui et dans sept jours, **en heure locale du foyer**.
-`assigneeId=me` évite au client de connaître son propre identifiant.
+`title`, `kind`, `priority` et `group` sont recopiés depuis la définition : l'app
+affiche une liste sans résoudre les définitions, et reste lisible hors-ligne. `from`
+et `to` valent par défaut aujourd'hui et dans sept jours, **en heure locale du
+foyer**. `assigneeId=me` évite au client de connaître son propre identifiant.
 
 `POST /occurrences/:id/complete` accepte `{ "completedAt": "...", "note": "..." }`.
 `completedAt` sert à déclarer une action faite plus tôt — dimanche soir pour samedi
@@ -206,64 +301,73 @@ Rejeu et conflits :
 `PATCH /occurrences/:id` accepte `assigneeId` à `null`, ce qui rend l'occurrence
 ouverte à tous — à distinguer d'un champ absent, qui ne change rien.
 
-## Compteurs
+### Tâches de fond
 
-| Méthode | Route | Description |
-|---|---|---|
-| `GET` | `/counters` | Avec l'état dérivé. `?isActive=true` |
-| `POST` | `/counters` | Création (rôle `ADULT`+) |
-| `GET` | `/counters/:id` | Définition + vingt derniers événements |
-| `PATCH` | `/counters/:id` | |
-| `DELETE` | `/counters/:id` | Suppression logique |
-| `POST` | `/counters/:id/events` | **Remet le compteur à zéro**. `200` |
-| `GET` | `/counters/:id/events` | Historique paginé par curseur |
-| `DELETE` | `/counters/:id/events/:eventId` | Corrige une saisie erronée |
+Une tâche `BACKGROUND` n'a pas de date : elle a un **délai**. Son état est dérivé à
+la lecture, jamais stocké — une complétion peut être déclarée dans le passé ou
+corrigée, ce qui invaliderait n'importe quel champ mis en cache.
 
-`GET /counters` :
+`GET /tasks?kind=BACKGROUND` :
 
 ```json
 [
   {
     "id": "...",
     "title": "Changer les draps",
-    "targetIntervalSeconds": 1209600,
+    "kind": "BACKGROUND",
+    "priority": 0,
+    "maxIntervalSeconds": 1209600,
     "warnRatio": 0.8,
-    "lastEventAt": "2026-10-04T09:00:00Z",
+    "lastDoneAt": "2026-10-04T09:00:00Z",
+    "lastDoneBy": { "id": "...", "firstName": "Marie" },
     "elapsedSeconds": 1728000,
-    "status": "OVERDUE",
+    "state": "OVERDUE",
     "nextDueAt": "2026-10-18T09:00:00Z"
   }
 ]
 ```
 
-`status` vaut `NEVER_DONE`, `OK`, `DUE_SOON` ou `OVERDUE`, et n'est **jamais stocké** :
-un événement peut être ajouté dans le passé ou supprimé, ce qui invaliderait n'importe
-quel champ mis en cache. `elapsedSeconds` est fourni en plus de `lastEventAt` pour que
-l'app affiche « il y a 20 jours » sans dépendre de l'horloge du téléphone, souvent
-décalée.
+`state` vaut `NEVER_DONE`, `OK`, `DUE_SOON` ou `OVERDUE`. `elapsedSeconds` est fourni
+en plus de `lastDoneAt` pour que l'app affiche « il y a 20 jours » sans dépendre de
+l'horloge du téléphone, souvent décalée.
 
-Un compteur sans `targetIntervalSeconds` ne fait que compter : il ne passe jamais en
-retard, et `nextDueAt` reste `null`.
+Une tâche de fond sans `maxIntervalSeconds` ne fait que compter le temps écoulé : elle
+ne passe jamais en retard, et `nextDueAt` reste `null`.
 
-`POST /counters/:id/events` : `{ "id": "<uuid client>", "occurredAt": "...", "note": "..." }`.
-L'UUID client rend l'appel idempotent — un double tap ou un rejeu hors-ligne ne crée
-pas deux événements. `occurredAt` permet de déclarer dimanche soir une action faite
-samedi matin ; un instant futur est refusé (`400`).
+`POST /tasks/:id/done` : `{ "id": "<uuid client>", "completedAt": "...", "note": "..." }`.
+L'appel crée une occurrence `DONE` datée — c'est le journal qui faisait l'intérêt des
+anciens compteurs, et il est conservé. L'UUID client rend l'appel idempotent : un
+double tap ou un rejeu hors-ligne ne crée pas deux entrées. Un instant futur est
+refusé (`400`).
 
-Remettre à zéro demande le rôle `CHILD`+ : c'est faire l'action. Créer ou modifier un
-compteur demande `ADULT`+.
+Ses entrées se lisent et se corrigent comme toute occurrence :
+`GET /occurrences?taskId=...`, puis `POST /occurrences/:id/uncomplete` pour revenir
+sur une saisie erronée.
+
+### Groupes de tâches
+
+| Méthode | Route | Droit |
+|---|---|---|
+| `GET` | `/task-groups` | `VIEW` |
+| `POST` | `/task-groups` | `MANAGE_TASKS` |
+| `PATCH` | `/task-groups/:id` | `MANAGE_TASKS` |
+| `DELETE` | `/task-groups/:id` | `MANAGE_TASKS` |
+
+Une tâche appartient à **un groupe au plus**. `DELETE` détache les tâches du groupe au
+lieu de les supprimer : perdre une corvée parce qu'on a rangé une étiquette serait une
+mauvaise surprise.
 
 ## Rendez-vous
 
-| Méthode | Route | Description |
-|---|---|---|
-| `GET` | `/appointments` | `?from=&to=` (obligatoires, `YYYY-MM-DD`) |
-| `POST` | `/appointments` | Rôle `ADULT`+ |
-| `GET` | `/appointments/:id` | |
-| `PATCH` | `/appointments/:id` | `409 APPOINTMENT_READ_ONLY` si importé |
-| `DELETE` | `/appointments/:id` | |
-| `POST` | `/appointments/:id/respond` | `{ "response": "ACCEPTED" }`. `200` |
-| `GET` | `/agenda` | Vue fusionnée, ci-dessous |
+| Méthode | Route | Droit | Description |
+|---|---|---|---|
+| `GET` | `/appointments` | `VIEW` | `?from=&to=` (obligatoires, `YYYY-MM-DD`) |
+| `POST` | `/appointments` | `MANAGE_APPOINTMENTS` | |
+| `GET` | `/appointments/:id` | `VIEW` | |
+| `PATCH` | `/appointments/:id` | `MANAGE_APPOINTMENTS` | `409 APPOINTMENT_READ_ONLY` si importé |
+| `DELETE` | `/appointments/:id` | `MANAGE_APPOINTMENTS` | |
+| `POST` | `/appointments/:id/respond` | `VIEW` | `{ "response": "ACCEPTED" }`. `200` |
+| `GET` | `/agenda` | `VIEW` | Vue fusionnée, ci-dessous |
 
 Les récurrences sont **déroulées à la lecture**, pas matérialisées : un rendez-vous ne
 s'assigne pas et ne se complète pas, il n'y a rien à y accrocher. Chaque instance
@@ -274,7 +378,7 @@ après un changement d'heure.
 **Visibilité.** Un rendez-vous `PRIVATE` n'est visible que de son auteur et de ses
 invités ; pour les autres il n'existe pas — `404`, pas `403`, et absent des listes.
 
-Répondre à une invitation ne demande aucun rôle particulier, mais on ne répond que
+Répondre à une invitation ne demande pas `MANAGE_APPOINTMENTS`, mais on ne répond que
 pour soi : `400 NOT_INVITED` si l'on n'est pas dans la liste.
 
 `GET /agenda?from=&to=` est ce qu'affiche l'écran d'accueil : une liste unique triée
@@ -282,27 +386,31 @@ par instant, chaque entrée portant son `type`.
 
 ```json
 {
-  "from": "2026-10-24",
-  "to": "2026-10-26",
+  "from": "2026-10-25",
+  "to": "2026-11-01",
   "data": [
-    { "type": "TASK", "id": "...", "title": "Sortir les poubelles", "at": "2026-10-24T17:00:00Z", "status": "PENDING", "assignee": { "id": "...", "displayName": "Paul" }, "points": 2 },
-    { "type": "APPOINTMENT", "id": "...", "title": "Dentiste", "at": "2026-10-25T15:30:00Z", "endAt": "2026-10-25T16:15:00Z", "location": "Cabinet Martin" },
-    { "type": "COUNTER_DUE", "id": "...", "title": "Changer les draps", "at": "2026-10-18T09:00:00Z", "status": "OVERDUE" }
+    { "type": "TASK", "id": "...", "title": "Sortir les poubelles", "at": "2026-10-26T18:00:00Z", "status": "PENDING", "priority": 1, "assignee": { "id": "...", "firstName": "Paul" } },
+    { "type": "APPOINTMENT", "id": "...", "title": "Dentiste", "at": "2026-10-27T15:30:00Z", "endAt": "2026-10-27T16:15:00Z", "location": "Cabinet Martin" },
+    { "type": "BACKGROUND_DUE", "id": "...", "title": "Changer les draps", "at": "2026-10-18T09:00:00Z", "state": "OVERDUE" }
   ]
 }
 ```
 
 Fusionner côté serveur évite de réimplémenter le tri, les fuseaux et les règles de
 visibilité dans l'app Android, dans l'interface web, et dans tout ce qui viendra
-ensuite. Un compteur n'entre dans l'agenda que s'il arrive à échéance dans la fenêtre
-— ou s'il est déjà en retard, sinon il disparaîtrait de la vue au moment où il compte
-le plus.
+ensuite. Une tâche de fond n'entre dans l'agenda que si son délai arrive à terme dans
+la fenêtre — ou s'il est déjà dépassé, sinon elle disparaîtrait de la vue au moment où
+elle compte le plus. La fenêtre par défaut est **la semaine qui vient**, ce que
+l'écran d'accueil montre sous « Rendez-vous de la semaine ».
 
 ## Agendas externes *(à venir — v0.7)*
 
+**Chaque compte lie son propre agenda** : ces routes sont sous `/users/me`, pas sous
+le foyer, parce qu'un agenda appartient à la personne.
+
 | Méthode | Route | Description |
 |---|---|---|
-| `GET` | `/users/me/calendars` | Mes comptes (hors foyer : c'est personnel) |
+| `GET` | `/users/me/calendars` | Mes comptes d'agenda |
 | `POST` | `/users/me/calendars/caldav` | `{ url, username, password }` |
 | `POST` | `/users/me/calendars/ics` | `{ url }` |
 | `GET` | `/users/me/calendars/google/authorize` | Renvoie l'URL de consentement |
@@ -333,21 +441,36 @@ Détails du protocole, résolution des conflits et format des lots :
 | `GET` | `/users/me/notification-prefs` | |
 | `PATCH` | `/users/me/notification-prefs` | Heures de silence, canaux |
 
-## Activité et statistiques
+## Activité et contributions
 
-| Méthode | Route | Description |
-|---|---|---|
-| `GET` | `/activity` | Fil du foyer, paginé par curseur |
-| `GET` | `/stats/contributions` | *(à venir)* `?from=&to=` — points et tâches par membre |
+| Méthode | Route | Droit | Description |
+|---|---|---|---|
+| `GET` | `/activity` | `VIEW` | Fil du foyer, paginé par curseur |
+| `GET` | `/stats/contributions` | `VIEW` | *(à venir)* `?from=&to=` — tâches faites par membre |
 
 Le fil est dénormalisé : son texte est figé à l'écriture, pour rester lisible après
 suppression de l'objet concerné. En revanche le **nom de l'auteur n'y est pas
 recopié** — il est résolu depuis la table des comptes, ce qui fait qu'anonymiser un
 compte supprimé anonymise tout son historique d'un coup.
 
-`/stats/contributions` sera volontairement factuel (qui a fait quoi, combien de
-points) et ne produira **aucun classement**. Un outil de foyer qui désigne un mauvais
-élève crée des conflits au lieu d'en résoudre.
+`/stats/contributions` compte des **tâches faites**, pas des points : il n'existe plus
+de système de points. La réponse est volontairement factuelle et ne produit **aucun
+classement** — un outil de foyer qui désigne un mauvais élève crée des conflits au
+lieu d'en résoudre.
+
+## Suppression de compte
+
+`DELETE /users/me` — `{ "password": "..." }`.
+
+C'est la seule sortie du foyer. Le compte est **anonymisé** plutôt qu'effacé, pour que
+l'historique garde un auteur sans garder une identité : nom, prénom, e-mail, date de
+naissance, photo, agendas et appareils disparaissent ; les tâches faites restent au
+nom d'« Ancien membre ».
+
+Une suppression ne peut pas être refusée. Si le compte est le dernier à porter
+`MANAGE_SERVER` ou `MANAGE_STATUSES`, les droits passent au compte actif le plus
+ancien ; l'app l'annonce **avant** de confirmer, parce qu'apprendre après coup qu'on a
+transmis l'administration du foyer serait une mauvaise surprise.
 
 ## Installation
 
@@ -363,6 +486,7 @@ protections et points durs : [`setup-wizard.md`](setup-wizard.md).
 | `POST` | `/setup/pairing` | `{ "purpose": "IMPORT" \| "CLAIM" }` → code, URL, expiration |
 | `GET` | `/setup/pairing/:code` | `PENDING`, `USED` ou `EXPIRED` |
 | `POST` | `/setup/import` | Appelé **par l'app** : pousse sa configuration locale |
+| `POST` | `/setup/skip` | Passe une étape facultative |
 | `POST` | `/setup/household` | Le nom du foyer |
 | `POST` | `/setup/claim` | Appelé **par l'app** : crée le compte administrateur, ouvre une session |
 | `POST` | `/setup/complete` | Verrouille l'assistant et ferme les inscriptions |
@@ -379,13 +503,14 @@ Toutes répondent :
 | `400 PAIRING_INVALID` | Code d'appariement inconnu, expiré, ou déjà utilisé |
 
 `POST /setup/import` **stocke** la configuration au lieu de l'appliquer : les tâches
-et les compteurs ont besoin d'un auteur, et aucun compte n'existe à cette étape. Tout
-est créé au moment où le compte administrateur l'est, et les occurrences des tâches
-importées sont matérialisées dans la foulée — sinon le foyer s'ouvrirait sur une liste
-vide alors que ses tâches viennent d'arriver.
+ont besoin d'un auteur, et aucun compte n'existe à cette étape. Tout est créé au
+moment où le compte administrateur l'est, et les occurrences des tâches importées sont
+matérialisées dans la foulée — sinon le foyer s'ouvrirait sur une liste vide alors que
+ses tâches viennent d'arriver.
 
 `POST /setup/claim` rend une session complète, comme `/auth/login` : le téléphone qui
-vient de créer le compte est déjà connecté.
+vient de créer le compte est déjà connecté. Le compte reçoit le statut
+« Administrateur », qui porte tous les droits.
 
 ## Mises à jour
 
@@ -396,8 +521,8 @@ publications. `MH_UPDATE_CHECK=false` coupe entièrement ces appels sortants.
 | Méthode | Route | Qui |
 |---|---|---|
 | `GET` | `/app-release` | Public : l'app l'interroge avant toute connexion |
-| `GET` | `/api/v1/admin/updates` | Administrateur de l'instance |
-| `POST` | `/api/v1/admin/jobs/releases.check/run` | Administrateur : vérifier tout de suite |
+| `GET` | `/api/v1/admin/updates` | `MANAGE_SERVER` |
+| `POST` | `/api/v1/admin/jobs/releases.check/run` | `MANAGE_SERVER` : vérifier tout de suite |
 
 L'état des mises à jour **n'est pas** exposé sur `/version`, qui est public :
 annoncer à tout visiteur qu'un serveur est en retard d'une version, c'est lui
@@ -441,6 +566,24 @@ Hors du préfixe `/api/v1`, pour rester triviales à interroger :
 
 `status` vaut `degraded` si Redis est indisponible mais la base accessible : Redis ne
 porte que la file de jobs, son absence n'empêche pas de répondre.
+
+## Ce qui change par rapport à la v0.3
+
+Le serveur servi aujourd'hui expose encore le contrat précédent. La reprise, suivie
+dans [`roadmap.md`](roadmap.md), consiste en :
+
+| v0.3 | Décidé |
+|---|---|
+| `/households/:householdId/tasks`, … | `/tasks`, … — un serveur, un foyer |
+| `POST /households`, `GET /households/:id` | `GET /household`, `PATCH /household` |
+| `role` (`OWNER`\|`ADULT`\|`CHILD`\|`GUEST`) | `statusId` + droits, configurables depuis l'interface web |
+| `isServerAdmin` | droit `MANAGE_SERVER` |
+| `/counters`, `/counters/:id/events` | `/tasks?kind=BACKGROUND`, `POST /tasks/:id/done` |
+| `type: "COUNTER_DUE"` dans `/agenda` | `type: "BACKGROUND_DUE"` |
+| `points` sur les tâches et l'agenda | retiré |
+| `displayName` | `firstName`, `lastName`, `birthDate`, `avatarUrl` |
+| `rrule` brute à la création | les cinq formes de `recurrence` (la RRULE reste acceptée) |
+| — | `priority`, `groupId`, `kind`, `/task-groups`, `/statuses` |
 
 ## OpenAPI
 

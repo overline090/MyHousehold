@@ -1,7 +1,7 @@
 # Protocole de synchronisation hors-ligne
 
 L'app Android doit rester utilisable sans réseau : cocher une tâche dans un
-sous-sol, déclarer un compteur en vacances. Ce document définit comment ces
+sous-sol, déclarer une tâche de fond faite en vacances. Ce document définit comment ces
 mutations remontent et comment les conflits se règlent.
 
 ## Principes
@@ -101,15 +101,15 @@ déduplication — c'est ce qui garantit l'idempotence même si la réponse se p
 | Situation | Résolution |
 |---|---|
 | Deux membres cochent la même occurrence | Le premier arrivé gagne. Le second reçoit `DUPLICATE` et l'app affiche « déjà fait par Marie ». |
-| Compteur remis à zéro deux fois hors-ligne | **Les deux événements sont conservés.** C'est un journal : deux saisies sont deux faits, et seule la plus récente détermine l'état. |
+| Tâche de fond déclarée faite deux fois hors-ligne | **Les deux événements sont conservés.** C'est un journal : deux saisies sont deux faits, et seule la plus récente détermine l'état. |
 | Occurrence modifiée côté serveur et côté client | Dernière écriture gagnante **par champ** (`updatedAt` par champ sur les seuls champs modifiables : `assigneeId`, `dueAt`, `note`). |
 | Objet supprimé pendant que le client le modifiait | La mutation est `REJECTED` (`NOT_FOUND`), le client retire l'objet. |
 | Occurrence cochée alors que sa définition a été supprimée | Acceptée : le fait reste vrai, et l'historique doit le refléter. |
 
-Le cas du compteur est le plus important à comprendre : si l'on avait modélisé le
-compteur avec un champ `lastResetAt`, deux remises à zéro hors-ligne auraient donné
-une perte de donnée silencieuse. Le journal d'événements rend le conflit impossible
-par construction.
+Le cas de la tâche de fond est le plus important à comprendre : si l'on avait modélisé
+son état avec un champ `lastDoneAt`, deux complétions hors-ligne auraient donné une
+perte de donnée silencieuse. Le journal d'occurrences rend le conflit impossible par
+construction.
 
 ## Cycle de vie côté client
 

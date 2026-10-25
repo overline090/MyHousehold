@@ -38,7 +38,7 @@ de bout en bout à l'API.
 
 ## v0.3 — Compteurs et rendez-vous (faite)
 
-- [x] Compteurs : définitions, événements, état dérivé jamais stocké
+- [x] Compteurs : définitions, événements, état dérivé jamais stocké *(devenus les tâches de fond, voir la reprise ci-dessous)*
 - [x] Rendez-vous : CRUD, participants, réponses, visibilité privée
 - [x] Récurrence des rendez-vous déroulée à la lecture, en heure locale
 - [x] Vue fusionnée `/agenda`
@@ -46,12 +46,37 @@ de bout en bout à l'API.
 
 **Jalon atteint :** les quatre besoins du README sont couverts côté serveur.
 
+## Reprise du modèle (en cours, prioritaire)
+
+Le modèle a été révisé après la v0.3 : un seul foyer par serveur, une seule notion de
+tâche, des statuts à droits, pas de points. C'est décidé dans
+[`data-model.md`](data-model.md) et contractualisé dans [`api.md`](api.md) ; le code
+expose encore le modèle précédent. Cette reprise passe **avant** les versions
+ci-dessous, parce que chaque écran écrit sur l'ancien modèle serait à réécrire.
+
+- [x] Modèle de données décidé ([`data-model.md`](data-model.md))
+- [x] Contrat d'API décidé, avec la table des différences ([`api.md`](api.md))
+- [ ] Maquettes de l'app au nouveau modèle, validées
+- [ ] Maquettes de la partie authentifiée du web, dont la configuration des statuts
+- [ ] Foyer unique : suppression du préfixe `/households/:householdId` et du garde
+      d'appartenance, remplacé par un garde de droits
+- [ ] Statuts et droits à la place des rôles, règle du dernier administrateur
+- [ ] Profil : prénom, nom, date de naissance, photo redimensionnée à l'arrivée
+- [ ] Tâches unifiées : `SCHEDULED`, `BACKGROUND`, `ONE_OFF` dans une seule ressource
+- [ ] Groupes de tâches, priorités de +3 à −3
+- [ ] Les cinq formes de récurrence exposées à la place de la RRULE brute
+- [ ] Retrait des points, et des compteurs comme objet distinct
+- [ ] Migration des données existantes (compteurs → tâches de fond, rôles → statuts)
+
+**Jalon :** le serveur et l'app parlent le modèle décidé, et une installation en v0.3
+se migre sans perte.
+
 ## v0.4 — Application Android, utilisable seule (prochaine étape)
 
 Voir [MyHousehold-android](https://github.com/overline090/MyHousehold-android).
 
 - [ ] Maquettes validées avant toute ligne d'interface
-- [ ] Écran « Aujourd'hui », tâches, compteurs, agenda
+- [ ] Écran « Accueil », tâches, tâches de fond, agenda
 - [ ] Persistance locale Room + file de mutations
 - [ ] **Mode sans serveur** : l'app s'installe et s'utilise seule
       ([standalone.md](https://github.com/overline090/MyHousehold-android/blob/main/docs/standalone.md))
@@ -73,7 +98,7 @@ C'est ce jalon qui compte : tout ce qui précède est invérifiable sans lui.
 - [x] Interface web ([web-ui.md](web-ui.md)) : application à page unique servie en statique par Nest
 - [x] L'assistant d'installation au navigateur, parcours joué de bout en bout dans un vrai navigateur
 - [ ] Session par cookie `httpOnly` pour la partie authentifiée
-- [ ] Vue « Aujourd'hui », tâches et compteurs au navigateur
+- [ ] Vue « Accueil », tâches et tâches de fond au navigateur
 - [ ] Zone d'administration au navigateur : comptes, santé, balayages, mises à jour
 **Jalon :** on branche un serveur et on arrive à un foyer fonctionnel sans ouvrir de
 terminal.
@@ -128,7 +153,8 @@ l'app en moins d'une heure, en suivant la seule documentation.
 | Validation des tâches des enfants | `completedBy` prépare déjà le modèle |
 | Budget / dépenses partagées | Hors périmètre : des outils dédiés le font déjà bien |
 | Client iOS | Aucune compétence disponible dans le projet aujourd'hui |
-| Quitter un foyer sans supprimer son compte | Volontairement absent. À reconsidérer seulement si l'usage multi-foyer devient courant (voir les questions ouvertes de `data-model.md`) |
+| Quitter un foyer sans supprimer son compte | Volontairement absent, et sans objet : un serveur ne sert qu'un foyer |
+| Récurrence portée par un groupe de tâches | Repoussé : un groupe est un classement, pas une méta-tâche (voir les questions ouvertes de `data-model.md`) |
 
 ## Non-objectifs
 
@@ -143,3 +169,8 @@ Ces points sont refusés par principe, pas par manque de temps :
   logiciel n'a pas à arbitrer qui vit sous un toit.
 - **Pas de compte obligatoire chez un tiers.** La synchro d'agenda est optionnelle et
   l'app doit être pleinement utilisable sans elle.
+- **Pas de multi-foyer.** Une machine sert un foyer. Mutualiser plusieurs familles sur
+  un serveur ramènerait une frontière d'isolation à défendre, pour un besoin que
+  l'auto-hébergement ne crée pas.
+- **Pas de points.** Compter les corvées en points suppose qu'on sache ce que vaut une
+  vaisselle face à une lessive, et transforme une organisation en comptabilité.
