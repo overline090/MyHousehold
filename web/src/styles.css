@@ -1,0 +1,206 @@
+/*
+ * Jetons de l'interface web. Les mêmes valeurs que les maquettes
+ * validées, pour que ce qui a été approuvé soit ce qui est servi.
+ *
+ * Aucune police ni feuille de style n'est chargée depuis l'extérieur :
+ * le foyer doit s'ouvrir même quand la connexion de la maison est
+ * coupée.
+ */
+:root {
+  --fond: #e9edec;
+  --surface: #ffffff;
+  --surface-douce: #f6f8f7;
+  --encre: #16211e;
+  --encre-douce: #40524c;
+  --gris: #55655f;
+  --trait: #d7deeb;
+  --trait-net: #c9d3d0;
+  --accent: #0f766e;
+  --accent-sombre: #115e59;
+  --accent-doux: #e6f4f1;
+  --accent-trait: #a7d9d1;
+  --alerte: #b45309;
+  --alerte-fond: #fef3e2;
+  --alerte-trait: #f0c98a;
+  --alerte-encre: #6b3c09;
+  --rayon: 10px;
+
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fond: #101715;
+    --surface: #18211f;
+    --surface-douce: #1d2725;
+    --encre: #e8efed;
+    --encre-douce: #c3d1cd;
+    --gris: #9bada8;
+    --trait: #2a3633;
+    --trait-net: #35443f;
+    --accent: #2dd4bf;
+    --accent-sombre: #5eead4;
+    --accent-doux: #16302c;
+    --accent-trait: #1f4a44;
+    --alerte: #fbbf24;
+    --alerte-fond: #2c2112;
+    --alerte-trait: #4d3a16;
+    --alerte-encre: #f3d9a4;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  background: var(--fond);
+  color: var(--encre);
+  line-height: 1.5;
+}
+
+a {
+  color: var(--accent);
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  line-height: 1.25;
+}
+
+p {
+  margin: 0;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+  border-radius: 8px;
+  min-height: 44px;
+  padding: 11px 18px;
+  border: 1px solid var(--trait-net);
+  background: var(--surface);
+  color: var(--encre);
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+button.primaire {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+button.primaire:hover:not(:disabled) {
+  background: var(--accent-sombre);
+  border-color: var(--accent-sombre);
+}
+
+button.discret {
+  background: transparent;
+  border-color: transparent;
+  color: var(--gris);
+}
+
+input,
+select {
+  font: inherit;
+  color: var(--encre);
+  background: var(--surface);
+  border: 1px solid var(--trait-net);
+  border-radius: 8px;
+  padding: 11px 12px;
+  min-height: 44px;
+  width: 100%;
+}
+
+input:focus-visible,
+select:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+fieldset {
+  border: 1px solid var(--trait-net);
+  border-radius: var(--rayon);
+  padding: 16px;
+  margin: 0;
+}
+
+legend {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gris);
+  padding: 0 6px;
+}
+
+.carte {
+  background: var(--surface);
+  border: 1px solid var(--trait-net);
+  border-radius: 12px;
+  padding: 24px;
+}
+
+.encadre {
+  border-radius: var(--rayon);
+  padding: 14px 16px;
+}
+
+.encadre.accent {
+  background: var(--accent-doux);
+  border: 1px solid var(--accent-trait);
+}
+
+.encadre.alerte {
+  background: var(--alerte-fond);
+  border: 1px solid var(--alerte-trait);
+  color: var(--alerte-encre);
+}
+
+.encadre.douce {
+  background: var(--surface-douce);
+  border: 1px solid var(--trait);
+}
+
+.muet {
+  color: var(--gris);
+  font-size: 13px;
+}
+
+.pile {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ligne {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.code {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+}

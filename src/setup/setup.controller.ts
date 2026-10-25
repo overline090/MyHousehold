@@ -7,6 +7,7 @@ import {
   CreatePairingDto,
   ImportDto,
   SetupHouseholdDto,
+  SkipStepDto,
 } from './dto/setup.dto';
 import { SetupGuard } from './setup.guard';
 import { SetupService } from './setup.service';
@@ -65,6 +66,12 @@ export class SetupController {
   @ApiOperation({ summary: 'Appelé par l’app : pousse sa configuration locale' })
   import(@Body() dto: ImportDto) {
     return this.setup.import(dto);
+  }
+
+  @Post('skip')
+  @ApiOperation({ summary: 'Passer une étape facultative' })
+  skip(@Body() dto: SkipStepDto) {
+    return this.setup.skip(dto.step);
   }
 
   @Post('household')

@@ -72,6 +72,9 @@ docker compose up -d --build
 curl http://localhost:3000/health
 ```
 
+Puis ouvrez **http://localhost:3000/setup** : l'assistant vous guide jusqu'au foyer
+fonctionnel, sans terminal.
+
 Installation détaillée, sauvegardes et reverse proxy :
 [`docs/self-hosting.md`](docs/self-hosting.md).
 

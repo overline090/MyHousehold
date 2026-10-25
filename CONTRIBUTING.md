@@ -126,13 +126,23 @@ serveur suffit) : sans elle, `migrate dev` échoue avec un message sur
 `datasource.shadowDatabaseUrl`. Elle est inutile en production, où seul
 `migrate deploy` tourne.
 
+L'interface web vit dans `web/` et se construit à part :
+
+```bash
+npm run build:web     # construit web-dist/, servi en statique par Nest
+npm run dev:web       # rechargement à chaud, l'API tournant à côté
+```
+
+Le serveur démarre sans `web-dist/` : il ne sert alors que l'API.
+
 Avant d'ouvrir une pull request :
 
 ```bash
 npm run lint
 npm test
 npm run build
-./scripts/smoke.sh http://localhost:3000   # si vous touchez à l'API
+./scripts/smoke.sh http://localhost:3000        # si vous touchez à l'API
+./scripts/smoke-setup.sh http://localhost:3000  # si vous touchez à l'installation
 ```
 
 Les tests tournent en mode ESM (`node --experimental-vm-modules`) : Jest 30 sous

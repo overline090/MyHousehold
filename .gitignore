@@ -6,6 +6,12 @@ dist/
 build/
 *.tsbuildinfo
 
+# Interface web construite
+web-dist/
+
+# Captures du parcours d'installation
+captures-assistant/
+
 # Environnement — ne jamais committer : contient MH_JWT_SECRET et MH_ENCRYPTION_KEY
 .env
 .env.*

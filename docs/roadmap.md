@@ -70,10 +70,11 @@ C'est ce jalon qui compte : tout ce qui précède est invérifiable sans lui.
 - [x] Reprise de la configuration depuis l'app (étape 2), appliquée à la création du compte
 - [x] Premier compte créé depuis le téléphone, par appariement, administrateur d'office
 - [x] Fermeture des inscriptions libres à la fin de l'installation
-- [ ] Interface web ([web-ui.md](web-ui.md)) : session par cookie, application à page unique servie par Nest
+- [x] Interface web ([web-ui.md](web-ui.md)) : application à page unique servie en statique par Nest
+- [x] L'assistant d'installation au navigateur, parcours joué de bout en bout dans un vrai navigateur
+- [ ] Session par cookie `httpOnly` pour la partie authentifiée
 - [ ] Vue « Aujourd'hui », tâches et compteurs au navigateur
-- [ ] Zone d'administration : comptes, santé, balayages
-
+- [ ] Zone d'administration au navigateur : comptes, santé, balayages, mises à jour
 **Jalon :** on branche un serveur et on arrive à un foyer fonctionnel sans ouvrir de
 terminal.
 

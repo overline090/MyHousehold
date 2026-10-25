@@ -1,5 +1,8 @@
-import { Module } from '@nestjs/common';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { DynamicModule, Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ServeStaticModule } from '@nestjs/serve-static';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
@@ -20,11 +23,44 @@ import { HouseholdsModule } from './households/households.module';
 import { ReleasesModule } from './releases/releases.module';
 import { SchedulerModule } from './scheduler/scheduler.module';
 import { SetupModule } from './setup/setup.module';
+import { WebModule } from './web/web.module';
 import { TasksModule } from './tasks/tasks.module';
 import { UsersModule } from './users/users.module';
 
+/**
+ * L'interface web est servie en statique quand elle a été construite.
+ * Absente — une installation qui ne sert que l'API, ou un
+ * développement où `npm --prefix web run dev` tourne à côté — le
+ * serveur démarre quand même.
+ */
+const RACINE_WEB = join(process.cwd(), 'web-dist');
+
+function interfaceWeb(): DynamicModule[] {
+  if (!existsSync(RACINE_WEB)) {
+    return [];
+  }
+
+  return [
+    WebModule.forRoot(RACINE_WEB),
+    ServeStaticModule.forRoot({
+      rootPath: RACINE_WEB,
+      // Ces chemins appartiennent à l'API : l'assistant
+      // d'installation en particulier partage son préfixe avec la page
+      // qui l'affiche, /setup étant la page et /setup/... les routes.
+      exclude: [
+        '/api/v1{*path}',
+        '/health',
+        '/version',
+        '/app-release',
+        '/setup/{*path}',
+      ],
+    }),
+  ];
+}
+
 @Module({
   imports: [
+    ...interfaceWeb(),
     ConfigModule.forRoot({
       isGlobal: true,
       cache: true,

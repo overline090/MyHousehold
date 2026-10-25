@@ -8,6 +8,7 @@ import {
   IsDateString,
   IsEmail,
   IsEnum,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -24,6 +25,12 @@ export class CreatePairingDto {
   @ApiProperty({ enum: SetupPairingPurpose })
   @IsEnum(SetupPairingPurpose)
   purpose!: SetupPairingPurpose;
+}
+
+export class SkipStepDto {
+  @ApiProperty({ enum: ['network', 'import'] })
+  @IsIn(['network', 'import'])
+  step!: 'network' | 'import';
 }
 
 export class SetupHouseholdDto {

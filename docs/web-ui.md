@@ -1,6 +1,8 @@
 # Interface web du serveur
 
-> ⚠️ **Spécification.** Maquettes à valider avant implémentation.
+> **État** : l'**assistant d'installation** est écrit et servi par le serveur, et son
+> parcours complet est joué dans un vrai navigateur contre un vrai serveur. Le reste
+> — administration, foyer au quotidien — reste à écrire.
 
 Le serveur expose une interface web, en plus de son API. Elle n'est pas une
 deuxième application : c'est le même foyer, vu depuis un navigateur.
@@ -9,7 +11,7 @@ deuxième application : c'est le même foyer, vu depuis un navigateur.
 
 | Domaine | Contenu | Pourquoi au navigateur plutôt qu'à l'app |
 |---|---|---|
-| **Installation** | L'assistant pas à pas ([setup-wizard.md](setup-wizard.md)) | Il faut bien une interface avant d'avoir un compte et un téléphone appairé |
+| **Installation** ✅ | L'assistant pas à pas ([setup-wizard.md](setup-wizard.md)) | Il faut bien une interface avant d'avoir un compte et un téléphone appairé |
 | **Administration** | Comptes, santé du serveur, balayages, sauvegardes, mises à jour, journaux | Se fait assis, rarement, et demande de lire des choses longues |
 | **Le foyer au quotidien** | Aujourd'hui, tâches, compteurs, agenda | Un écran dans la cuisine, un ordinateur portable sur la table, un membre sans téléphone Android |
 | **Saisie confortable** | Créer une tâche récurrente compliquée, relire l'historique | Un vrai clavier et un grand écran valent mieux qu'un pouce sur un formulaire de récurrence |
@@ -23,7 +25,7 @@ version dégradée de l'app.
 | Choix | Pourquoi | Écarté |
 |---|---|---|
 | **Application à page unique**, construite en statique et servie par Nest | Un Raspberry Pi sert des fichiers statiques sans effort ; le rendu serveur lui coûterait du processeur à chaque page. Et l'API REST existe déjà, elle n'a rien à dupliquer | Rendu côté serveur (Nuxt, Next) : une dépendance de plus et du calcul sur une machine lente |
-| **Svelte + Vite + TypeScript** | Le poids transféré compte : la première visite se fait souvent par Wi-Fi domestique depuis un téléphone pendant l'installation. Svelte n'embarque pas de moteur de rendu dans le paquet | React : plus de contributeurs potentiels, mais deux à trois fois le poids pour ce que fait cette interface |
+| **Svelte + Vite + TypeScript** | Le poids transféré compte : la première visite se fait souvent par Wi-Fi domestique depuis un téléphone pendant l'installation. Svelte n'embarque pas de moteur de rendu dans le paquet. Mesuré sur l'assistant : **19 ko compressés**, tout compris | React : plus de contributeurs potentiels, mais deux à trois fois le poids pour ce que fait cette interface |
 | **Authentification par cookie `httpOnly`** | Un jeton dans `localStorage` est lisible par n'importe quelle faille d'injection de script. Le navigateur n'a pas besoin de voir le jeton | Réutiliser le `Bearer` du mobile : simple, mais met le jeton à portée du JavaScript de la page |
 | **Pas de dépendance externe au chargement** | Le foyer doit s'ouvrir même sans accès à Internet — un serveur domestique derrière une box coupée reste utilisable sur le réseau local | Polices et scripts depuis un CDN |
 
@@ -43,6 +45,22 @@ porter une information, lisible à 200 % de zoom, thème clair et sombre suivant
 système. Et une contrainte propre au navigateur : l'interface doit être utilisable
 **au clavier seul**, parce qu'un écran de cuisine est parfois piloté par une
 télécommande ou un clavier sans souris.
+
+## Où ça vit
+
+```
+web/              l'interface (Vite + Svelte)
+web-dist/         le résultat construit, servi en statique par Nest
+```
+
+`npm run build:web` construit l'interface, `npm run build:all` construit les deux.
+Le serveur démarre très bien **sans** `web-dist/` : il ne sert alors que l'API, ce
+qui est le cas en développement, où `npm run dev:web` sert l'interface à côté avec
+rechargement à chaud.
+
+Un détail de routage mérite d'être connu : `/setup` est la **page**, `/setup/...`
+sont les **routes de l'API**. Le routeur répondrait 404 sur la page sans un point
+d'entrée explicite, puisque le préfixe lui appartient déjà.
 
 ## Ce qui reste à trancher
 

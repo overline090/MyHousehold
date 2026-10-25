@@ -24,6 +24,9 @@ docker compose up -d --build
 curl http://localhost:3000/health
 ```
 
+Puis ouvrez **http://localhost:3000/setup** : l'assistant d'installation vous guide
+jusqu'au foyer fonctionnel, sans toucher à un terminal.
+
 Les migrations sont appliquées au démarrage du conteneur `api` : une mise à jour
 d'image ne demande aucune étape manuelle oubliable.
 

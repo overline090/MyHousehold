@@ -1,5 +1,15 @@
 # syntax=docker/dockerfile:1
 
+# ── Interface web ──────────────────────────────────────────────────────
+# Construite à part : elle n'a besoin ni de PostgreSQL, ni des modules
+# natifs du serveur.
+FROM node:22-bookworm-slim AS web
+WORKDIR /app/web
+COPY web/package*.json ./
+RUN npm ci
+COPY web/ ./
+RUN npm run build
+
 # ── Étape de construction ──────────────────────────────────────────────
 FROM node:22-bookworm-slim AS build
 WORKDIR /app
@@ -35,6 +45,9 @@ COPY --from=build /app/dist ./dist
 COPY --from=build /app/prisma ./prisma
 COPY --from=build /app/prisma.config.ts ./
 COPY --from=build /app/package.json ./
+# Servie en statique. Absente, le serveur démarre quand même et ne sert
+# que l'API.
+COPY --from=web /app/web-dist ./web-dist
 
 # Jamais root : une faille d'exécution de code ne doit pas donner la main
 # sur le conteneur.

@@ -231,6 +231,22 @@ export class SetupService implements OnModuleInit {
     return this.recap(summary);
   }
 
+  /**
+   * Passer une étape facultative.
+   *
+   * L'état de l'assistant vivant côté serveur, « je n'ai rien à
+   * importer » doit y être enregistré : sans cela, l'étape resterait
+   * courante et la page y reviendrait à chaque rechargement, ou sur
+   * l'appareil suivant.
+   */
+  async skip(step: 'network' | 'import') {
+    await this.prisma.serverSetup.update({
+      where: { id: 1 },
+      data: step === 'network' ? { networkDone: true } : { importDone: true },
+    });
+    return this.state();
+  }
+
   /** Étape 3 : le nom du foyer, et rien d'autre. */
   async createHousehold(dto: SetupHouseholdDto) {
     const setup = await this.raw();
