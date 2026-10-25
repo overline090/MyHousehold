@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>Accueil — web</title><link rel="stylesheet" href="web.css"></head>
+<body>
+<nav class="cote">
+  <div class="marque"><span>M</span>Maison des Dupont</div>
+  <a class="C1 actif" href="#">Accueil</a>
+  <a class="C2" href="#">Tâches</a>
+  <a class="C3" href="#">Agenda</a>
+  <a class="C4" href="#">Foyer</a>
+  <p class="titre-groupe"><span class="muet" style="font-weight:600;text-transform:uppercase;letter-spacing:.04em;font-size:12px">Configuration</span></p>
+  <a class="C5" href="#">Statuts et droits</a>
+  <a class="C6" href="#">Le foyer</a>
+  <a class="C7" href="#">Serveur</a>
+  <div class="bas">
+    <div class="compte">
+      <span class="photo petite" style="background:linear-gradient(135deg,#0f766e,#14b8a6)">MD</span>
+      <div style="flex:1;min-width:0">Marie Dupont</div>
+    </div>
+  </div>
+</nav>
+<div class="principal">
+  <!-- Pas de sous-titre : le nom du foyer est déjà dans la colonne. -->
+  <header class="entete">
+    <h1 style="flex:1">Accueil</h1>
+    <span class="bouton">Aujourd'hui</span>
+    <span class="bouton primaire">+ Nouvelle tâche</span>
+  </header>
+
+  <div class="corps">
+    <div class="colonnes" style="flex:1">
+      <div class="section" style="flex:1.3">
+        <h2>En retard</h2>
+        <div class="carte" style="border-color:var(--alerte-trait);background:var(--alerte-fond)">
+          <div class="ligne">
+            <div class="case"></div>
+            <div style="flex:1;min-width:0">
+              <h3>Changer les draps</h3>
+              <p class="muet" style="color:var(--alerte-encre)">Il y a 23 jours — à refaire dans les 14 jours</p>
+            </div>
+            <span class="etiquette alerte">De fond</span>
+            <span class="bouton">C'est fait</span>
+          </div>
+        </div>
+        <div class="carte" style="border-color:var(--alerte-trait)">
+          <div class="ligne">
+            <div class="case"></div>
+            <div style="flex:1;min-width:0">
+              <h3>Changer le fusible du garage</h3>
+              <p class="muet" style="color:var(--alerte-encre)">Date limite dépassée de 2 jours — Paul</p>
+            </div>
+            <span class="etiquette urgente">Urgente</span>
+          </div>
+        </div>
+
+        <h2 style="margin-top:8px">Aujourd'hui</h2>
+        <div class="carte pile">
+          <div class="ligne">
+            <div class="case"></div>
+            <div style="flex:1;min-width:0">
+              <h3>Sortir les poubelles</h3>
+              <p class="groupe"><i style="background:#0f766e"></i>Cuisine · 19 h 00 · Marie</p>
+            </div>
+            <span class="etiquette haute">Haute</span>
+          </div>
+          <div class="ligne" style="border-top:1px solid var(--trait);padding-top:10px">
+            <div class="case cochee">✓</div>
+            <div style="flex:1;min-width:0">
+              <h3 style="text-decoration:line-through;color:var(--gris)">Vider le lave-vaisselle</h3>
+              <p class="muet">Fait à 8 h 12 par Lou</p>
+            </div>
+          </div>
+          <div class="ligne" style="border-top:1px solid var(--trait);padding-top:10px">
+            <div class="case"></div>
+            <div style="flex:1;min-width:0">
+              <h3>Arroser les plantes</h3>
+              <p class="muet">Toute la journée · n'importe qui</p>
+            </div>
+          </div>
+        </div>
+
+        <h2 style="margin-top:8px">À surveiller</h2>
+        <div class="carte">
+          <div class="ligne">
+            <div style="flex:1;min-width:0">
+              <h3>Changer le filtre à eau</h3>
+              <p class="muet">2 mois — à refaire dans les 3 mois</p>
+            </div>
+            <span class="etiquette accent">Bientôt</span>
+            <span class="bouton">C'est fait</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- La semaine, pas le seul jour : c'est ce qu'on vient vérifier sur
+           un grand écran. -->
+      <div class="section" style="flex:1">
+        <h2>Rendez-vous de la semaine</h2>
+        <div class="carte pile" style="gap:0">
+          <p class="jour">Aujourd'hui — samedi 25</p>
+          <div class="ligne" style="padding:9px 0">
+            <div style="flex:none;width:46px"><p style="font-weight:700">15:30</p></div>
+            <div style="flex:1;min-width:0;border-left:3px solid var(--accent);padding-left:10px">
+              <h3 style="font-size:15px">Dentiste — Lou</h3>
+              <p class="muet">Cabinet Martin</p>
+            </div>
+          </div>
+          <p class="jour" style="margin-top:8px">Lundi 27</p>
+          <div class="ligne" style="padding:9px 0">
+            <div style="flex:none;width:46px"><p style="font-weight:700">18:00</p></div>
+            <div style="flex:1;min-width:0;border-left:3px solid #6d28d9;padding-left:10px">
+              <h3 style="font-size:15px">Réunion parents</h3>
+              <p class="muet">École — Marie, Paul</p>
+            </div>
+          </div>
+          <p class="jour" style="margin-top:8px">Jeudi 30</p>
+          <div class="ligne" style="padding:9px 0">
+            <div style="flex:none;width:46px"><p style="font-weight:700">09:00</p></div>
+            <div style="flex:1;min-width:0;border-left:3px solid var(--alerte);padding-left:10px">
+              <h3 style="font-size:15px">Contrôle technique</h3>
+              <p class="muet">Garage Leroy — Paul</p>
+            </div>
+          </div>
+          <p class="jour" style="margin-top:8px">Vendredi 31</p>
+          <div class="ligne" style="padding:9px 0">
+            <div style="flex:none;width:46px"><p style="font-weight:700">20:00</p></div>
+            <div style="flex:1;min-width:0;border-left:3px solid var(--gris);padding-left:10px">
+              <h3 style="font-size:15px">Occupé</h3>
+              <p class="muet">Agenda de Paul — lecture seule</p>
+            </div>
+          </div>
+        </div>
+
+        <h2 style="margin-top:8px">À faire par les autres</h2>
+        <div class="carte pile">
+          <div class="ligne">
+            <span class="photo petite" style="background:linear-gradient(135deg,#6d28d9,#a78bfa)">PD</span>
+            <div style="flex:1">Descendre le linge</div>
+            <span class="muet">18 h 00</span>
+          </div>
+          <div class="ligne">
+            <span class="photo petite" style="background:linear-gradient(135deg,#b45309,#f59e0b)">LD</span>
+            <div style="flex:1">Ranger sa chambre</div>
+            <span class="muet">Toute la journée</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body></html>

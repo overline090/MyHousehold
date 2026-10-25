@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>Tâches — web</title><link rel="stylesheet" href="web.css"></head>
+<body>
+<nav class="cote">
+  <div class="marque"><span>M</span>Maison des Dupont</div>
+  <a class="C1" href="#">Accueil</a>
+  <a class="C2 actif" href="#">Tâches</a>
+  <a class="C3" href="#">Agenda</a>
+  <a class="C4" href="#">Foyer</a>
+  <p class="titre-groupe"><span class="muet" style="font-weight:600;text-transform:uppercase;letter-spacing:.04em;font-size:12px">Configuration</span></p>
+  <a class="C5" href="#">Statuts et droits</a>
+  <a class="C6" href="#">Le foyer</a>
+  <a class="C7" href="#">Serveur</a>
+  <div class="bas">
+    <div class="compte">
+      <span class="photo petite" style="background:linear-gradient(135deg,#0f766e,#14b8a6)">MD</span>
+      <div style="flex:1;min-width:0">Marie Dupont</div>
+    </div>
+  </div>
+</nav>
+<div class="principal">
+  <header class="entete">
+    <h1 style="flex:1">Tâches</h1>
+    <span class="bouton">Historique</span>
+    <span class="bouton primaire">+ Nouvelle tâche</span>
+  </header>
+
+  <div class="corps">
+    <!-- Le grand écran sert surtout à cela : voir toutes les tâches à la
+         fois, avec leur règle lisible, et corriger une récurrence au
+         clavier plutôt qu'au pouce. -->
+    <div class="ligne">
+      <span class="etiquette accent" style="padding:7px 14px;font-size:13px">Tout</span>
+      <span class="etiquette neutre" style="padding:7px 14px;font-size:13px">Récurrentes</span>
+      <span class="etiquette neutre" style="padding:7px 14px;font-size:13px">De fond</span>
+      <span class="etiquette neutre" style="padding:7px 14px;font-size:13px">Ponctuelles</span>
+      <span style="flex:1"></span>
+      <span class="muet">Groupe : tous · Membre : tous · Actives seulement</span>
+    </div>
+
+    <div class="carte" style="padding:16px 8px">
+      <table>
+        <thead>
+          <tr><th style="width:34%">Tâche</th><th style="width:24%">Quand</th><th>Qui</th><th>Groupe</th><th>Priorité</th><th class="centre">Prochaine</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Changer le fusible du garage</strong></td>
+            <td>Une seule fois — avant le 15 nov.</td>
+            <td><span class="ligne" style="gap:7px"><span class="photo petite" style="background:linear-gradient(135deg,#6d28d9,#a78bfa)">PD</span>Paul</span></td>
+            <td><span class="muet">—</span></td>
+            <td><span class="etiquette urgente">Urgente</span></td>
+            <td class="centre" style="color:var(--danger);font-weight:600">dépassée</td>
+          </tr>
+          <tr>
+            <td><strong>Sortir les poubelles</strong></td>
+            <td>Lundi et jeudi, 19 h 00</td>
+            <td>Tour de rôle — Marie, Paul</td>
+            <td><span class="groupe"><i style="background:#0f766e"></i>Cuisine</span></td>
+            <td><span class="etiquette haute">Haute</span></td>
+            <td class="centre">lun. 27 — Marie</td>
+          </tr>
+          <tr>
+            <td><strong>Changer les draps</strong></td>
+            <td>De fond — dans les 14 jours</td>
+            <td>N'importe qui</td>
+            <td><span class="muet">—</span></td>
+            <td><span class="muet">Normale</span></td>
+            <td class="centre"><span class="etiquette alerte">en retard de 9 j</span></td>
+          </tr>
+          <tr>
+            <td><strong>Vider le lave-vaisselle</strong></td>
+            <td>Tous les jours, 9 h 00</td>
+            <td>N'importe qui</td>
+            <td><span class="groupe"><i style="background:#0f766e"></i>Cuisine</span></td>
+            <td><span class="muet">Normale</span></td>
+            <td class="centre">demain</td>
+          </tr>
+          <tr>
+            <td><strong>Entretien de la chaudière</strong></td>
+            <td>Chaque année, le 15 septembre</td>
+            <td><span class="ligne" style="gap:7px"><span class="photo petite" style="background:linear-gradient(135deg,#0f766e,#14b8a6)">MD</span>Marie</span></td>
+            <td><span class="groupe"><i style="background:#b45309"></i>Maison</span></td>
+            <td><span class="muet">Normale</span></td>
+            <td class="centre">15 sept. 2027</td>
+          </tr>
+          <tr>
+            <td><strong>Changer le filtre à eau</strong></td>
+            <td>De fond — dans les 3 mois</td>
+            <td><span class="ligne" style="gap:7px"><span class="photo petite" style="background:linear-gradient(135deg,#6d28d9,#a78bfa)">PD</span>Paul</span></td>
+            <td><span class="groupe"><i style="background:#b45309"></i>Maison</span></td>
+            <td><span class="muet">Normale</span></td>
+            <td class="centre"><span class="etiquette accent">dans 22 j</span></td>
+          </tr>
+          <tr>
+            <td><strong>Trier les cartons du grenier</strong></td>
+            <td>Une seule fois — sans date limite</td>
+            <td>N'importe qui</td>
+            <td><span class="groupe"><i style="background:#6d28d9"></i>Avant les vacances</span></td>
+            <td><span class="etiquette neutre">En dernier</span></td>
+            <td class="centre"><span class="muet">—</span></td>
+          </tr>
+          <tr style="opacity:.55">
+            <td><strong>Nettoyer le barbecue</strong></td>
+            <td>Chaque samedi</td>
+            <td>Tour de rôle — Marie, Paul</td>
+            <td><span class="muet">—</span></td>
+            <td><span class="muet">Normale</span></td>
+            <td class="centre">en pause</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</body></html>

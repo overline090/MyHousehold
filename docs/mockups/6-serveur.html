@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>Serveur — web</title><link rel="stylesheet" href="web.css"></head>
+<body>
+<nav class="cote">
+  <div class="marque"><span>M</span>Maison des Dupont</div>
+  <a class="C1" href="#">Accueil</a>
+  <a class="C2" href="#">Tâches</a>
+  <a class="C3" href="#">Agenda</a>
+  <a class="C4" href="#">Foyer</a>
+  <p class="titre-groupe"><span class="muet" style="font-weight:600;text-transform:uppercase;letter-spacing:.04em;font-size:12px">Configuration</span></p>
+  <a class="C5" href="#">Statuts et droits</a>
+  <a class="C6" href="#">Le foyer</a>
+  <a class="C7 actif" href="#">Serveur</a>
+  <div class="bas">
+    <div class="compte">
+      <span class="photo petite" style="background:linear-gradient(135deg,#0f766e,#14b8a6)">MD</span>
+      <div style="flex:1;min-width:0">Marie Dupont</div>
+    </div>
+  </div>
+</nav>
+<div class="principal">
+  <header class="entete">
+    <h1 style="flex:1">Serveur</h1>
+    <span class="bouton">Journaux</span>
+    <span class="bouton">Sauvegarder maintenant</span>
+  </header>
+
+  <div class="corps">
+    <div class="colonnes">
+      <div class="section" style="flex:1">
+        <h2>Santé</h2>
+        <div class="carte pile">
+          <div class="ligne"><span style="flex:1">Base de données</span><span class="etiquette succes">en service</span></div>
+          <div class="ligne"><span style="flex:1">File de travaux (Redis)</span><span class="etiquette succes">en service</span></div>
+          <div class="ligne"><span style="flex:1">Version</span><span class="muet">0.3.0 · production</span></div>
+        </div>
+
+        <h2 style="margin-top:8px">Mises à jour</h2>
+        <div class="carte pile">
+          <div class="ligne">
+            <div style="flex:1">
+              <h3 style="font-size:15px">Serveur — 0.3.0</h3>
+              <p class="muet">0.3.1 disponible, publiée le 21 octobre</p>
+            </div>
+            <span class="etiquette accent">à jour possible</span>
+          </div>
+          <div class="ligne" style="border-top:1px solid var(--trait);padding-top:10px">
+            <div style="flex:1">
+              <h3 style="font-size:15px">Application — 0.9.1</h3>
+              <p class="muet">Version annoncée aux téléphones du foyer</p>
+            </div>
+            <span class="etiquette succes">à jour</span>
+          </div>
+          <div class="ligne" style="border-top:1px solid var(--trait);padding-top:10px">
+            <span style="flex:1" class="muet">Dernière vérification : aujourd'hui à 4 h 23</span>
+            <span class="bouton">Vérifier maintenant</span>
+          </div>
+          <!-- On dit ce qui sort de la maison, et comment le couper. -->
+          <p class="muet">La vérification lit une page de publications et <strong>n'envoie rien</strong>.</p>
+        </div>
+
+        <h2 style="margin-top:8px">Balayages</h2>
+        <div class="carte pile">
+          <div class="ligne"><span style="flex:1">Matérialisation des occurrences</span><span class="muet">il y a 23 min</span><span class="bouton">Relancer</span></div>
+          <div class="ligne"><span style="flex:1">Passage en « manquée »</span><span class="muet">il y a 8 min</span><span class="bouton">Relancer</span></div>
+          <p class="muet">Les balayages sont idempotents : les relancer ne risque rien.</p>
+        </div>
+      </div>
+
+      <div class="section" style="flex:1">
+        <h2>Comptes du serveur</h2>
+        <div class="carte" style="padding:16px 8px">
+          <table>
+            <thead><tr><th style="width:44%">Compte</th><th>Statut</th><th>Créé</th><th></th></tr></thead>
+            <tbody>
+              <tr><td><strong>Marie Dupont</strong><br><span class="muet">marie@exemple.fr</span></td><td>Administrateur</td><td>12 oct.</td><td class="muet">vous</td></tr>
+              <tr><td><strong>Paul Dupont</strong><br><span class="muet">paul@exemple.fr</span></td><td>Adulte</td><td>12 oct.</td><td><span class="bouton danger" style="min-height:30px;padding:0 10px">Supprimer</span></td></tr>
+              <tr><td><strong>Lou Dupont</strong><br><span class="muet">lou@exemple.fr</span></td><td>Enfant</td><td>13 oct.</td><td><span class="bouton danger" style="min-height:30px;padding:0 10px">Supprimer</span></td></tr>
+              <tr><td><strong>Noé Dupont</strong><br><span class="muet">noe@exemple.fr</span></td><td>Enfant</td><td>13 oct.</td><td><span class="bouton danger" style="min-height:30px;padding:0 10px">Supprimer</span></td></tr>
+              <tr><td><span class="muet">Ancien membre</span></td><td><span class="muet">—</span></td><td>—</td><td><span class="muet">anonymisé</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="muet">Supprimer un compte est le seul moyen de retirer quelqu'un dont le
+          titulaire n'est plus joignable. Il est anonymisé, pas effacé : l'historique du foyer
+          garde un auteur sans garder une identité.</p>
+
+        <h2 style="margin-top:8px">Le foyer</h2>
+        <div class="carte pile">
+          <div class="ligne" style="gap:16px">
+            <div class="champ" style="flex:1"><label>Nom</label><div class="saisie">Maison des Dupont</div></div>
+            <div class="champ" style="flex:1"><label>Fuseau horaire</label><div class="saisie">Europe/Paris ▾</div></div>
+          </div>
+          <div class="ligne" style="gap:16px">
+            <div class="champ" style="flex:1"><label>Premier jour de la semaine</label><div class="saisie">Lundi ▾</div></div>
+            <div class="champ" style="flex:1"><label>Inscriptions libres</label><div class="saisie">Fermées — sur invitation ▾</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body></html>

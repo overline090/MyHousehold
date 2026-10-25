@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>Statuts et droits — web</title><link rel="stylesheet" href="web.css"><style>td{padding:8px 10px}</style></head>
+<body>
+<nav class="cote">
+  <div class="marque"><span>M</span>Maison des Dupont</div>
+  <a class="C1" href="#">Accueil</a>
+  <a class="C2" href="#">Tâches</a>
+  <a class="C3" href="#">Agenda</a>
+  <a class="C4" href="#">Foyer</a>
+  <p class="titre-groupe"><span class="muet" style="font-weight:600;text-transform:uppercase;letter-spacing:.04em;font-size:12px">Configuration</span></p>
+  <a class="C5 actif" href="#">Statuts et droits</a>
+  <a class="C6" href="#">Le foyer</a>
+  <a class="C7" href="#">Serveur</a>
+  <div class="bas">
+    <div class="compte">
+      <span class="photo petite" style="background:linear-gradient(135deg,#0f766e,#14b8a6)">MD</span>
+      <div style="flex:1;min-width:0">Marie Dupont</div>
+    </div>
+  </div>
+</nav>
+<div class="principal">
+  <header class="entete">
+    <h1 style="flex:1">Statuts et droits</h1>
+    <span class="bouton primaire">+ Nouveau statut</span>
+  </header>
+
+  <div class="corps">
+    <!-- Cet écran n'existe qu'ici. L'app Android affiche les statuts et
+         n'offre aucun écran pour les modifier : un réglage qui engage la
+         sécurité du foyer se fait assis, sur un vrai écran. -->
+    <div class="encadre douce">Un statut, ce sont des droits. <strong>Ils ne se configurent que
+      depuis cette page</strong> : l'application mobile les affiche, elle ne les modifie pas.</div>
+
+    <div class="carte" style="padding:12px 8px">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:22%">Droit</th>
+            <th class="centre">Administrateur<br><span class="muet" style="font-weight:400;text-transform:none;letter-spacing:0">1 membre</span></th>
+            <th class="centre">Adulte<br><span class="muet" style="font-weight:400;text-transform:none;letter-spacing:0">1 membre</span></th>
+            <th class="centre">Enfant<br><span class="muet" style="font-weight:400;text-transform:none;letter-spacing:0">2 membres</span></th>
+            <th class="centre">Invité<br><span class="muet" style="font-weight:400;text-transform:none;letter-spacing:0">aucun</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>Voir le contenu du foyer</strong></td>
+            <td class="centre coche">✓</td><td class="centre coche">✓</td><td class="centre coche">✓</td><td class="centre coche">✓</td></tr>
+          <tr><td><strong>Faire les tâches</strong> <span class="muet">— cocher, faire une tâche de fond</span></td>
+            <td class="centre coche">✓</td><td class="centre coche">✓</td><td class="centre coche">✓</td><td class="centre vide">—</td></tr>
+          <tr><td><strong>Gérer les tâches</strong> <span class="muet">— créer, modifier, grouper</span></td>
+            <td class="centre coche">✓</td><td class="centre coche">✓</td><td class="centre vide">—</td><td class="centre vide">—</td></tr>
+          <tr><td><strong>Gérer les rendez-vous</strong></td>
+            <td class="centre coche">✓</td><td class="centre coche">✓</td><td class="centre vide">—</td><td class="centre vide">—</td></tr>
+          <tr><td><strong>Gérer les membres</strong> <span class="muet">— inviter, changer un statut</span></td>
+            <td class="centre coche">✓</td><td class="centre vide">—</td><td class="centre vide">—</td><td class="centre vide">—</td></tr>
+          <tr><td><strong>Gérer les statuts</strong> <span class="muet">— cette page</span></td>
+            <td class="centre coche">✓</td><td class="centre vide">—</td><td class="centre vide">—</td><td class="centre vide">—</td></tr>
+          <tr><td><strong>Administrer le serveur</strong> <span class="muet">— mises à jour, sauvegardes, comptes</span></td>
+            <td class="centre coche">✓</td><td class="centre vide">—</td><td class="centre vide">—</td><td class="centre vide">—</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="colonnes">
+      <!-- La règle qui protège le foyer d'un blocage définitif. -->
+      <div class="encadre alerte" style="flex:1">
+        <p style="font-weight:600;margin-bottom:4px">Au moins un compte reste administrateur</p>
+        <p>Retirer « Gérer les statuts » ou « Administrer le serveur » au dernier compte qui les
+          porte est refusé : le foyer serait définitivement bloqué.</p>
+      </div>
+      <div class="encadre accent" style="flex:1">
+        <p style="font-weight:600;margin-bottom:4px">Supprimer un statut</p>
+        <p>Un statut porté par quelqu'un ne se supprime pas tel quel : la page demande d'abord
+          vers quel statut déplacer ses membres.</p>
+      </div>
+      <div class="encadre douce" style="flex:1">
+        <p style="font-weight:600;margin-bottom:4px">Rien de spécial dans les statuts livrés</p>
+        <p>Administrateur, Adulte, Enfant, Invité se renomment et se modifient comme ceux que
+          vous créerez : le serveur exige des <strong>droits</strong>, jamais des noms.</p>
+      </div>
+    </div>
+  </div>
+</div>
+</body></html>

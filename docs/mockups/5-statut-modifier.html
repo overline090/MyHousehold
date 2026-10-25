@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>Modifier un statut — web</title><link rel="stylesheet" href="web.css"></head>
+<body>
+<nav class="cote">
+  <div class="marque"><span>M</span>Maison des Dupont</div>
+  <a class="C1" href="#">Accueil</a>
+  <a class="C2" href="#">Tâches</a>
+  <a class="C3" href="#">Agenda</a>
+  <a class="C4" href="#">Foyer</a>
+  <p class="titre-groupe"><span class="muet" style="font-weight:600;text-transform:uppercase;letter-spacing:.04em;font-size:12px">Configuration</span></p>
+  <a class="C5 actif" href="#">Statuts et droits</a>
+  <a class="C6" href="#">Le foyer</a>
+  <a class="C7" href="#">Serveur</a>
+  <div class="bas">
+    <div class="compte">
+      <span class="photo petite" style="background:linear-gradient(135deg,#0f766e,#14b8a6)">MD</span>
+      <div style="flex:1;min-width:0">Marie Dupont</div>
+    </div>
+  </div>
+</nav>
+<div class="principal">
+  <header class="entete">
+    <span style="font-size:20px;color:var(--gris)">←</span>
+    <h1 style="flex:1;font-size:22px">Modifier « Adulte »</h1>
+    <span class="bouton danger">Supprimer ce statut</span>
+  </header>
+
+  <div class="corps">
+    <div class="colonnes">
+      <div class="section" style="flex:1.1">
+        <h2>Droits</h2>
+
+        <div class="carte pile">
+          <div class="ligne" style="gap:16px;align-items:flex-end">
+            <div class="champ" style="flex:1"><label>Nom</label><div class="saisie">Adulte</div></div>
+            <div class="ligne" style="flex:none;gap:10px;padding-bottom:9px">
+              <span class="interrupteur actif"></span><span style="font-size:14px">Statut par défaut des nouveaux membres</span>
+            </div>
+          </div>
+          <div class="pile" style="gap:8px">
+            <div class="ligne"><span class="interrupteur actif"></span><span style="flex:1">Voir le contenu du foyer</span></div>
+            <div class="ligne"><span class="interrupteur actif"></span><span style="flex:1">Faire les tâches</span></div>
+            <div class="ligne"><span class="interrupteur actif"></span><span style="flex:1">Gérer les tâches</span></div>
+            <div class="ligne"><span class="interrupteur actif"></span><span style="flex:1">Gérer les rendez-vous</span></div>
+            <div class="ligne"><span class="interrupteur"></span><span style="flex:1">Gérer les membres</span></div>
+            <div class="ligne"><span class="interrupteur"></span><span style="flex:1">Gérer les statuts</span></div>
+            <div class="ligne"><span class="interrupteur"></span><span style="flex:1">Administrer le serveur</span></div>
+          </div>
+          <div class="ligne" style="margin-top:4px">
+            <span class="bouton primaire">Enregistrer</span>
+            <span class="bouton">Annuler</span>
+            <span style="flex:1"></span>
+            <span class="muet">Prend effet immédiatement, pour les 1 membre concerné.</span>
+          </div>
+              </div>
+
+      <div class="section" style="flex:1">
+        <h2>Membres portant ce statut</h2>
+        <div class="carte pile">
+          <div class="ligne">
+            <span class="photo" style="background:linear-gradient(135deg,#6d28d9,#a78bfa)">PD</span>
+            <div style="flex:1"><strong>Paul Dupont</strong><br><span class="muet">paul@exemple.fr</span></div>
+            <span class="muet">depuis le 12 oct.</span>
+          </div>
+          <p class="muet" style="border-top:1px solid var(--trait);padding-top:10px">
+            Un changement ici prend effet immédiatement, sans attendre que Paul se
+            reconnecte : les droits sont relus à chaque requête, pas portés par le jeton
+            de session.</p>
+        </div>
+
+        <div class="encadre alerte">
+          <p style="font-weight:600;margin-bottom:4px">Si c'était le dernier administrateur</p>
+          <p>Retirer « Gérer les statuts » ou « Administrer le serveur » au dernier compte qui
+            les porte est refusé, et la page le dit à l'enregistrement — pas après coup.</p>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+</body></html>

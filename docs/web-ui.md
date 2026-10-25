@@ -21,6 +21,9 @@ du foyer, ne se fait **que** là : un réglage qui engage la sécurité du foyer
 assis, sur un vrai écran, pas au pouce entre deux portes. L'app Android affiche les
 statuts, elle ne les modifie pas.
 
+Les maquettes de cette partie authentifiée sont dans
+[`mockups/`](mockups/README.md), à valider avant la première ligne d'interface.
+
 Ce qu'elle ne fait **pas** : notifications push, mode hors-ligne, scan de QR code.
 Ce sont des choses de téléphone, et prétendre les faire au navigateur donnerait une
 version dégradée de l'app.

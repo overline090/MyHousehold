@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>Foyer — web</title><link rel="stylesheet" href="web.css"></head>
+<body>
+<nav class="cote">
+  <div class="marque"><span>M</span>Maison des Dupont</div>
+  <a class="C1" href="#">Accueil</a>
+  <a class="C2" href="#">Tâches</a>
+  <a class="C3" href="#">Agenda</a>
+  <a class="C4 actif" href="#">Foyer</a>
+  <p class="titre-groupe"><span class="muet" style="font-weight:600;text-transform:uppercase;letter-spacing:.04em;font-size:12px">Configuration</span></p>
+  <a class="C5" href="#">Statuts et droits</a>
+  <a class="C6" href="#">Le foyer</a>
+  <a class="C7" href="#">Serveur</a>
+  <div class="bas">
+    <div class="compte">
+      <span class="photo petite" style="background:linear-gradient(135deg,#0f766e,#14b8a6)">MD</span>
+      <div style="flex:1;min-width:0">Marie Dupont</div>
+    </div>
+  </div>
+</nav>
+<div class="principal">
+  <header class="entete">
+    <h1 style="flex:1">Foyer</h1>
+    <span class="bouton primaire">Inviter quelqu'un</span>
+  </header>
+
+  <div class="corps">
+    <div class="colonnes">
+      <div class="section" style="flex:1.5">
+        <h2>Membres</h2>
+        <div class="carte" style="padding:16px 8px">
+          <table>
+            <thead><tr><th style="width:36%">Membre</th><th>Statut</th><th>Né le</th><th>Dernière activité</th><th></th></tr></thead>
+            <tbody>
+              <tr>
+                <td><span class="ligne"><span class="photo" style="background:linear-gradient(135deg,#0f766e,#14b8a6)">MD</span><span><strong>Marie Dupont</strong><br><span class="muet">marie@exemple.fr</span></span></span></td>
+                <td><span class="saisie" style="min-height:32px;padding:4px 10px">Administrateur ▾</span></td>
+                <td>12 mars 1986</td>
+                <td>à l'instant</td>
+                <td class="muet">vous</td>
+              </tr>
+              <tr>
+                <td><span class="ligne"><span class="photo" style="background:linear-gradient(135deg,#6d28d9,#a78bfa)">PD</span><span><strong>Paul Dupont</strong><br><span class="muet">paul@exemple.fr</span></span></span></td>
+                <td><span class="saisie" style="min-height:32px;padding:4px 10px">Adulte ▾</span></td>
+                <td>3 juin 1984</td>
+                <td>il y a 2 h</td>
+                <td></td>
+              </tr>
+              <tr>
+                <td><span class="ligne"><span class="photo" style="background:linear-gradient(135deg,#b45309,#f59e0b)">LD</span><span><strong>Lou Dupont</strong><br><span class="muet">lou@exemple.fr</span></span></span></td>
+                <td><span class="saisie" style="min-height:32px;padding:4px 10px">Enfant ▾</span></td>
+                <td>9 janvier 2013</td>
+                <td>hier</td>
+                <td></td>
+              </tr>
+              <tr>
+                <td><span class="ligne"><span class="photo" style="background:linear-gradient(135deg,#15803d,#4ade80)">ND</span><span><strong>Noé Dupont</strong><br><span class="muet">noe@exemple.fr</span></span></span></td>
+                <td><span class="saisie" style="min-height:32px;padding:4px 10px">Enfant ▾</span></td>
+                <td>22 avril 2016</td>
+                <td>il y a 3 j</td>
+                <td></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <!-- Aucun bouton « retirer » : la seule sortie du foyer est la
+             suppression de son propre compte. -->
+        <p class="muet">On ne retire personne du foyer. Un compte dont le titulaire n'est plus
+          joignable se supprime depuis <strong>Serveur → Comptes</strong>, et son
+          historique reste sous « Ancien membre ».</p>
+
+        <h2 style="margin-top:8px">Contributions · 30 derniers jours</h2>
+        <div class="carte pile">
+          <div class="ligne"><span style="width:60px">Marie</span>
+            <div style="flex:1;height:8px;border-radius:999px;background:var(--trait)"><span style="display:block;width:68%;height:100%;border-radius:999px;background:#0f766e"></span></div>
+            <span class="muet" style="width:70px;text-align:right">18 tâches</span></div>
+          <div class="ligne"><span style="width:60px">Paul</span>
+            <div style="flex:1;height:8px;border-radius:999px;background:var(--trait)"><span style="display:block;width:56%;height:100%;border-radius:999px;background:#6d28d9"></span></div>
+            <span class="muet" style="width:70px;text-align:right">15 tâches</span></div>
+          <div class="ligne"><span style="width:60px">Lou</span>
+            <div style="flex:1;height:8px;border-radius:999px;background:var(--trait)"><span style="display:block;width:30%;height:100%;border-radius:999px;background:#b45309"></span></div>
+            <span class="muet" style="width:70px;text-align:right">8 tâches</span></div>
+          <div class="ligne"><span style="width:60px">Noé</span>
+            <div style="flex:1;height:8px;border-radius:999px;background:var(--trait)"><span style="display:block;width:22%;height:100%;border-radius:999px;background:#15803d"></span></div>
+            <span class="muet" style="width:70px;text-align:right">6 tâches</span></div>
+          <p class="muet">Des tâches faites, pas des points, et sans classement : c'est un relevé, pas un palmarès.</p>
+        </div>
+      </div>
+
+      <div class="section" style="flex:1">
+        <h2>Invitations en cours</h2>
+        <div class="carte pile">
+          <div class="ligne">
+            <div style="flex:1">
+              <h3 style="font-size:15px;letter-spacing:.06em">K7PQ-2M4R</h3>
+              <p class="muet">Statut à l'arrivée : Adulte · expire dans 6 jours</p>
+            </div>
+            <span class="bouton">Révoquer</span>
+          </div>
+          <p class="muet" style="border-top:1px solid var(--trait);padding-top:10px">On rejoint le foyer par un code,
+            jamais par une recherche d'utilisateur : un serveur familial n'a pas à être un annuaire.</p>
+        </div>
+
+        <h2 style="margin-top:8px">Activité</h2>
+        <div class="carte pile">
+          <div><strong>Lou</strong> a vidé le lave-vaisselle <span class="muet">· 8 h 12</span></div>
+          <div><strong>Paul</strong> a créé « Changer le fusible du garage » <span class="muet">· hier</span></div>
+          <div><strong>Marie</strong> a changé le statut de Noé <span class="muet">· mardi</span></div>
+          <div><strong>Paul</strong> a changé le filtre à eau <span class="muet">· 18 août</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body></html>
