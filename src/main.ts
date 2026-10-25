@@ -14,8 +14,10 @@ async function bootstrap(): Promise<void> {
 
   app.setGlobalPrefix('api/v1', {
     // Le callback OAuth est appelé par Google, qui ne connaît pas notre
-    // préfixe ; /health doit rester trivial à interroger.
-    exclude: ['health', 'version', 'calendars/google/callback'],
+    // préfixe ; /health doit rester trivial à interroger ; et
+    // l'assistant d'installation précède l'existence de l'API versionnée
+    // — c'est la première adresse qu'on ouvre sur un serveur neuf.
+    exclude: ['health', 'version', 'calendars/google/callback', 'setup', 'setup/*path'],
   });
 
   app.use(helmet());

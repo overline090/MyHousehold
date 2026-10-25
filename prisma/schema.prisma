@@ -79,6 +79,13 @@ enum ReminderTargetType {
   COUNTER
 }
 
+enum SetupPairingPurpose {
+  /// L'app pousse la configuration qu'elle a déjà.
+  IMPORT
+  /// L'app crée le premier compte, qui devient administrateur.
+  CLAIM
+}
+
 enum ActivityVerb {
   TASK_COMPLETED
   TASK_SKIPPED
@@ -560,6 +567,51 @@ model ActivityLog {
 
   @@index([householdId, createdAt(sort: Desc)])
   @@map("activity_log")
+}
+
+/// État de l'assistant d'installation. Une seule ligne, `id = 1`.
+///
+/// Cet état vit côté serveur et non en session : on change d'appareil en
+/// cours de route — l'étape réseau se fait depuis un téléphone connecté
+/// au point d'accès du Pi, la suite depuis un ordinateur de la maison —
+/// et une coupure de courant doit reprendre où l'on en était.
+model ServerSetup {
+  id Int @id @default(1)
+
+  /// Imprimé dans les journaux au premier démarrage. Exigé seulement
+  /// quand un reverse proxy masque l'adresse d'origine, car la
+  /// protection « réseau privé » ne peut alors plus s'appliquer.
+  setupToken  String
+  firstBootAt DateTime @default(now()) @db.Timestamptz
+
+  networkDone Boolean @default(false)
+  importDone  Boolean @default(false)
+
+  /// Configuration poussée par l'app à l'étape 2. Elle est stockée et
+  /// non appliquée tout de suite : les tâches et compteurs ont besoin
+  /// d'un auteur, et aucun compte n'existe encore à cette étape. Tout
+  /// est créé au moment où le compte administrateur l'est.
+  pendingImport Json?
+
+  householdId String?   @db.Uuid
+  adminUserId String?   @db.Uuid
+  completedAt DateTime? @db.Timestamptz
+
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  @@map("server_setup")
+}
+
+/// Code d'appariement entre la page d'installation et le téléphone.
+model SetupPairing {
+  code      String              @id
+  purpose   SetupPairingPurpose
+  expiresAt DateTime            @db.Timestamptz
+  usedAt    DateTime?           @db.Timestamptz
+  createdAt DateTime            @default(now()) @db.Timestamptz
+
+  @@index([expiresAt])
+  @@map("setup_pairing")
 }
 
 /// Déduplication des mutations poussées par le mobile. Conservée 30 jours :

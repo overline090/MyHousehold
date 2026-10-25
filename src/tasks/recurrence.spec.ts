@@ -229,3 +229,29 @@ describe('utilitaires de date', () => {
     expect(shiftDays('2026-01-01', -1)).toBe('2025-12-31');
   });
 });
+
+describe('déterminisme des heures de changement d’heure', () => {
+  it('donne le même instant quel que soit le moment du calcul', () => {
+    // La bibliothèque de dates résolvait seule les heures ambiguës, en
+    // partant de l'instant courant : la même tâche regénérée un autre
+    // jour changeait d'heure. Les deux cas sont désormais tranchés
+    // explicitement, donc stables.
+    const ambigu = dueInstant('2026-10-25', '02:30', PARIS).toISOString();
+    const inexistant = dueInstant('2026-03-29', '02:30', PARIS).toISOString();
+
+    const reel = Date.now;
+    try {
+      for (const instant of [
+        new Date('2026-07-01T12:00:00Z'), // heure d'été
+        new Date('2026-12-01T12:00:00Z'), // heure d'hiver
+        new Date('2026-10-25T01:15:00Z'), // pendant la bascule elle-même
+      ]) {
+        Date.now = () => instant.getTime();
+        expect(dueInstant('2026-10-25', '02:30', PARIS).toISOString()).toBe(ambigu);
+        expect(dueInstant('2026-03-29', '02:30', PARIS).toISOString()).toBe(inexistant);
+      }
+    } finally {
+      Date.now = reel;
+    }
+  });
+});

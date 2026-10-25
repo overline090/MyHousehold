@@ -62,13 +62,15 @@ Voir [MyHousehold-android](https://github.com/overline090/MyHousehold-android).
 **Jalon :** premier usage réel par un foyer, **sans qu'un serveur soit nécessaire**.
 C'est ce jalon qui compte : tout ce qui précède est invérifiable sans lui.
 
-## v0.5 — Interface web et assistant d'installation
+## v0.5 — Interface web et assistant d'installation (en cours)
 
-- [ ] Maquettes validées avant toute ligne d'interface
+- [x] Maquettes validées avant toute ligne d'interface
+- [x] Assistant d'installation côté serveur ([setup-wizard.md](setup-wizard.md)) : état, étapes, appariement
+- [x] Protections de l'assistant : réseau local, jeton derrière un proxy, fenêtre de 24 h
+- [x] Reprise de la configuration depuis l'app (étape 2), appliquée à la création du compte
+- [x] Premier compte créé depuis le téléphone, par appariement, administrateur d'office
+- [x] Fermeture des inscriptions libres à la fin de l'installation
 - [ ] Interface web ([web-ui.md](web-ui.md)) : session par cookie, application à page unique servie par Nest
-- [ ] Assistant d'installation pas à pas ([setup-wizard.md](setup-wizard.md))
-- [ ] Reprise de la configuration depuis l'app (étape 2 de l'assistant)
-- [ ] Premier compte créé depuis le téléphone, par appariement
 - [ ] Vue « Aujourd'hui », tâches et compteurs au navigateur
 - [ ] Zone d'administration : comptes, santé, balayages
 

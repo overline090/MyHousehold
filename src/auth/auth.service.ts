@@ -40,7 +40,19 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterDto): Promise<SessionResponse> {
-    if (!this.config.getOrThrow<boolean>('MH_ALLOW_REGISTRATION')) {
+    // Deux verrous : la variable d'environnement, et la fin de
+    // l'installation. Le second évite qu'un serveur exposé accepte les
+    // inscriptions de n'importe qui parce que personne n'a pensé à
+    // éditer un fichier.
+    const setup = await this.prisma.serverSetup.findUnique({
+      where: { id: 1 },
+      select: { completedAt: true },
+    });
+    const open =
+      this.config.getOrThrow<boolean>('MH_ALLOW_REGISTRATION') &&
+      setup?.completedAt == null;
+
+    if (!open) {
       throw AppException.forbidden(
         ErrorCode.REGISTRATION_CLOSED,
         "Les inscriptions sont fermées sur ce serveur. Demandez un code d'invitation à son administrateur.",

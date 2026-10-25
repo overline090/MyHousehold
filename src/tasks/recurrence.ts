@@ -155,6 +155,11 @@ export function generateOccurrences(
  *
  * Dans les deux cas on obtient un instant valide, ce qui vaut mieux
  * qu'une échéance absente ou dupliquée.
+ *
+ * Les deux cas sont tranchés **explicitement**, en examinant les
+ * décalages possibles de la journée. Laisser la bibliothèque de dates
+ * choisir seule donnait un résultat qui dépendait de l'instant du
+ * calcul : la même tâche regénérée un autre jour changeait d'heure.
  */
 export function dueInstant(
   scheduledFor: LocalDate,
@@ -171,9 +176,39 @@ export function dueInstant(
   }
 
   const [hour, minute] = dueTime.split(':').map(Number);
-  return DateTime.fromObject({ year, month, day, hour, minute }, { zone: timezone })
-    .toUTC()
-    .toJSDate();
+  const wanted = { year, month, day, hour, minute };
+
+  // Les deux décalages possibles dans la journée : ils diffèrent les
+  // jours de changement d'heure.
+  const offsets = new Set([
+    DateTime.fromObject({ year, month, day }, { zone: timezone }).offset,
+    DateTime.fromObject({ year, month, day, hour: 23, minute: 59 }, { zone: timezone })
+      .offset,
+  ]);
+
+  const candidates = [...offsets].map((offset) =>
+    DateTime.fromObject(wanted, { zone: 'utc' }).minus({ minutes: offset }),
+  );
+
+  // Un candidat n'est valable que s'il redonne bien l'heure demandée
+  // une fois relu dans le fuseau du foyer.
+  const valid = candidates
+    .filter((instant) => {
+      const local = instant.setZone(timezone);
+      return local.day === day && local.hour === hour && local.minute === minute;
+    })
+    .sort((a, b) => a.toMillis() - b.toMillis());
+
+  if (valid.length > 0) {
+    // Heure ambiguë (passage à l'heure d'hiver, 02 h 30 qui a lieu deux
+    // fois) : la première est retenue.
+    return valid[0].toUTC().toJSDate();
+  }
+
+  // Heure inexistante (passage à l'heure d'été, 02 h 30 le jour où
+  // 02 h 00 devient 03 h 00) : l'échéance est reportée après le saut.
+  const afterJump = candidates.sort((a, b) => b.toMillis() - a.toMillis())[0];
+  return afterJump.toUTC().toJSDate();
 }
 
 /** Jour courant dans le fuseau du foyer. */

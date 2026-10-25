@@ -59,6 +59,11 @@ chiffrement.
 Après la création des comptes des membres, passer `MH_ALLOW_REGISTRATION=false` :
 sans cela, un serveur exposé sur Internet accepte les inscriptions de n'importe qui.
 
+Au premier démarrage, le serveur écrit dans ses journaux un **jeton d'installation**
+et l'adresse de l'assistant. Le jeton n'est exigé que si un reverse proxy masque
+l'adresse d'origine des visiteurs ; sinon, l'assistant n'accepte que le réseau local.
+Passé 24 h sans compte créé, il se verrouille et un redémarrage le réarme.
+
 **Le premier compte créé devient administrateur de l'instance** (`isServerAdmin`),
 ce qui lui donne accès à `/api/v1/admin/users` : lister les comptes et en supprimer.
 C'est le seul moyen de supprimer le compte de quelqu'un qui n'est plus joignable —

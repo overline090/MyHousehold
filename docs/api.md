@@ -349,6 +349,44 @@ compte supprimé anonymise tout son historique d'un coup.
 points) et ne produira **aucun classement**. Un outil de foyer qui désigne un mauvais
 élève crée des conflits au lieu d'en résoudre.
 
+## Installation
+
+Hors de `/api/v1` : ces routes précèdent l'existence de tout compte, et l'app doit
+pouvoir les atteindre avant de savoir quoi que ce soit du serveur. Déroulé complet,
+protections et points durs : [`setup-wizard.md`](setup-wizard.md).
+
+| Méthode | Route | Description |
+|---|---|---|
+| `GET` | `/setup/state` | Étapes, laquelle est courante, ce qui est applicable |
+| `POST` | `/setup/network` | Appliquer une configuration réseau *(image Raspberry Pi)* |
+| `GET` | `/setup/network/scan` | Réseaux Wi-Fi détectés *(image Raspberry Pi)* |
+| `POST` | `/setup/pairing` | `{ "purpose": "IMPORT" \| "CLAIM" }` → code, URL, expiration |
+| `GET` | `/setup/pairing/:code` | `PENDING`, `USED` ou `EXPIRED` |
+| `POST` | `/setup/import` | Appelé **par l'app** : pousse sa configuration locale |
+| `POST` | `/setup/household` | Le nom du foyer |
+| `POST` | `/setup/claim` | Appelé **par l'app** : crée le compte administrateur, ouvre une session |
+| `POST` | `/setup/complete` | Verrouille l'assistant et ferme les inscriptions |
+
+Toutes répondent :
+
+| Code | Quand |
+|---|---|
+| `409 SETUP_ALREADY_DONE` | L'installation est terminée — il n'y a plus rien à installer |
+| `403 SETUP_REMOTE_FORBIDDEN` | La requête vient d'une adresse publique |
+| `403 SETUP_TOKEN_REQUIRED` | Un reverse proxy masque l'adresse d'origine : le jeton affiché dans les journaux au premier démarrage est exigé, dans l'en-tête `X-Setup-Token` |
+| `403 SETUP_WINDOW_CLOSED` | Plus de 24 h sans compte créé : redémarrer le serveur réarme l'assistant |
+| `400 SETUP_NOT_APPLICABLE` | L'étape n'existe pas sur cette installation (le réseau, hors image Raspberry Pi) |
+| `400 PAIRING_INVALID` | Code d'appariement inconnu, expiré, ou déjà utilisé |
+
+`POST /setup/import` **stocke** la configuration au lieu de l'appliquer : les tâches
+et les compteurs ont besoin d'un auteur, et aucun compte n'existe à cette étape. Tout
+est créé au moment où le compte administrateur l'est, et les occurrences des tâches
+importées sont matérialisées dans la foulée — sinon le foyer s'ouvrirait sur une liste
+vide alors que ses tâches viennent d'arriver.
+
+`POST /setup/claim` rend une session complète, comme `/auth/login` : le téléphone qui
+vient de créer le compte est déjà connecté.
+
 ## Santé
 
 Hors du préfixe `/api/v1`, pour rester triviales à interroger :

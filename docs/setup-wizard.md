@@ -1,7 +1,9 @@
 # Assistant d'installation
 
-> ⚠️ **Spécification, rien n'est encore écrit.** Les maquettes sont à valider avant
-> implémentation. Cette page fixe le déroulé, les contraintes et les points durs.
+> **État** : le **serveur** de l'assistant est écrit et couvert par
+> `scripts/smoke-setup.sh` (23 vérifications de bout en bout). L'**interface web**
+> qui s'appuie dessus reste à écrire, d'après les maquettes validées. L'étape réseau
+> se déclare non applicable tant que l'image Raspberry Pi n'existe pas.
 
 Objectif : qu'une personne qui vient de brancher un Raspberry Pi arrive à un foyer
 fonctionnel sans toucher à un terminal.

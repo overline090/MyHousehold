@@ -18,6 +18,7 @@ import { AppointmentsModule } from './appointments/appointments.module';
 import { CountersModule } from './counters/counters.module';
 import { HouseholdsModule } from './households/households.module';
 import { SchedulerModule } from './scheduler/scheduler.module';
+import { SetupModule } from './setup/setup.module';
 import { TasksModule } from './tasks/tasks.module';
 import { UsersModule } from './users/users.module';
 
@@ -71,6 +72,7 @@ import { UsersModule } from './users/users.module';
     AgendaModule,
     ActivityModule,
     SchedulerModule,
+    SetupModule,
     UsersModule,
     AdminModule,
     HealthModule,
