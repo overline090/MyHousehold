@@ -44,7 +44,7 @@ privilégient la simplicité d'exploitation sur la capacité à monter en charge
 | `activity` | ✅ | Fil d'activité du foyer |
 | `setup` | · | Assistant d'installation ([setup-wizard.md](setup-wizard.md)) |
 | `web` | · | Service de l'interface web en statique ([web-ui.md](web-ui.md)) |
-| `releases` | · | Version d'app attendue, miroir de l'APK pour le foyer |
+| `releases` | ✅ | Détection des mises à jour du serveur, et version d'app attendue |
 
 Chaque module expose un `Service` (métier, testable sans HTTP) et un `Controller`
 (validation et transport). La règle : **aucune logique métier dans un contrôleur**.
@@ -96,6 +96,7 @@ contrainte qui permet de les relancer après une coupure sans rien corrompre.
 |---|---|---|
 | `tasks.materialize` | 1×/h (à :07) | Matérialise les occurrences de −14 à +60 jours |
 | `tasks.markMissed` | 15 min | Passe en `MISSED` au-delà du délai de grâce |
+| `releases.check` | 1×/j (à 4h23) | Regarde s'il existe une version plus récente du serveur et de l'app |
 | `calendar.sync` | 15 min / compte | Synchronisation incrémentale des agendas |
 | `notifications.dispatch` | 1 min | Envoie les rappels dus |
 | `maintenance.purge` | 1×/j | Purge les tokens expirés et les suppressions logiques > 90 j |

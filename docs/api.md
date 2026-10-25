@@ -387,6 +387,45 @@ vide alors que ses tâches viennent d'arriver.
 `POST /setup/claim` rend une session complète, comme `/auth/login` : le téléphone qui
 vient de créer le compte est déjà connecté.
 
+## Mises à jour
+
+Le serveur regarde une fois par jour s'il existe une version plus récente de
+lui-même et de l'application. **Rien n'est envoyé** : il lit une page de
+publications. `MH_UPDATE_CHECK=false` coupe entièrement ces appels sortants.
+
+| Méthode | Route | Qui |
+|---|---|---|
+| `GET` | `/app-release` | Public : l'app l'interroge avant toute connexion |
+| `GET` | `/api/v1/admin/updates` | Administrateur de l'instance |
+| `POST` | `/api/v1/admin/jobs/releases.check/run` | Administrateur : vérifier tout de suite |
+
+L'état des mises à jour **n'est pas** exposé sur `/version`, qui est public :
+annoncer à tout visiteur qu'un serveur est en retard d'une version, c'est lui
+indiquer quelles failles essayer.
+
+`GET /app-release` :
+
+```json
+{
+  "version": "v0.9.1",
+  "publishedAt": "2026-10-21T10:00:00Z",
+  "downloadUrl": "https://github.com/.../myhousehold-0.9.1.apk",
+  "sha256": "3b1f2c…",
+  "serverVersion": "0.3.0",
+  "checkedAt": "2026-10-25T04:23:00Z"
+}
+```
+
+C'est **le serveur qui dit à l'app quelle version installer**, et non le téléphone
+qui va chercher la dernière existante : un serveur en v0.4 n'a aucune raison de
+pousser les téléphones du foyer vers une app qui parlera une API qu'il ne connaît
+pas. `sha256` est lu dans les notes de la version publiée et vérifié par l'app avant
+toute installation.
+
+Une vérification impossible — pas d'accès sortant, serveur injoignable, réponse
+illisible — est une information, pas une panne : elle est consignée dans
+`lastError` et le foyer continue de fonctionner.
+
 ## Santé
 
 Hors du préfixe `/api/v1`, pour rester triviales à interroger :

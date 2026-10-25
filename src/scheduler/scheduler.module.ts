@@ -1,6 +1,7 @@
 import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ReleasesModule } from '../releases/releases.module';
 import { TasksModule } from '../tasks/tasks.module';
 import { TASKS_QUEUE } from './job-names';
 import { SchedulerService } from './scheduler.service';
@@ -33,6 +34,7 @@ import { TasksProcessor } from './tasks.processor';
     }),
     BullModule.registerQueue({ name: TASKS_QUEUE }),
     TasksModule,
+    ReleasesModule,
   ],
   providers: [SchedulerService, TasksProcessor],
   exports: [SchedulerService],

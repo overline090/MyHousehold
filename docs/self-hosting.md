@@ -42,6 +42,8 @@ un reverse proxy TLS, jamais en direct.
 | `MH_PUBLIC_URL` | ✅ | URL publique, utilisée pour le callback OAuth |
 | `MH_ALLOW_REGISTRATION` | | `false` après la création des comptes du foyer |
 | `MH_DEFAULT_TIMEZONE` | | `Europe/Paris` par défaut |
+| `MH_UPDATE_CHECK` | | `false` coupe la vérification des mises à jour, donc tout appel sortant |
+| `MH_RELEASES_URL` / `MH_APP_RELEASES_URL` | | Où lire les versions publiées. À changer pour un miroir interne |
 | `MH_GOOGLE_CLIENT_ID` / `_SECRET` | | Seulement pour la synchro Google |
 | `MH_FCM_SERVICE_ACCOUNT` | | Chemin du fichier de compte de service, pour le push |
 
@@ -102,6 +104,12 @@ Redis ne nécessite pas de sauvegarde : il ne contient que des jobs en attente, 
 reconstructibles.
 
 ## Mise à jour
+
+Le serveur vous prévient : il regarde une fois par jour s'il existe une version plus
+récente, et l'administrateur de l'instance la voit dans la zone d'administration
+(`GET /api/v1/admin/updates`). Rien n'est envoyé au passage — il lit une page de
+publications — et `MH_UPDATE_CHECK=false` coupe ces appels pour qui ne veut aucun
+trafic sortant.
 
 ```bash
 git pull

@@ -17,7 +17,16 @@ async function bootstrap(): Promise<void> {
     // préfixe ; /health doit rester trivial à interroger ; et
     // l'assistant d'installation précède l'existence de l'API versionnée
     // — c'est la première adresse qu'on ouvre sur un serveur neuf.
-    exclude: ['health', 'version', 'calendars/google/callback', 'setup', 'setup/*path'],
+    exclude: [
+      'health',
+      'version',
+      'calendars/google/callback',
+      'setup',
+      'setup/*path',
+      // L'app interroge la version attendue avant toute connexion, et
+      // avant de savoir quelle API ce serveur parle.
+      'app-release',
+    ],
   });
 
   app.use(helmet());

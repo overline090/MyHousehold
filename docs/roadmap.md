@@ -84,8 +84,10 @@ terminal.
       ([raspberry-pi.md](raspberry-pi.md))
 - [ ] Publication mDNS de `myhousehold.local`
 - [ ] Mesures réelles sur Pi 4 (2 Go) : mémoire, durée des balayages, écritures sur carte SD
+- [x] Détection des mises à jour **du serveur**, et version d'app attendue relayée au foyer
 - [ ] Mise à jour de l'app hors magasin : détection, téléchargement, vérification
       ([updates.md](https://github.com/overline090/MyHousehold-android/blob/main/docs/updates.md))
+- [ ] Miroir de l'APK servi par le serveur du foyer
 
 ## v0.7 — Agendas externes
 

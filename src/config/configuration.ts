@@ -40,6 +40,26 @@ const schema = z.object({
     .positive()
     .default(60 * 24 * 3600),
 
+  // Vérification des mises à jour. Rien n'est envoyé : le serveur lit
+  // une page de publications. Se coupe pour qui ne veut aucun appel
+  // sortant.
+  MH_UPDATE_CHECK: z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform((v) => v === 'true'),
+  MH_RELEASES_URL: z
+    .string()
+    .url()
+    .default('https://api.github.com/repos/overline090/MyHousehold/releases/latest'),
+  MH_APP_RELEASES_URL: z
+    .string()
+    .url()
+    .default(
+      'https://api.github.com/repos/overline090/MyHousehold-android/releases/latest',
+    ),
+
+  MH_NETWORK_SETUP_SOCKET: z.string().optional(),
+
   MH_GOOGLE_CLIENT_ID: z.string().optional(),
   MH_GOOGLE_CLIENT_SECRET: z.string().optional(),
 });

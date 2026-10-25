@@ -569,6 +569,36 @@ model ActivityLog {
   @@map("activity_log")
 }
 
+/// Dernière vérification des versions publiées. Une seule ligne.
+///
+/// Le serveur regarde s'il existe une version plus récente de lui-même
+/// et de l'application. Ce n'est pas de la télémétrie : rien n'est
+/// envoyé, on lit une page de publications. La vérification se coupe
+/// (`MH_UPDATE_CHECK=false`) pour qui ne veut aucun appel sortant.
+model ReleaseCheck {
+  id Int @id @default(1)
+
+  /// Dernière version publiée du serveur, et sa date.
+  serverVersion     String?
+  serverPublishedAt DateTime? @db.Timestamptz
+  serverNotesUrl    String?
+
+  /// Dernière version publiée de l'app, et de quoi l'installer. Le
+  /// serveur les relaie au foyer : cinq téléphones téléchargent le même
+  /// APK, autant qu'il vienne du placard.
+  appVersion     String?
+  appPublishedAt DateTime? @db.Timestamptz
+  appDownloadUrl String?
+  appSha256      String?
+
+  checkedAt DateTime? @db.Timestamptz
+  lastError String?
+
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  @@map("release_check")
+}
+
 /// État de l'assistant d'installation. Une seule ligne, `id = 1`.
 ///
 /// Cet état vit côté serveur et non en session : on change d'appareil en

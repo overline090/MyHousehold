@@ -442,12 +442,32 @@ import json,sys
 for u in json.load(sys.stdin):
     if u['id'] == '$OWNER_ID': print('yes' if u['email'].endswith('@invalide.local') else u['email'])")"
 
+  check "l'état des mises à jour est réservé à l'administrateur" "404" \
+    "$(status "$BASE/admin/updates" -H "authorization: Bearer $MEMBER")"
+  check "l'administrateur voit l'état des mises à jour" "yes" \
+    "$(curl -s "$BASE/admin/updates" -H "authorization: Bearer $ADMIN" | py "
+import json,sys
+d = json.load(sys.stdin)
+print('yes' if d['currentVersion'] and 'updateAvailable' in d else d)")"
+  check "la vérification des mises à jour se déclenche" "202" \
+    "$(status -X POST "$BASE/admin/jobs/releases.check/run" -H "authorization: Bearer $ADMIN")"
+
   check "l'administrateur supprime le compte d'un autre" "204" \
     "$(status -X DELETE "$BASE/admin/users/$MEMBER_ID" -H "authorization: Bearer $ADMIN" -H 'content-type: application/json' -d '{"password":"un mot de passe assez long"}')"
 else
   echo "  — ignoré : le serveur visé n'est pas vierge, aucun compte de ce"
   echo "    script n'est administrateur de l'instance."
 fi
+
+echo
+echo "Version attendue de l'application"
+check "l'app peut l'interroger sans être connectée" "yes" \
+  "$(curl -s "${BASE%/api/v1}/app-release" | py "
+import json,sys
+d = json.load(sys.stdin)
+# Les champs peuvent être vides si le serveur n'a pas d'accès sortant ;
+# c'est leur présence qui est contractuelle.
+print('yes' if 'version' in d and d['serverVersion'] else d)")"
 
 echo
 echo "Limitation de débit sur la connexion"

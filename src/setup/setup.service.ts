@@ -67,13 +67,13 @@ export class SetupService implements OnModuleInit {
 
   /** Ligne d'état, créée au premier appel. */
   async raw(): Promise<ServerSetup> {
-    const existing = await this.prisma.serverSetup.findUnique({ where: { id: 1 } });
-    if (existing) {
-      return existing;
-    }
-
-    return this.prisma.serverSetup.create({
-      data: { id: 1, setupToken: randomBytes(24).toString('base64url') },
+    // En upsert et non en « lire puis créer » : deux requêtes arrivant
+    // ensemble au premier démarrage se marcheraient dessus sur la clé
+    // primaire, et l'une des deux échouerait en pleine installation.
+    return this.prisma.serverSetup.upsert({
+      where: { id: 1 },
+      create: { id: 1, setupToken: randomBytes(24).toString('base64url') },
+      update: {},
     });
   }
 

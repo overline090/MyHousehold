@@ -1,6 +1,7 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
+import { ReleasesService } from '../releases/releases.service';
 import { TasksService } from '../tasks/tasks.service';
 import { JobName, TASKS_QUEUE } from './job-names';
 
@@ -14,7 +15,10 @@ import { JobName, TASKS_QUEUE } from './job-names';
 export class TasksProcessor extends WorkerHost {
   private readonly logger = new Logger(TasksProcessor.name);
 
-  constructor(private readonly tasks: TasksService) {
+  constructor(
+    private readonly tasks: TasksService,
+    private readonly releases: ReleasesService,
+  ) {
     super();
   }
 
@@ -25,6 +29,9 @@ export class TasksProcessor extends WorkerHost {
 
       case JobName.MARK_MISSED:
         return { missed: await this.tasks.markMissed() };
+
+      case JobName.CHECK_RELEASES:
+        return this.releases.check();
 
       default:
         // Un job inconnu vient d'une version antérieure restée dans

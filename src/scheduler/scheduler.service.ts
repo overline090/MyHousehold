@@ -19,6 +19,13 @@ const SCHEDULES: { name: string; pattern: string; description: string }[] = [
     pattern: '*/15 * * * *',
     description: 'passage en « manquée », tous les quarts d’heure',
   },
+  {
+    name: JobName.CHECK_RELEASES,
+    // Une fois par jour suffit, et à une heure creuse : personne
+    // n'attend une mise à jour à la minute près.
+    pattern: '23 4 * * *',
+    description: 'vérification des mises à jour, une fois par jour',
+  },
 ];
 
 @Injectable()
