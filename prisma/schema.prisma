@@ -6,7 +6,8 @@
 //   - createdAt / updatedAt / deletedAt sur chaque table synchronisée :
 //     la suppression est logique, sinon un client hors-ligne ne peut pas
 //     apprendre qu'un objet a disparu
-//   - householdId sur chaque table métier : c'est la frontière d'isolation
+//   - un serveur sert UN SEUL foyer : household n'a qu'une ligne vivante,
+//     et householdId reste sur les tables métier comme simple rattachement
 
 generator client {
   provider = "prisma-client-js"
@@ -18,11 +19,17 @@ datasource db {
 
 // ───────────────────────────── Énumérations ─────────────────────────────
 
-enum HouseholdRole {
-  OWNER
-  ADULT
-  CHILD
-  GUEST
+/// Droits portés par un statut. Les routes exigent un droit, jamais un
+/// nom de statut : un foyer qui renomme « Adulte » en « Grand » ne doit
+/// pas changer de comportement.
+enum Right {
+  VIEW
+  COMPLETE_TASKS
+  MANAGE_TASKS
+  MANAGE_APPOINTMENTS
+  MANAGE_MEMBERS
+  MANAGE_STATUSES
+  MANAGE_SERVER
 }
 
 enum AssignmentMode {
@@ -94,45 +101,49 @@ enum ActivityVerb {
   APPOINTMENT_CREATED
   MEMBER_JOINED
   MEMBER_ACCOUNT_DELETED
-  MEMBER_ROLE_CHANGED
-  OWNERSHIP_TRANSFERRED
+  MEMBER_STATUS_CHANGED
+  ADMIN_RIGHTS_TRANSFERRED
 }
 
 // ──────────────────────── Identité et foyer ─────────────────────────────
 
 model User {
-  id String @id @default(uuid(7)) @db.Uuid
+  id           String    @id @default(uuid(7)) @db.Uuid
   /// Normalisé en minuscules côté serveur avant écriture.
   /// Après suppression du compte : remplacé par une valeur inutilisable.
-  email        String  @unique
-  displayName  String
+  email        String    @unique
+  firstName    String
+  lastName     String
+  /// Facultative : on ne force personne à déclarer sa date de naissance.
+  birthDate    DateTime? @db.Date
   passwordHash String
-  /// Administrateur de l'instance, distinct du rôle dans un foyer. Le
-  /// premier compte créé sur un serveur neuf l'obtient automatiquement :
-  /// quelqu'un doit pouvoir supprimer un compte dont le titulaire n'est
-  /// plus joignable.
-  isServerAdmin Boolean @default(false)
-  avatarColor  String  @default("#6750A4")
-  locale       String  @default("fr-FR")
+  /// Son statut, donc ses droits. Ce qui remplace l'ancien rôle de foyer
+  /// et l'ancien drapeau « administrateur de l'instance ».
+  statusId     String    @db.Uuid
+  /// Photo de profil : un fichier, à côté de la base. Les images n'ont
+  /// rien à faire dans une base que l'on sauvegarde par pg_dump.
+  avatarPath   String?
+  avatarColor  String    @default("#6750A4")
+  locale       String    @default("fr-FR")
   /// Fuseau personnel. Null = celui du foyer, qui reste la référence
   /// pour calculer les échéances.
   timezone     String?
 
-  createdAt DateTime @default(now()) @db.Timestamptz
-  updatedAt DateTime @updatedAt @db.Timestamptz
+  createdAt DateTime  @default(now()) @db.Timestamptz
+  updatedAt DateTime  @updatedAt @db.Timestamptz
   /// Compte supprimé : la ligne est conservée anonymisée pour que
   /// l'historique du foyer reste cohérent (« Ancien membre a sorti les
   /// poubelles »). Email, nom et empreinte sont écrasés à la suppression.
   deletedAt DateTime? @db.Timestamptz
 
-  memberships          HouseholdMember[]
+  status               Status                  @relation(fields: [statusId], references: [id])
   devices              Device[]
   refreshTokens        RefreshToken[]
   calendarAccounts     CalendarAccount[]
   notificationPref     NotificationPreference?
   assignedTasks        TaskAssignee[]
-  assignedOccurrences  TaskOccurrence[]       @relation("occurrenceAssignee")
-  completedOccurrences TaskOccurrence[]       @relation("occurrenceCompletedBy")
+  assignedOccurrences  TaskOccurrence[]        @relation("occurrenceAssignee")
+  completedOccurrences TaskOccurrence[]        @relation("occurrenceCompletedBy")
   counterEvents        CounterEvent[]
   attendances          AppointmentAttendee[]
   reminders            Reminder[]
@@ -140,12 +151,36 @@ model User {
   createdInvites       Invite[]
 
   @@index([email])
+  @@index([statusId])
   @@map("user")
 }
 
+/// Un statut, ce sont des droits. **Il ne se configure que depuis
+/// l'interface web du serveur** : un réglage qui engage la sécurité du
+/// foyer se fait assis, sur un vrai écran. Ce n'est pas une contrainte
+/// technique — le serveur ne sait pas qui l'appelle — mais une décision
+/// de produit, tenue côté client.
+model Status {
+  id        String  @id @default(uuid(7)) @db.Uuid
+  name      String
+  rights    Right[]
+  /// Statut donné aux nouveaux membres.
+  isDefault Boolean @default(false)
+  position  Int     @default(0)
+
+  createdAt DateTime  @default(now()) @db.Timestamptz
+  updatedAt DateTime  @updatedAt @db.Timestamptz
+  deletedAt DateTime? @db.Timestamptz
+
+  users   User[]
+  invites Invite[]
+
+  @@map("status")
+}
+
 model Household {
-  id   String @id @default(uuid(7)) @db.Uuid
-  name String
+  id           String @id @default(uuid(7)) @db.Uuid
+  name         String
   /// Identifiant IANA. Référence pour dérouler les récurrences :
   /// « chaque lundi 19h » doit rester 19h locales après un changement d'heure.
   timezone     String @default("Europe/Paris")
@@ -155,56 +190,34 @@ model Household {
   updatedAt DateTime  @updatedAt @db.Timestamptz
   deletedAt DateTime? @db.Timestamptz
 
-  members      HouseholdMember[]
-  invites      Invite[]
-  tasks        TaskDefinition[]
-  occurrences  TaskOccurrence[]
-  counters     CounterDefinition[]
+  invites       Invite[]
+  tasks         TaskDefinition[]
+  occurrences   TaskOccurrence[]
+  counters      CounterDefinition[]
   counterEvents CounterEvent[]
-  appointments Appointment[]
-  activities   ActivityLog[]
+  appointments  Appointment[]
+  activities    ActivityLog[]
 
   @@map("household")
 }
 
-model HouseholdMember {
-  householdId String        @db.Uuid
-  userId      String        @db.Uuid
-  role        HouseholdRole @default(ADULT)
-  /// Surnom propre à ce foyer : la même personne peut être « Papa » ici
-  /// et « Marc » dans sa colocation.
-  nickname    String?
-
-  joinedAt  DateTime @default(now()) @db.Timestamptz
-  updatedAt DateTime @updatedAt @db.Timestamptz
-  /// Renseigné uniquement quand le compte du membre est supprimé, ou que
-  /// le foyer l'est. Personne ne peut sortir quelqu'un d'autre d'un
-  /// foyer : il n'y a pas d'exclusion dans ce modèle.
-  deletedAt DateTime? @db.Timestamptz
-
-  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@id([householdId, userId])
-  @@index([userId])
-  @@map("household_member")
-}
-
 model Invite {
-  id          String        @id @default(uuid(7)) @db.Uuid
-  householdId String        @db.Uuid
+  id          String   @id @default(uuid(7)) @db.Uuid
+  householdId String   @db.Uuid
   /// 8 caractères, alphabet sans ambiguïté visuelle (ni 0/O ni 1/l).
-  code        String        @unique
-  role        HouseholdRole @default(ADULT)
-  maxUses     Int           @default(1)
-  useCount    Int           @default(0)
-  expiresAt   DateTime      @db.Timestamptz
-  createdById String        @db.Uuid
+  code        String   @unique
+  /// Statut attribué à l'arrivée.
+  statusId    String   @db.Uuid
+  maxUses     Int      @default(1)
+  useCount    Int      @default(0)
+  expiresAt   DateTime @db.Timestamptz
+  createdById String   @db.Uuid
 
   createdAt DateTime  @default(now()) @db.Timestamptz
   revokedAt DateTime? @db.Timestamptz
 
   household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  status    Status    @relation(fields: [statusId], references: [id])
   createdBy User      @relation(fields: [createdById], references: [id])
 
   @@index([householdId])
@@ -264,10 +277,10 @@ model TaskAssignee {
 /// une occurrence s'assigne, s'annote, se reporte, et un client
 /// hors-ligne doit pouvoir la porter.
 model TaskOccurrence {
-  id               String @id @default(uuid(7)) @db.Uuid
-  taskDefinitionId String @db.Uuid
+  id               String   @id @default(uuid(7)) @db.Uuid
+  taskDefinitionId String   @db.Uuid
   /// Dupliqué depuis la définition pour filtrer sans jointure.
-  householdId      String @db.Uuid
+  householdId      String   @db.Uuid
   /// Jour d'échéance en heure locale du foyer. Date pure : la convertir
   /// en instant la décalerait d'un jour selon le fuseau.
   scheduledFor     DateTime @db.Date
@@ -275,10 +288,10 @@ model TaskOccurrence {
   dueAt            DateTime @db.Timestamptz
   assigneeId       String?  @db.Uuid
 
-  status      OccurrenceStatus @default(PENDING)
-  completedAt DateTime?        @db.Timestamptz
+  status        OccurrenceStatus @default(PENDING)
+  completedAt   DateTime?        @db.Timestamptz
   /// Peut différer de l'assigné : quelqu'un a dépanné.
-  completedById String?        @db.Uuid
+  completedById String?          @db.Uuid
   note          String?
 
   createdAt DateTime  @default(now()) @db.Timestamptz
@@ -301,11 +314,11 @@ model TaskOccurrence {
 // ───────────────────────── Compteurs de temps ───────────────────────────
 
 model CounterDefinition {
-  id          String  @id @default(uuid(7)) @db.Uuid
-  householdId String  @db.Uuid
-  title       String
-  description String?
-  category    String?
+  id                    String         @id @default(uuid(7)) @db.Uuid
+  householdId           String         @db.Uuid
+  title                 String
+  description           String?
+  category              String?
   /// Intervalle cible, ex. 14 jours. Null = compteur purement informatif,
   /// qui ne fait que compter sans jamais être « en retard ».
   targetIntervalSeconds Int?
@@ -331,14 +344,14 @@ model CounterDefinition {
 /// C'est ce qui rend deux remises à zéro hors-ligne non destructives :
 /// deux saisies sont deux faits, seule la plus récente détermine l'état.
 model CounterEvent {
-  id                  String @id @default(uuid(7)) @db.Uuid
-  counterDefinitionId String @db.Uuid
-  householdId         String @db.Uuid
+  id                  String   @id @default(uuid(7)) @db.Uuid
+  counterDefinitionId String   @db.Uuid
+  householdId         String   @db.Uuid
   /// Quand l'action a été faite, et non quand elle a été saisie : on doit
   /// pouvoir déclarer dimanche soir une action faite samedi matin.
-  occurredAt   DateTime @db.Timestamptz
-  recordedById String   @db.Uuid
-  note         String?
+  occurredAt          DateTime @db.Timestamptz
+  recordedById        String   @db.Uuid
+  note                String?
 
   createdAt DateTime  @default(now()) @db.Timestamptz
   updatedAt DateTime  @updatedAt @db.Timestamptz
@@ -362,21 +375,21 @@ model Appointment {
   description String?
   location    String?
 
-  startAt DateTime @db.Timestamptz
-  endAt   DateTime @db.Timestamptz
+  startAt      DateTime @db.Timestamptz
+  endAt        DateTime @db.Timestamptz
   /// Si vrai, startAt est minuit dans le fuseau du foyer.
-  isAllDay Boolean @default(false)
-  rrule    String?
+  isAllDay     Boolean  @default(false)
+  rrule        String?
   /// Instance modifiée d'une récurrence importée (RECURRENCE-ID iCalendar).
   recurrenceId String?
 
-  visibility AppointmentVisibility @default(HOUSEHOLD)
-  source     AppointmentSource     @default(LOCAL)
+  visibility        AppointmentVisibility @default(HOUSEHOLD)
+  source            AppointmentSource     @default(LOCAL)
   /// Renseignés si source = IMPORTED. Un événement importé est en lecture
   /// seule en v1 : toute modification renvoie APPOINTMENT_READ_ONLY.
-  calendarAccountId String? @db.Uuid
+  calendarAccountId String?               @db.Uuid
   externalUid       String?
-  createdById       String  @db.Uuid
+  createdById       String                @db.Uuid
 
   createdAt DateTime  @default(now()) @db.Timestamptz
   updatedAt DateTime  @updatedAt @db.Timestamptz
@@ -406,15 +419,15 @@ model AppointmentAttendee {
 }
 
 model Reminder {
-  id         String             @id @default(uuid(7)) @db.Uuid
-  targetType ReminderTargetType
-  targetId   String             @db.Uuid
+  id            String             @id @default(uuid(7)) @db.Uuid
+  targetType    ReminderTargetType
+  targetId      String             @db.Uuid
   /// Négatif = avant l'échéance.
   offsetMinutes Int
   /// Null = tous les membres concernés.
-  userId        String?   @db.Uuid
+  userId        String?            @db.Uuid
   /// Garde-fou anti-doublon : un rappel envoyé ne se renvoie pas.
-  sentAt        DateTime? @db.Timestamptz
+  sentAt        DateTime?          @db.Timestamptz
 
   createdAt DateTime @default(now()) @db.Timestamptz
 
@@ -442,7 +455,7 @@ model CalendarAccount {
   defaultVisibility AppointmentVisibility @default(HOUSEHOLD)
   /// N'importe que la plage horaire, sans le titre. Activé par défaut :
   /// partager ses disponibilités ne doit pas exposer son agenda pro.
-  busyOnly Boolean @default(true)
+  busyOnly          Boolean               @default(true)
 
   /// syncToken Google, ctag CalDAV ou ETag HTTP selon le fournisseur.
   syncCursor  String?
@@ -464,14 +477,14 @@ model CalendarAccount {
 }
 
 model ExternalEvent {
-  calendarAccountId String @db.Uuid
+  calendarAccountId String   @db.Uuid
   /// UID iCalendar de l'événement distant.
   externalUid       String
-  appointmentId     String @unique @db.Uuid
+  appointmentId     String   @unique @db.Uuid
   etag              String?
   /// Un événement non revu après une synchronisation *complète* est
   /// supprimé. Jamais après un delta : il n'en contient qu'une partie.
-  lastSeenAt DateTime @db.Timestamptz
+  lastSeenAt        DateTime @db.Timestamptz
 
   account     CalendarAccount @relation(fields: [calendarAccountId], references: [id], onDelete: Cascade)
   appointment Appointment     @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
@@ -508,18 +521,18 @@ model RefreshToken {
   /// SHA-256 : le jeton en clair n'est jamais stocké.
   tokenHash String  @unique
 
-  expiresAt DateTime  @db.Timestamptz
-  revokedAt DateTime? @db.Timestamptz
+  expiresAt    DateTime  @db.Timestamptz
+  revokedAt    DateTime? @db.Timestamptz
   /// Chaîne de rotation. Si un jeton déjà remplacé est présenté, c'est un
   /// rejeu : toute la chaîne est révoquée.
-  replacedById String? @unique @db.Uuid
+  replacedById String?   @unique @db.Uuid
 
   createdAt DateTime @default(now()) @db.Timestamptz
 
   user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   device Device? @relation(fields: [deviceId], references: [id], onDelete: SetNull)
 
-  replaces  RefreshToken? @relation("tokenRotation", fields: [replacedById], references: [id], onDelete: SetNull)
+  replaces   RefreshToken? @relation("tokenRotation", fields: [replacedById], references: [id], onDelete: SetNull)
   replacedBy RefreshToken? @relation("tokenRotation")
 
   @@index([userId])
@@ -536,10 +549,10 @@ model NotificationPreference {
   householdActivity   Boolean @default(false)
 
   /// Heures de silence, en heure locale de l'utilisateur. Format HH:mm.
-  quietHoursStart String? @db.VarChar(5)
-  quietHoursEnd   String? @db.VarChar(5)
+  quietHoursStart        String? @db.VarChar(5)
+  quietHoursEnd          String? @db.VarChar(5)
   /// Rappel par défaut appliqué aux nouveaux rendez-vous, en minutes avant.
-  defaultReminderMinutes Int @default(30)
+  defaultReminderMinutes Int     @default(30)
 
   updatedAt DateTime @updatedAt @db.Timestamptz
 

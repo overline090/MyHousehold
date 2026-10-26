@@ -10,7 +10,6 @@ import {
   ParseUUIDPipe,
   Post,
   Query,
-  UseGuards,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AppException } from '../common/errors/app.exception';
@@ -20,13 +19,20 @@ import { ReleasesService } from '../releases/releases.service';
 import { SchedulerService } from '../scheduler/scheduler.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
+import { Right } from '@prisma/client';
+import { RequireRight } from '../households/decorators/require-right.decorator';
 import { DeleteAccountDto } from '../users/dto/delete-account.dto';
 import { UsersService } from '../users/users.service';
-import { ServerAdminGuard } from './server-admin.guard';
 
+/**
+ * Administration du serveur : réservée au droit `MANAGE_SERVER`, qui a
+ * remplacé l'ancien drapeau « administrateur de l'instance ». Il n'y a
+ * plus d'existence à cacher — une machine, un foyer — donc un droit
+ * manquant est un 403 et non un 404.
+ */
 @ApiTags('admin')
 @Controller('admin')
-@UseGuards(ServerAdminGuard)
+@RequireRight(Right.MANAGE_SERVER)
 export class AdminController {
   constructor(
     private readonly users: UsersService,
@@ -35,7 +41,7 @@ export class AdminController {
   ) {}
 
   @Get('users')
-  @ApiOperation({ summary: 'Comptes de l’instance' })
+  @ApiOperation({ summary: 'Comptes du serveur' })
   list(
     @Query('includeDeleted', new ParseBoolPipe({ optional: true }))
     includeDeleted?: boolean,
@@ -43,11 +49,6 @@ export class AdminController {
     return this.users.listAccounts(includeDeleted ?? false);
   }
 
-  /**
-   * Permet de supprimer le compte de quelqu'un qui n'est plus joignable.
-   * Ce n'est pas une exclusion déguisée : le compte disparaît de
-   * l'instance entière, il n'est pas retiré d'un foyer.
-   */
   /**
    * Réservé à l'administrateur, et non exposé sur /version : annoncer à
    * tout visiteur qu'un serveur est en retard d'une version, c'est lui
@@ -82,7 +83,7 @@ export class AdminController {
 
   @Delete('users/:userId')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Supprimer le compte d’un membre de l’instance' })
+  @ApiOperation({ summary: 'Supprimer le compte d’un membre' })
   async deleteAccount(
     @Param('userId', ParseUUIDPipe) userId: string,
     @CurrentUser() admin: AuthenticatedUser,

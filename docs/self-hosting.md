@@ -94,14 +94,19 @@ Sans nom de domaine, trois options par ordre de préférence :
 
 ## Sauvegardes
 
-Trois choses à sauvegarder, et la troisième est souvent oubliée :
+Quatre choses à sauvegarder, et les deux dernières sont souvent oubliées :
 
 ```bash
 # 1. base de données
 docker compose exec -T db pg_dump -U myhousehold myhousehold | gzip > backup.sql.gz
 
-# 2. le fichier .env (contient MH_ENCRYPTION_KEY)
-# 3. tester la restauration — une sauvegarde jamais restaurée n'est pas une sauvegarde
+# 2. le volume de données : les photos de profil sont des fichiers, pas
+#    des colonnes — un dump SQL seul rendrait le foyer sans visages
+docker run --rm -v myhousehold_app-data:/data -v "$PWD":/sortie alpine \
+  tar czf /sortie/donnees.tar.gz -C /data .
+
+# 3. le fichier .env (contient MH_ENCRYPTION_KEY)
+# 4. tester la restauration — une sauvegarde jamais restaurée n'est pas une sauvegarde
 ```
 
 Redis ne nécessite pas de sauvegarde : il ne contient que des jobs en attente, tous

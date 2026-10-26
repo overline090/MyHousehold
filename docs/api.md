@@ -6,11 +6,13 @@ Ce document est le contrat entre le serveur, l'app Android et l'interface web. T
 modification cassante passe par une nouvelle version de préfixe (`/api/v2`), jamais
 par une mutation silencieuse de `v1`.
 
-> ⚠️ **Révision en cours.** Ce document décrit le contrat **décidé**, aligné sur
-> [`data-model.md`](data-model.md) : un seul foyer par serveur, une seule notion de
-> tâche, des statuts à droits, pas de points. Le code servi en v0.3 expose encore le
-> contrat précédent (`/households/:householdId/...`, `/counters`, `points`). Les
-> différences sont listées à la fin, sous *Ce qui change par rapport à la v0.3*.
+> ⚠️ **Révision en cours.** Le **foyer unique**, les **statuts à droits**, le
+> **profil** (prénom, nom, date de naissance, photo) et l'inscription par **code
+> d'invitation** sont implémentés et couverts par `scripts/smoke.sh`. Restent à
+> écrire : l'**unification des tâches** (les compteurs sont encore une ressource à
+> part), les **groupes**, les **priorités** et le **retrait des points**. Ce qui n'est
+> pas encore servi est marqué *(à venir)*, et la liste des différences avec la v0.3
+> est à la fin.
 
 ## Conventions
 
@@ -108,9 +110,15 @@ Chacun modifie son nom, son prénom, sa date de naissance et sa photo. **Personn
 modifie son propre statut** : il n'existe aucune route pour cela, pas même pour un
 administrateur sur lui-même. Changer un statut passe par `PATCH /members/:id`.
 
-`PUT /users/me/avatar` accepte JPEG, PNG et WebP jusqu'à 8 Mo, redimensionne à
-256 px et ne garde que le résultat : un foyer de six personnes ne doit pas coûter
-25 Mo de carte SD en photos d'origine.
+`PUT /users/me/avatar` prend un `multipart/form-data` dont le champ `file` porte
+l'image (JPEG, PNG, WebP, HEIC), jusqu'à 8 Mo. Elle est recompressée en WebP 256 px
+et **l'original n'est pas conservé** : un foyer de six personnes ne doit pas coûter
+25 Mo de carte SD en photos que personne ne regardera en taille réelle. Un fichier
+que le serveur ne sait pas lire comme une image est refusé en `400`, quel que soit
+son nom.
+
+Les photos vivent dans `MH_DATA_DIR`, à côté de la base : une sauvegarde doit
+prendre les deux (voir [`self-hosting.md`](self-hosting.md)).
 
 ## Le foyer
 
@@ -123,7 +131,13 @@ administrateur sur lui-même. Changer un statut passe par `PATCH /members/:id`.
 | `POST` | `/invites` | `MANAGE_MEMBERS` |
 | `GET` | `/invites` | `MANAGE_MEMBERS` |
 | `DELETE` | `/invites/:id` | `MANAGE_MEMBERS` |
-| `POST` | `/invites/:code/accept` | authentifié |
+| `POST` | `/auth/register` | — (avec `inviteCode`) |
+
+Un code d'invitation s'utilise **à la création du compte**, pas après : sur un
+serveur qui ne sert qu'un foyer, avoir un compte *est* en faire partie, et il n'y a
+donc rien à « rejoindre » une fois inscrit. `POST /auth/register` accepte
+`inviteCode`, exigé dès que les inscriptions libres sont fermées — c'est-à-dire dès
+la fin de l'installation.
 
 **Il n'existe aucune route pour sortir quelqu'un du foyer**, pas même soi-même : ni
 exclusion, ni départ volontaire. La seule sortie est `DELETE /users/me`. Un `PATCH`
@@ -143,6 +157,10 @@ droits sont alors transmis.
 | `PATCH` | `/statuses/:id` | `MANAGE_STATUSES` |
 | `DELETE` | `/statuses/:id` | `MANAGE_STATUSES` |
 
+Les quatre statuts livrés (Administrateur, Adulte, Enfant, Invité) sont créés par la
+migration et n'ont rien de spécial : ils se renomment, se modifient et se suppriment
+comme ceux que le foyer créera.
+
 Les quatre mutations ne sont exposées **que par l'interface web** du serveur : l'app
 Android lit `/statuses` pour afficher le statut d'un membre, et n'offre aucun écran
 pour les modifier. Un réglage qui engage la sécurité du foyer se fait assis, sur un
@@ -161,9 +179,10 @@ produit, tenue côté client.
 }
 ```
 
-`DELETE /statuses/:id` est refusé en `409 STATUS_IN_USE` tant qu'un compte le porte :
-supprimer un statut utilisé reviendrait à retirer silencieusement des droits à
-quelqu'un. L'interface web demande d'abord vers quel statut déplacer ses membres.
+`DELETE /statuses/:id?moveMembersTo=<id>` déplace les membres puis supprime le
+statut. Sans `moveMembersTo`, il est refusé en `409 STATUS_IN_USE` tant qu'un compte
+le porte : supprimer un statut utilisé reviendrait à retirer silencieusement des
+droits à quelqu'un.
 
 ## Tâches
 
@@ -173,7 +192,7 @@ de choses à faire.
 
 | Méthode | Route | Droit | Description |
 |---|---|---|---|
-| `GET` | `/tasks` | `VIEW` | `?kind=&groupId=&isActive=&minPriority=` |
+| `GET` | `/tasks` | `VIEW` | `?isActive=` — *(`kind`, `groupId`, `minPriority` à venir)* |
 | `POST` | `/tasks` | `MANAGE_TASKS` | Création |
 | `GET` | `/tasks/:id` | `VIEW` | Définition + dix prochaines échéances, ou vingt dernières fois |
 | `PATCH` | `/tasks/:id` | `MANAGE_TASKS` | Regénère les échéances futures en attente |

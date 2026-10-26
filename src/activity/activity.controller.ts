@@ -1,8 +1,10 @@
-import { Controller, Get, Param, ParseUUIDPipe, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import { ApiOperation, ApiPropertyOptional, ApiTags } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsInt, IsOptional, IsUUID, Max, Min } from 'class-validator';
-import { HouseholdMemberGuard } from '../households/guards/household-member.guard';
+import { Right } from '@prisma/client';
+import { RequireRight } from '../households/decorators/require-right.decorator';
+import { HouseholdsService } from '../households/households.service';
 import { ActivityService } from './activity.service';
 
 export class ListActivityDto {
@@ -23,17 +25,21 @@ export class ListActivityDto {
 }
 
 @ApiTags('activity')
-@Controller('households/:householdId/activity')
-@UseGuards(HouseholdMemberGuard)
+@Controller('activity')
 export class ActivityController {
-  constructor(private readonly activity: ActivityService) {}
+  constructor(
+    private readonly activity: ActivityService,
+    private readonly households: HouseholdsService,
+  ) {}
 
   @Get()
+  @RequireRight(Right.VIEW)
   @ApiOperation({ summary: 'Fil d’activité du foyer' })
-  list(
-    @Param('householdId', ParseUUIDPipe) householdId: string,
-    @Query() query: ListActivityDto,
-  ) {
-    return this.activity.list(householdId, query.limit ?? 50, query.cursor);
+  async list(@Query() query: ListActivityDto) {
+    return this.activity.list(
+      await this.households.currentId(),
+      query.limit ?? 50,
+      query.cursor,
+    );
   }
 }

@@ -56,17 +56,18 @@ ci-dessous, parce que chaque écran écrit sur l'ancien modèle serait à rééc
 
 - [x] Modèle de données décidé ([`data-model.md`](data-model.md))
 - [x] Contrat d'API décidé, avec la table des différences ([`api.md`](api.md))
-- [ ] Maquettes de l'app au nouveau modèle, validées
-- [ ] Maquettes de la partie authentifiée du web, dont la configuration des statuts
-- [ ] Foyer unique : suppression du préfixe `/households/:householdId` et du garde
+- [x] Maquettes de l'app au nouveau modèle, à valider
+- [x] Maquettes de la partie authentifiée du web, dont la configuration des statuts
+- [x] Foyer unique : suppression du préfixe `/households/:householdId` et du garde
       d'appartenance, remplacé par un garde de droits
-- [ ] Statuts et droits à la place des rôles, règle du dernier administrateur
-- [ ] Profil : prénom, nom, date de naissance, photo redimensionnée à l'arrivée
+- [x] Statuts et droits à la place des rôles, règle du dernier administrateur
+- [x] Profil : prénom, nom, date de naissance, photo redimensionnée à l'arrivée
 - [ ] Tâches unifiées : `SCHEDULED`, `BACKGROUND`, `ONE_OFF` dans une seule ressource
 - [ ] Groupes de tâches, priorités de +3 à −3
 - [ ] Les cinq formes de récurrence exposées à la place de la RRULE brute
 - [ ] Retrait des points, et des compteurs comme objet distinct
-- [ ] Migration des données existantes (compteurs → tâches de fond, rôles → statuts)
+- [x] Migration des rôles en statuts, et d'un serveur multi-foyer vers un seul
+- [ ] Migration des compteurs en tâches de fond
 
 **Jalon :** le serveur et l'app parlent le modèle décidé, et une installation en v0.3
 se migre sans perte.

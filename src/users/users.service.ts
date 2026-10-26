@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ActivityVerb, HouseholdRole, Prisma } from '@prisma/client';
+import { ActivityVerb, Prisma, Right } from '@prisma/client';
 import { randomBytes } from 'node:crypto';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { PasswordService } from '../auth/password.service';
@@ -7,11 +7,29 @@ import { ClockService } from '../common/clock/clock.service';
 import { AppException } from '../common/errors/app.exception';
 import { ErrorCode } from '../common/errors/error-codes';
 import { PrismaService } from '../common/prisma/prisma.service';
-import { MembershipCacheService } from '../households/membership-cache.service';
-import { pickOwnershipSuccessor } from './ownership-successor';
+import { HouseholdsService } from '../households/households.service';
+import { StatusesService } from '../households/statuses.service';
+import { DROITS_D_ADMINISTRATION } from '../households/rights';
+import { pickAdminSuccessor } from './admin-successor';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 /** Nom affiché à la place de celui d'un compte supprimé. */
-export const DELETED_DISPLAY_NAME = 'Ancien membre';
+export const DELETED_FIRST_NAME = 'Ancien';
+export const DELETED_LAST_NAME = 'membre';
+
+const SELECTION_PROFIL = {
+  id: true,
+  email: true,
+  firstName: true,
+  lastName: true,
+  birthDate: true,
+  avatarPath: true,
+  avatarColor: true,
+  locale: true,
+  timezone: true,
+  createdAt: true,
+  status: { select: { id: true, name: true, rights: true } },
+} satisfies Prisma.UserSelect;
 
 @Injectable()
 export class UsersService {
@@ -21,23 +39,100 @@ export class UsersService {
     private readonly prisma: PrismaService,
     private readonly passwords: PasswordService,
     private readonly clock: ClockService,
-    private readonly memberships: MembershipCacheService,
+    private readonly households: HouseholdsService,
+    private readonly statuses: StatusesService,
   ) {}
 
+  async profile(userId: string) {
+    const user = await this.prisma.user.findFirstOrThrow({
+      where: { id: userId, deletedAt: null },
+      select: SELECTION_PROFIL,
+    });
+    return this.vue(user);
+  }
+
   /**
-   * Supprime un compte : le sien, ou celui d'un autre si l'appelant est
-   * administrateur de l'instance.
+   * Chacun modifie son nom, son prénom, sa date de naissance. **Personne
+   * ne modifie son propre statut** : il n'y a pas de champ pour cela
+   * ici, pas même pour un administrateur. Un statut se change depuis
+   * `PATCH /members/:id`, par quelqu'un qui en a le droit.
+   */
+  async updateProfile(userId: string, dto: UpdateProfileDto) {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        firstName: dto.firstName?.trim(),
+        lastName: dto.lastName?.trim(),
+        birthDate:
+          dto.birthDate === undefined
+            ? undefined
+            : dto.birthDate === null
+              ? null
+              : new Date(dto.birthDate),
+        locale: dto.locale,
+        timezone: dto.timezone,
+        avatarColor: dto.avatarColor,
+      },
+    });
+    return this.profile(userId);
+  }
+
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<void> {
+    const user = await this.prisma.user.findFirstOrThrow({
+      where: { id: userId, deletedAt: null },
+      select: { passwordHash: true },
+    });
+
+    if (!(await this.passwords.verify(user.passwordHash, currentPassword))) {
+      throw AppException.unauthorized(
+        ErrorCode.INVALID_CREDENTIALS,
+        'Mot de passe incorrect.',
+      );
+    }
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash: await this.passwords.hash(newPassword) },
+    });
+
+    // Changer de mot de passe ferme les autres sessions : c'est le geste
+    // qu'on fait justement quand on craint qu'une session traîne ailleurs.
+    await this.prisma.refreshToken.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: this.clock.now() },
+    });
+  }
+
+  async setAvatarPath(userId: string, avatarPath: string | null) {
+    await this.prisma.user.update({ where: { id: userId }, data: { avatarPath } });
+    return this.profile(userId);
+  }
+
+  async avatarPathOf(userId: string): Promise<string | null> {
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, deletedAt: null },
+      select: { avatarPath: true },
+    });
+    return user?.avatarPath ?? null;
+  }
+
+  /**
+   * Supprime un compte : le sien, ou celui d'un autre quand l'appelant
+   * porte `MANAGE_SERVER` — c'est le seul moyen de retirer un compte
+   * dont le titulaire n'est plus joignable.
    *
    * Le compte n'est pas effacé mais **anonymisé** : la ligne reste, vidée
    * de toute donnée personnelle. C'est ce qui permet à l'historique du
    * foyer de rester cohérent (« Ancien membre a sorti les poubelles »)
    * sans conserver l'identité de quelqu'un qui a demandé son effacement.
-   * Tout effacer rendrait les statistiques du foyer fausses
-   * rétroactivement.
    *
    * La suppression ne peut pas échouer pour une raison d'organisation :
-   * si le compte est le dernier propriétaire d'un foyer, la propriété est
-   * transmise, et à défaut de successeur le foyer est supprimé.
+   * si le compte était le dernier à administrer le foyer, l'administration
+   * passe au compte actif le plus ancien.
    */
   async deleteAccount(
     targetUserId: string,
@@ -46,9 +141,9 @@ export class UsersService {
   ): Promise<void> {
     const actingOnSelf = targetUserId === actor.id;
 
-    // Un non-administrateur qui vise un autre compte reçoit 404 et non
-    // 403 : inutile de lui confirmer que ce compte existe.
-    if (!actingOnSelf && !actor.isServerAdmin) {
+    // Un compte sans MANAGE_SERVER qui vise quelqu'un d'autre reçoit 404
+    // et non 403 : inutile de lui confirmer que ce compte existe.
+    if (!actingOnSelf && !actor.rights.includes(Right.MANAGE_SERVER)) {
       throw AppException.notFound();
     }
 
@@ -69,68 +164,30 @@ export class UsersService {
 
     const target = await this.prisma.user.findFirst({
       where: { id: targetUserId, deletedAt: null },
-      select: { id: true, isServerAdmin: true },
+      select: { id: true, status: { select: { rights: true } } },
     });
 
     if (!target) {
       throw AppException.notFound();
     }
 
-    const invalidations: { userId: string; householdId: string }[] = [];
-    const deletedHouseholds: string[] = [];
+    const household = await this.households.currentOrNull();
+    const administrait = DROITS_D_ADMINISTRATION.some((droit) =>
+      target.status.rights.includes(droit),
+    );
+    const statutAdministrateur = administrait
+      ? await this.statuses.administratorStatusId()
+      : null;
 
     await this.prisma.$transaction(async (tx) => {
-      const memberships = await tx.householdMember.findMany({
-        where: {
-          userId: target.id,
-          deletedAt: null,
-          household: { deletedAt: null },
-        },
-        select: { householdId: true, role: true },
-      });
-
-      for (const membership of memberships) {
-        if (membership.role === HouseholdRole.OWNER) {
-          const transferred = await this.transferOwnership(
-            tx,
-            membership.householdId,
-            target.id,
-          );
-          if (transferred === null) {
-            await this.deleteEmptyHousehold(tx, membership.householdId, target.id);
-            deletedHouseholds.push(membership.householdId);
-            continue;
-          }
-          if (transferred !== undefined) {
-            invalidations.push({
-              userId: transferred,
-              householdId: membership.householdId,
-            });
-          }
-        }
-
-        await tx.householdMember.update({
-          where: {
-            householdId_userId: {
-              householdId: membership.householdId,
-              userId: target.id,
-            },
-          },
-          data: { deletedAt: this.clock.now() },
-        });
-
+      if (household) {
         await tx.activityLog.create({
           data: {
-            householdId: membership.householdId,
+            householdId: household.id,
             actorId: target.id,
             verb: ActivityVerb.MEMBER_ACCOUNT_DELETED,
             summary: 'a supprimé son compte',
           },
-        });
-
-        invalidations.push({
-          userId: target.id,
-          householdId: membership.householdId,
         });
       }
 
@@ -155,27 +212,22 @@ export class UsersService {
           // L'adresse doit rester unique tout en devenant inutilisable
           // pour se connecter ou être reconnue.
           email: `supprime+${target.id}@invalide.local`,
-          displayName: DELETED_DISPLAY_NAME,
+          firstName: DELETED_FIRST_NAME,
+          lastName: DELETED_LAST_NAME,
+          birthDate: null,
+          avatarPath: null,
           // Valeur aléatoire, et non vide : elle n'est pas une empreinte
           // Argon2 valide, donc aucune vérification ne peut réussir.
           passwordHash: randomBytes(32).toString('base64'),
           timezone: null,
-          isServerAdmin: false,
           deletedAt: this.clock.now(),
         },
       });
 
-      if (target.isServerAdmin) {
-        await this.ensureServerAdminRemains(tx, target.id);
+      if (statutAdministrateur) {
+        await this.transmettreAdministration(tx, target.id, statutAdministrateur, household?.id);
       }
     });
-
-    for (const { userId, householdId } of invalidations) {
-      this.memberships.invalidate(userId, householdId);
-    }
-    for (const householdId of deletedHouseholds) {
-      this.memberships.invalidateHousehold(householdId);
-    }
 
     this.logger.log(
       actingOnSelf
@@ -185,126 +237,134 @@ export class UsersService {
   }
 
   /**
-   * Transmet la propriété du foyer si le compte supprimé en était le
-   * dernier propriétaire. Rend l'identifiant du successeur, `undefined`
-   * s'il restait un autre propriétaire (rien à faire), ou `null` s'il n'y
-   * a personne à qui transmettre.
+   * Un foyer sans compte qui l'administre n'est plus administrable. Si
+   * le compte supprimé était le dernier à porter un droit
+   * d'administration, le compte actif le plus ancien reçoit le statut
+   * d'administrateur.
    */
-  private async transferOwnership(
+  private async transmettreAdministration(
     tx: Prisma.TransactionClient,
-    householdId: string,
-    leavingUserId: string,
-  ): Promise<string | undefined | null> {
-    const others = await tx.householdMember.findMany({
-      where: {
-        householdId,
-        deletedAt: null,
-        userId: { not: leavingUserId },
-      },
-      select: { userId: true, role: true, joinedAt: true },
-    });
+    excluUserId: string,
+    statutAdministrateurId: string,
+    householdId: string | undefined,
+  ): Promise<void> {
+    const manquants: Right[] = [];
 
-    if (others.some((m) => m.role === HouseholdRole.OWNER)) {
-      return undefined;
+    for (const droit of DROITS_D_ADMINISTRATION) {
+      const restants = await tx.user.count({
+        where: {
+          deletedAt: null,
+          id: { not: excluUserId },
+          status: { rights: { has: droit } },
+        },
+      });
+      if (restants === 0) {
+        manquants.push(droit);
+      }
     }
 
-    const successor = pickOwnershipSuccessor(others);
-    if (!successor) {
-      return null;
-    }
-
-    await tx.householdMember.update({
-      where: { householdId_userId: { householdId, userId: successor.userId } },
-      data: { role: HouseholdRole.OWNER },
-    });
-
-    await tx.activityLog.create({
-      data: {
-        householdId,
-        actorId: successor.userId,
-        verb: ActivityVerb.OWNERSHIP_TRANSFERRED,
-        summary: 'est devenu propriétaire du foyer',
-      },
-    });
-
-    return successor.userId;
-  }
-
-  /** Foyer sans successeur possible : il ne reste personne pour le gérer. */
-  private async deleteEmptyHousehold(
-    tx: Prisma.TransactionClient,
-    householdId: string,
-    actorId: string,
-  ): Promise<void> {
-    const now = this.clock.now();
-    await tx.household.update({
-      where: { id: householdId },
-      data: { deletedAt: now },
-    });
-    await tx.householdMember.updateMany({
-      where: { householdId, deletedAt: null },
-      data: { deletedAt: now },
-    });
-    this.logger.log(
-      `Foyer ${householdId} supprimé : aucun successeur après la suppression du compte ${actorId}`,
-    );
-  }
-
-  /**
-   * Une instance sans administrateur n'est plus administrable : le compte
-   * actif le plus ancien prend le relais.
-   */
-  private async ensureServerAdminRemains(
-    tx: Prisma.TransactionClient,
-    excludedUserId: string,
-  ): Promise<void> {
-    const remainingAdmins = await tx.user.count({
-      where: { isServerAdmin: true, deletedAt: null, id: { not: excludedUserId } },
-    });
-
-    if (remainingAdmins > 0) {
+    if (manquants.length === 0) {
       return;
     }
 
-    const successor = await tx.user.findFirst({
-      where: { deletedAt: null, id: { not: excludedUserId } },
-      orderBy: { createdAt: 'asc' },
-      select: { id: true },
+    const candidats = await tx.user.findMany({
+      where: { deletedAt: null, id: { not: excluUserId } },
+      select: { id: true, createdAt: true },
     });
 
-    if (!successor) {
+    const successeur = pickAdminSuccessor(
+      candidats.map((candidat) => ({ userId: candidat.id, createdAt: candidat.createdAt })),
+    );
+
+    if (!successeur) {
+      // Il ne reste personne : le foyer part avec son dernier compte.
+      if (householdId) {
+        await tx.household.update({
+          where: { id: householdId },
+          data: { deletedAt: this.clock.now() },
+        });
+        this.logger.log(
+          `Foyer ${householdId} supprimé : son dernier compte vient de l'être`,
+        );
+      }
       return;
     }
 
     await tx.user.update({
-      where: { id: successor.id },
-      data: { isServerAdmin: true },
+      where: { id: successeur.userId },
+      data: { statusId: statutAdministrateurId },
     });
 
+    if (householdId) {
+      await tx.activityLog.create({
+        data: {
+          householdId,
+          actorId: successeur.userId,
+          verb: ActivityVerb.ADMIN_RIGHTS_TRANSFERRED,
+          summary: 'administre désormais le foyer',
+        },
+      });
+    }
+
     this.logger.warn(
-      `Le compte ${successor.id} devient administrateur de l'instance : le dernier administrateur a supprimé son compte`,
+      `Le compte ${successeur.userId} administre désormais le foyer : le dernier administrateur a supprimé son compte`,
     );
   }
 
-  /** Liste des comptes de l'instance, réservée aux administrateurs. */
+  /** Liste des comptes du serveur, réservée à `MANAGE_SERVER`. */
   async listAccounts(includeDeleted: boolean) {
     const users = await this.prisma.user.findMany({
       where: includeDeleted ? {} : { deletedAt: null },
       select: {
         id: true,
         email: true,
-        displayName: true,
-        isServerAdmin: true,
+        firstName: true,
+        lastName: true,
         createdAt: true,
         deletedAt: true,
-        _count: { select: { memberships: { where: { deletedAt: null } } } },
+        status: { select: { id: true, name: true, rights: true } },
       },
       orderBy: { createdAt: 'asc' },
     });
 
-    return users.map(({ _count, ...user }) => ({
-      ...user,
-      householdCount: _count.memberships,
+    return users.map((user) => ({
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      status: { id: user.status.id, name: user.status.name },
+      rights: user.status.rights,
+      createdAt: user.createdAt,
+      deletedAt: user.deletedAt,
     }));
+  }
+
+  private vue(user: {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    birthDate: Date | null;
+    avatarPath: string | null;
+    avatarColor: string;
+    locale: string;
+    timezone: string | null;
+    createdAt: Date;
+    status: { id: string; name: string; rights: Right[] };
+  }) {
+    return {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      birthDate: user.birthDate,
+      avatarUrl: user.avatarPath ? `/api/v1/users/${user.id}/avatar` : null,
+      avatarColor: user.avatarColor,
+      locale: user.locale,
+      timezone: user.timezone,
+      status: { id: user.status.id, name: user.status.name },
+      rights: user.status.rights,
+      joinedAt: user.createdAt,
+    };
   }
 }

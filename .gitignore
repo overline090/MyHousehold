@@ -47,3 +47,7 @@ Thumbs.db
 
 # Docker (volumes locaux)
 docker-data/
+
+# Sauvegarde laissée par un Redis lancé à la main en développement.
+dump.rdb
+data/

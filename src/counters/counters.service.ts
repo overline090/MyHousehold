@@ -34,7 +34,7 @@ const eventSelect = {
   occurredAt: true,
   note: true,
   createdAt: true,
-  recordedBy: { select: { id: true, displayName: true } },
+  recordedBy: { select: { id: true, firstName: true, lastName: true } },
 } satisfies Prisma.CounterEventSelect;
 
 @Injectable()

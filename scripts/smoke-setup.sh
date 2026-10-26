@@ -95,7 +95,7 @@ check "l'assistant passe à l'étape du compte" "account" \
 echo
 echo "Étape 4 — premier compte, depuis le téléphone"
 status -X POST "$BASE/setup/claim" -H 'content-type: application/json' \
-  -d '{"code":"ZZZZ-ZZZZ","email":"marie@example.test","password":"un mot de passe assez long","displayName":"Marie"}' > /dev/null
+  -d '{"code":"ZZZZ-ZZZZ","email":"marie@example.test","password":"un mot de passe assez long","firstName":"Marie","lastName":"Dupont"}' > /dev/null
 check "sans code d'appariement valable, pas de compte" "PAIRING_INVALID" "$(code_erreur)"
 
 CODE_CLAIM=$(curl -s -X POST "$BASE/setup/pairing" -H 'content-type: application/json' \
@@ -104,25 +104,29 @@ SESSION=$(curl -s -X POST "$BASE/setup/claim" -H 'content-type: application/json
   \"code\": \"$CODE_CLAIM\",
   \"email\": \"marie@example.test\",
   \"password\": \"un mot de passe assez long\",
-  \"displayName\": \"Marie\"
+  \"firstName\": \"Marie\",
+  \"lastName\": \"Dupont\"
 }")
 TOKEN=$(echo "$SESSION" | field "['accessToken']")
 check "le compte est créé et la session ouverte" "ok" "$([[ -n $TOKEN ]] && echo ok)"
-check "il est administrateur de l'instance" "True" \
-  "$(echo "$SESSION" | field "['user']['isServerAdmin']")"
-check "il est propriétaire du foyer" "OWNER" \
-  "$(curl -s "$API/auth/me" -H "authorization: Bearer $TOKEN" | field "['households'][0]['role']")"
+check "il administre le foyer" "yes" \
+  "$(echo "$SESSION" | py "
+import json,sys
+droits = set(json.load(sys.stdin)['user']['rights'])
+print('yes' if {'MANAGE_SERVER','MANAGE_STATUSES'} <= droits else sorted(droits))")"
+check "la session nomme le foyer servi par cette machine" "ok" \
+  "$(echo "$SESSION" | py "
+import json,sys; print('ok' if json.load(sys.stdin)['household']['id'] else 'aucun')")"
 
-HID=$(curl -s "$API/auth/me" -H "authorization: Bearer $TOKEN" | field "['households'][0]['id']")
 check "les tâches du téléphone sont là" "2" \
-  "$(curl -s "$API/households/$HID/tasks" -H "authorization: Bearer $TOKEN" | py "
+  "$(curl -s "$API/tasks" -H "authorization: Bearer $TOKEN" | py "
 import json,sys; print(len(json.load(sys.stdin)))")"
 check "leurs échéances sont déjà matérialisées" "yes" \
-  "$(curl -s "$API/households/$HID/occurrences?from=$(py "import datetime; print(datetime.date.today().isoformat())")&to=$(py "import datetime; print((datetime.date.today()+datetime.timedelta(days=14)).isoformat())")" \
+  "$(curl -s "$API/occurrences?from=$(py "import datetime; print(datetime.date.today().isoformat())")&to=$(py "import datetime; print((datetime.date.today()+datetime.timedelta(days=14)).isoformat())")" \
     -H "authorization: Bearer $TOKEN" | py "
 import json,sys; print('yes' if json.load(sys.stdin)['data'] else 'aucune')")"
 check "le compteur du téléphone est là" "1" \
-  "$(curl -s "$API/households/$HID/counters" -H "authorization: Bearer $TOKEN" | py "
+  "$(curl -s "$API/counters" -H "authorization: Bearer $TOKEN" | py "
 import json,sys; print(len(json.load(sys.stdin)))")"
 
 echo
@@ -132,10 +136,10 @@ check "l'installation se verrouille" "True" \
 status "$BASE/setup/state" > /dev/null
 check "l'assistant ne répond plus" "SETUP_ALREADY_DONE" "$(code_erreur)"
 status -X POST "$API/auth/register" -H 'content-type: application/json' \
-  -d '{"email":"inconnu@example.test","password":"un mot de passe assez long","displayName":"X"}' > /dev/null
+  -d '{"email":"inconnu@example.test","password":"un mot de passe assez long","firstName":"X","lastName":"Y"}' > /dev/null
 check "les inscriptions libres sont fermées" "REGISTRATION_CLOSED" "$(code_erreur)"
 check "le foyer reste utilisable" "200" \
-  "$(status "$API/households/$HID" -H "authorization: Bearer $TOKEN")"
+  "$(status "$API/household" -H "authorization: Bearer $TOKEN")"
 
 echo
 if (( FAILURES == 0 )); then

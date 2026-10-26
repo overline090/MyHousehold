@@ -1,199 +1,230 @@
 import { Injectable } from '@nestjs/common';
-import { ActivityVerb, HouseholdRole, Prisma } from '@prisma/client';
+import { ActivityVerb, Prisma, Right } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
 import { ClockService } from '../common/clock/clock.service';
 import { AppException } from '../common/errors/app.exception';
 import { ErrorCode } from '../common/errors/error-codes';
 import { PrismaService } from '../common/prisma/prisma.service';
-import { CreateHouseholdDto } from './dto/create-household.dto';
 import { UpdateHouseholdDto } from './dto/update-household.dto';
 import { UpdateMemberDto } from './dto/update-member.dto';
-import { MembershipCacheService } from './membership-cache.service';
+import { DROITS_D_ADMINISTRATION } from './rights';
 
+const SELECTION_MEMBRE = {
+  id: true,
+  email: true,
+  firstName: true,
+  lastName: true,
+  birthDate: true,
+  avatarPath: true,
+  avatarColor: true,
+  createdAt: true,
+  status: { select: { id: true, name: true, rights: true } },
+} satisfies Prisma.UserSelect;
+
+/**
+ * Le foyer. Il n'y en a qu'un par machine : aucune route ne porte son
+ * identifiant, et la base le garantit par un index unique sur les lignes
+ * vivantes.
+ */
 @Injectable()
 export class HouseholdsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly clock: ClockService,
-    private readonly memberships: MembershipCacheService,
   ) {}
 
-  async create(userId: string, dto: CreateHouseholdDto) {
-    const existing = dto.id
-      ? await this.prisma.household.findUnique({ where: { id: dto.id } })
-      : null;
-
-    // Création idempotente : le client peut rejouer l'appel après une
-    // coupure réseau sans créer un second foyer.
-    if (existing) {
-      return this.findOne(existing.id);
-    }
-
-    const household = await this.prisma.household.create({
-      data: {
-        id: dto.id,
-        name: dto.name.trim(),
-        timezone: dto.timezone ?? this.config.getOrThrow<string>('MH_DEFAULT_TIMEZONE'),
-        weekStartsOn: dto.weekStartsOn ?? 1,
-        members: {
-          create: { userId, role: HouseholdRole.OWNER },
-        },
-      },
-      select: { id: true },
-    });
-
-    await this.logActivity(
-      household.id,
-      userId,
-      ActivityVerb.MEMBER_JOINED,
-      'a créé le foyer',
-    );
-
-    return this.findOne(household.id);
-  }
-
-  async findOne(householdId: string) {
-    const household = await this.prisma.household.findFirst({
-      where: { id: householdId, deletedAt: null },
+  /**
+   * Le foyer servi par cette machine, ou null tant que l'assistant
+   * d'installation ne l'a pas créé.
+   */
+  async currentOrNull() {
+    return this.prisma.household.findFirst({
+      where: { deletedAt: null },
       select: {
         id: true,
         name: true,
         timezone: true,
         weekStartsOn: true,
         createdAt: true,
-        _count: { select: { members: { where: { deletedAt: null } } } },
       },
     });
-
-    if (!household) {
-      throw AppException.notFound();
-    }
-
-    const { _count, ...rest } = household;
-    return { ...rest, memberCount: _count.members };
   }
 
-  async update(householdId: string, dto: UpdateHouseholdDto) {
+  async current() {
+    const household = await this.currentOrNull();
+    if (!household) {
+      throw AppException.notFound("Ce serveur n'a pas encore de foyer.");
+    }
+    return household;
+  }
+
+  async currentId(): Promise<string> {
+    return (await this.current()).id;
+  }
+
+  /** Vue publique : le foyer et le nombre de ses membres. */
+  async describe() {
+    const household = await this.current();
+    const memberCount = await this.prisma.user.count({ where: { deletedAt: null } });
+    return { ...household, memberCount };
+  }
+
+  /**
+   * Création du foyer, par l'assistant d'installation. Idempotente : un
+   * second appel renvoie le foyer existant plutôt que d'en créer un
+   * autre, ce que la base refuserait de toute façon.
+   */
+  async createOnce(name: string, timezone?: string, weekStartsOn?: number) {
+    const existant = await this.currentOrNull();
+    if (existant) {
+      return existant;
+    }
+
+    return this.prisma.household.create({
+      data: {
+        name: name.trim(),
+        timezone: timezone ?? this.config.getOrThrow<string>('MH_DEFAULT_TIMEZONE'),
+        weekStartsOn: weekStartsOn ?? 1,
+      },
+      select: {
+        id: true,
+        name: true,
+        timezone: true,
+        weekStartsOn: true,
+        createdAt: true,
+      },
+    });
+  }
+
+  async update(dto: UpdateHouseholdDto) {
+    const household = await this.current();
     await this.prisma.household.update({
-      where: { id: householdId },
+      where: { id: household.id },
       data: {
         name: dto.name?.trim(),
         timezone: dto.timezone,
         weekStartsOn: dto.weekStartsOn,
       },
     });
-    return this.findOne(householdId);
+    return this.describe();
+  }
+
+  async members() {
+    const membres = await this.prisma.user.findMany({
+      where: { deletedAt: null },
+      select: SELECTION_MEMBRE,
+      orderBy: { createdAt: 'asc' },
+    });
+    return membres.map((membre) => this.vueMembre(membre));
   }
 
   /**
-   * Suppression logique : les clients hors-ligne doivent pouvoir
-   * apprendre la disparition du foyer lors de leur prochaine synchro.
+   * Changer le statut d'un membre. C'est la seule chose qu'on puisse
+   * changer chez quelqu'un d'autre : il n'existe aucune route pour le
+   * sortir du foyer.
    */
-  async remove(householdId: string): Promise<void> {
-    const now = this.clock.now();
-    this.memberships.invalidateHousehold(householdId);
-    await this.prisma.$transaction([
-      this.prisma.household.update({
-        where: { id: householdId },
-        data: { deletedAt: now },
-      }),
-      this.prisma.householdMember.updateMany({
-        where: { householdId, deletedAt: null },
-        data: { deletedAt: now },
-      }),
-    ]);
-  }
-
-  async members(householdId: string) {
-    const members = await this.prisma.householdMember.findMany({
-      where: { householdId, deletedAt: null },
-      select: {
-        role: true,
-        nickname: true,
-        joinedAt: true,
-        user: {
-          select: { id: true, displayName: true, email: true, avatarColor: true },
-        },
-      },
-      orderBy: { joinedAt: 'asc' },
+  async updateMember(targetUserId: string, actorId: string, dto: UpdateMemberDto) {
+    const cible = await this.prisma.user.findFirst({
+      where: { id: targetUserId, deletedAt: null },
+      select: { id: true, firstName: true, status: { select: { id: true, name: true } } },
     });
 
-    return members.map((m) => ({
-      userId: m.user.id,
-      displayName: m.nickname ?? m.user.displayName,
-      email: m.user.email,
-      avatarColor: m.user.avatarColor,
-      role: m.role,
-      joinedAt: m.joinedAt,
-    }));
-  }
-
-  async updateMember(
-    householdId: string,
-    targetUserId: string,
-    actorId: string,
-    dto: UpdateMemberDto,
-  ) {
-    const target = await this.requireMember(householdId, targetUserId);
-
-    // Un foyer garde toujours au moins un propriétaire : sans cela,
-    // plus personne ne peut inviter ni gérer les rôles, et le foyer est
-    // définitivement bloqué.
-    if (
-      target.role === HouseholdRole.OWNER &&
-      dto.role !== undefined &&
-      dto.role !== HouseholdRole.OWNER
-    ) {
-      await this.assertNotLastOwner(householdId, targetUserId);
-    }
-
-    await this.prisma.householdMember.update({
-      where: { householdId_userId: { householdId, userId: targetUserId } },
-      data: { role: dto.role, nickname: dto.nickname },
-    });
-
-    this.memberships.invalidate(targetUserId, householdId);
-
-    if (dto.role && dto.role !== target.role) {
-      await this.logActivity(
-        householdId,
-        actorId,
-        ActivityVerb.MEMBER_ROLE_CHANGED,
-        `a changé un rôle en ${dto.role}`,
-      );
-    }
-
-    return this.members(householdId);
-  }
-
-  private async requireMember(householdId: string, userId: string) {
-    const member = await this.prisma.householdMember.findFirst({
-      where: { householdId, userId, deletedAt: null },
-      select: { role: true },
-    });
-    if (!member) {
+    if (!cible) {
       throw AppException.notFound('Ce membre ne fait pas partie du foyer.');
     }
-    return member;
-  }
 
-  private async assertNotLastOwner(householdId: string, userId: string): Promise<void> {
-    const otherOwners = await this.prisma.householdMember.count({
-      where: {
-        householdId,
-        role: HouseholdRole.OWNER,
-        deletedAt: null,
-        userId: { not: userId },
-      },
+    const statut = await this.prisma.status.findFirst({
+      where: { id: dto.statusId, deletedAt: null },
+      select: { id: true, name: true, rights: true },
     });
 
-    if (otherOwners === 0) {
-      throw AppException.conflict(
-        ErrorCode.LAST_OWNER,
-        'Un foyer doit garder au moins un propriétaire. Transmettez le rôle avant de partir.',
+    if (!statut) {
+      throw AppException.notFound("Ce statut n'existe pas.");
+    }
+
+    if (statut.id !== cible.status.id) {
+      await this.assertResteUnAdministrateur(targetUserId, statut.rights);
+    }
+
+    await this.prisma.user.update({
+      where: { id: targetUserId },
+      data: { statusId: statut.id },
+    });
+
+    if (statut.id !== cible.status.id) {
+      await this.logActivity(
+        await this.currentId(),
+        actorId,
+        ActivityVerb.MEMBER_STATUS_CHANGED,
+        `a donné le statut « ${statut.name} » à ${cible.firstName}`,
+        { type: 'user', id: targetUserId },
       );
     }
+
+    return this.members();
+  }
+
+  /**
+   * Après ce changement, chaque droit d'administration doit rester porté
+   * par au moins un compte actif. Sans cela plus personne ne peut
+   * administrer le foyer, et il est définitivement bloqué.
+   *
+   * `futursDroits` sont les droits que `userId` aura après l'opération ;
+   * `null` quand le compte disparaît.
+   */
+  async assertResteUnAdministrateur(
+    userId: string,
+    futursDroits: readonly Right[] | null,
+  ): Promise<void> {
+    for (const droit of DROITS_D_ADMINISTRATION) {
+      if (futursDroits?.includes(droit)) {
+        continue;
+      }
+
+      const autres = await this.prisma.user.count({
+        where: {
+          deletedAt: null,
+          id: { not: userId },
+          status: { rights: { has: droit } },
+        },
+      });
+
+      if (autres === 0) {
+        throw AppException.conflict(
+          ErrorCode.LAST_ADMIN,
+          'Le foyer doit garder au moins un compte qui l’administre. Donnez ce droit à quelqu’un d’autre d’abord.',
+          { right: droit },
+        );
+      }
+    }
+  }
+
+  vueMembre(membre: {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    birthDate: Date | null;
+    avatarPath: string | null;
+    avatarColor: string;
+    createdAt: Date;
+    status: { id: string; name: string; rights: Right[] };
+  }) {
+    return {
+      id: membre.id,
+      email: membre.email,
+      firstName: membre.firstName,
+      lastName: membre.lastName,
+      birthDate: membre.birthDate,
+      // Le chemin du fichier ne sort jamais : l'app reçoit une URL, le
+      // stockage reste un détail du serveur.
+      avatarUrl: membre.avatarPath ? `/api/v1/users/${membre.id}/avatar` : null,
+      avatarColor: membre.avatarColor,
+      status: { id: membre.status.id, name: membre.status.name },
+      rights: membre.status.rights,
+      joinedAt: membre.createdAt,
+    };
   }
 
   async logActivity(
@@ -214,5 +245,10 @@ export class HouseholdsService {
         subjectId: subject?.id,
       },
     });
+  }
+
+  /** Horloge partagée, pour les services qui n'en injectent pas une. */
+  get now(): Date {
+    return this.clock.now();
   }
 }

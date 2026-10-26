@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { ActivityVerb, HouseholdRole, OccurrenceStatus, Prisma } from '@prisma/client';
+import { ActivityVerb, Right, OccurrenceStatus, Prisma } from '@prisma/client';
 import { ClockService } from '../common/clock/clock.service';
 import { AppException } from '../common/errors/app.exception';
 import { ErrorCode } from '../common/errors/error-codes';
@@ -31,8 +31,8 @@ const occurrenceSelect = {
   note: true,
   updatedAt: true,
   task: { select: { title: true, points: true, category: true, graceHours: true } },
-  assignee: { select: { id: true, displayName: true } },
-  completedBy: { select: { id: true, displayName: true } },
+  assignee: { select: { id: true, firstName: true, lastName: true } },
+  completedBy: { select: { id: true, firstName: true, lastName: true } },
 } satisfies Prisma.TaskOccurrenceSelect;
 
 type OccurrenceRow = Prisma.TaskOccurrenceGetPayload<{ select: typeof occurrenceSelect }>;
@@ -113,9 +113,9 @@ export class OccurrencesService {
 
       throw AppException.conflict(
         ErrorCode.TASK_ALREADY_COMPLETED,
-        `Cette tâche a déjà été faite par ${occurrence.completedBy?.displayName ?? 'quelqu’un'}.`,
+        `Cette tâche a déjà été faite par ${occurrence.completedBy?.firstName ?? 'quelqu’un'}.`,
         {
-          completedBy: occurrence.completedBy?.displayName,
+          completedBy: occurrence.completedBy?.firstName,
           completedAt: occurrence.completedAt?.toISOString(),
         },
       );
@@ -229,7 +229,7 @@ export class OccurrencesService {
     await this.require(householdId, occurrenceId);
 
     if (dto.assigneeId) {
-      await this.assertAssignable(householdId, dto.assigneeId);
+      await this.assertAssignable(dto.assigneeId);
     }
 
     const updated = await this.prisma.taskOccurrence.update({
@@ -284,15 +284,14 @@ export class OccurrencesService {
     return instant;
   }
 
-  private async assertAssignable(householdId: string, userId: string): Promise<void> {
-    const member = await this.prisma.householdMember.findFirst({
+  private async assertAssignable(userId: string): Promise<void> {
+    const member = await this.prisma.user.findFirst({
       where: {
-        householdId,
-        userId,
+        id: userId,
         deletedAt: null,
-        role: { in: [HouseholdRole.OWNER, HouseholdRole.ADULT, HouseholdRole.CHILD] },
+        status: { rights: { has: Right.COMPLETE_TASKS } },
       },
-      select: { userId: true },
+      select: { id: true },
     });
 
     if (!member) {

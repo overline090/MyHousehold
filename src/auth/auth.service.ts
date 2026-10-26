@@ -1,10 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Prisma } from '@prisma/client';
+import { Prisma, Right } from '@prisma/client';
 import { ClockService } from '../common/clock/clock.service';
 import { AppException } from '../common/errors/app.exception';
 import { ErrorCode } from '../common/errors/error-codes';
 import { PrismaService } from '../common/prisma/prisma.service';
+import { HouseholdsService } from '../households/households.service';
+import { InvitesService } from '../households/invites.service';
+import { StatusesService } from '../households/statuses.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { PasswordService } from './password.service';
@@ -14,20 +17,45 @@ export interface HouseholdSummary {
   id: string;
   name: string;
   timezone: string;
-  role: string;
 }
 
 export interface UserSummary {
   id: string;
   email: string;
-  displayName: string;
-  isServerAdmin: boolean;
+  firstName: string;
+  lastName: string;
+  birthDate: Date | null;
+  avatarUrl: string | null;
+  status: { id: string; name: string };
+  rights: Right[];
 }
 
 export interface SessionResponse extends TokenPair {
   user: UserSummary;
-  households: HouseholdSummary[];
+  /// Le foyer servi par cette machine. Il n'y en a qu'un : le client n'a
+  /// rien à choisir, et aucune route ne porte son identifiant.
+  household: HouseholdSummary | null;
 }
+
+const SELECTION_COMPTE = {
+  id: true,
+  email: true,
+  firstName: true,
+  lastName: true,
+  birthDate: true,
+  avatarPath: true,
+  status: { select: { id: true, name: true, rights: true } },
+} satisfies Prisma.UserSelect;
+
+type CompteSelectionne = {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  birthDate: Date | null;
+  avatarPath: string | null;
+  status: { id: string; name: string; rights: Right[] };
+};
 
 @Injectable()
 export class AuthService {
@@ -37,22 +65,31 @@ export class AuthService {
     private readonly tokens: TokensService,
     private readonly config: ConfigService,
     private readonly clock: ClockService,
+    private readonly households: HouseholdsService,
+    private readonly invites: InvitesService,
+    private readonly statuses: StatusesService,
   ) {}
 
+  /**
+   * Créer un compte. Deux chemins, et un seul à la fois :
+   *
+   * - **inscriptions libres**, c'est-à-dire pendant l'installation, tant
+   *   que `MH_ALLOW_REGISTRATION` le permet : le compte est créé sans
+   *   code, et le premier d'un serveur neuf devient administrateur ;
+   * - **code d'invitation**, ensuite : avoir un compte sur ce serveur,
+   *   c'est faire partie de son foyer, donc le code s'utilise ici et non
+   *   après coup. Il n'y a rien à « rejoindre » une fois inscrit.
+   */
   async register(dto: RegisterDto): Promise<SessionResponse> {
-    // Deux verrous : la variable d'environnement, et la fin de
-    // l'installation. Le second évite qu'un serveur exposé accepte les
-    // inscriptions de n'importe qui parce que personne n'a pensé à
-    // éditer un fichier.
     const setup = await this.prisma.serverSetup.findUnique({
       where: { id: 1 },
       select: { completedAt: true },
     });
-    const open =
+    const libre =
       this.config.getOrThrow<boolean>('MH_ALLOW_REGISTRATION') &&
       setup?.completedAt == null;
 
-    if (!open) {
+    if (!libre && !dto.inviteCode) {
       throw AppException.forbidden(
         ErrorCode.REGISTRATION_CLOSED,
         "Les inscriptions sont fermées sur ce serveur. Demandez un code d'invitation à son administrateur.",
@@ -62,26 +99,27 @@ export class AuthService {
     const email = dto.email.trim().toLowerCase();
     const passwordHash = await this.passwords.hash(dto.password);
 
-    try {
-      const user = await this.prisma.$transaction(async (tx) => {
-        // Le premier compte d'un serveur neuf devient administrateur de
-        // l'instance : quelqu'un doit pouvoir supprimer un compte dont le
-        // titulaire n'est plus joignable. Deux inscriptions exactement
-        // simultanées sur une base vide donneraient deux administrateurs
-        // — fenêtre de quelques millisecondes à l'installation, sans
-        // conséquence pratique, et corrigeable depuis la zone d'admin.
-        const isFirstAccount = (await tx.user.count()) === 0;
+    // Le code est consommé avant la création : un compte créé puis
+    // refusé laisserait une adresse prise pour rien.
+    const premierCompte = (await this.prisma.user.count()) === 0;
+    const statusId = dto.inviteCode
+      ? (await this.invites.consume(dto.inviteCode)).statusId
+      : premierCompte
+        ? await this.statuses.administratorStatusId()
+        : await this.statuses.defaultStatusId();
 
-        return tx.user.create({
-          data: {
-            email,
-            displayName: dto.displayName.trim(),
-            passwordHash,
-            timezone: dto.timezone ?? null,
-            isServerAdmin: isFirstAccount,
-          },
-          select: { id: true, email: true, displayName: true, isServerAdmin: true },
-        });
+    try {
+      const user = await this.prisma.user.create({
+        data: {
+          email,
+          firstName: dto.firstName.trim(),
+          lastName: dto.lastName.trim(),
+          birthDate: dto.birthDate ? new Date(dto.birthDate) : null,
+          passwordHash,
+          timezone: dto.timezone ?? null,
+          statusId,
+        },
+        select: SELECTION_COMPTE,
       });
 
       return this.buildSession(user, await this.tokens.issue(user.id));
@@ -125,12 +163,10 @@ export class AuthService {
       : null;
 
     return this.buildSession(
-      {
-        id: user.id,
-        email: user.email,
-        displayName: user.displayName,
-        isServerAdmin: user.isServerAdmin,
-      },
+      await this.prisma.user.findFirstOrThrow({
+        where: { id: user.id },
+        select: SELECTION_COMPTE,
+      }),
       await this.tokens.issue(user.id, deviceId),
     );
   }
@@ -146,11 +182,11 @@ export class AuthService {
   async me(userId: string): Promise<Omit<SessionResponse, keyof TokenPair>> {
     const user = await this.prisma.user.findFirstOrThrow({
       where: { id: userId, deletedAt: null },
-      select: { id: true, email: true, displayName: true, isServerAdmin: true },
+      select: SELECTION_COMPTE,
     });
     return {
-      user,
-      households: await this.householdsOf(userId),
+      user: this.vueCompte(user),
+      household: await this.households.currentOrNull(),
     };
   }
 
@@ -182,28 +218,27 @@ export class AuthService {
     return device.id;
   }
 
-  private async householdsOf(userId: string): Promise<HouseholdSummary[]> {
-    const memberships = await this.prisma.householdMember.findMany({
-      where: { userId, deletedAt: null, household: { deletedAt: null } },
-      select: {
-        role: true,
-        household: { select: { id: true, name: true, timezone: true } },
-      },
-      orderBy: { joinedAt: 'asc' },
-    });
-
-    return memberships.map((m) => ({
-      id: m.household.id,
-      name: m.household.name,
-      timezone: m.household.timezone,
-      role: m.role,
-    }));
+  private vueCompte(user: CompteSelectionne): UserSummary {
+    return {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      birthDate: user.birthDate,
+      avatarUrl: user.avatarPath ? `/api/v1/users/${user.id}/avatar` : null,
+      status: { id: user.status.id, name: user.status.name },
+      rights: user.status.rights,
+    };
   }
 
   private async buildSession(
-    user: UserSummary,
+    user: CompteSelectionne,
     tokens: TokenPair,
   ): Promise<SessionResponse> {
-    return { ...tokens, user, households: await this.householdsOf(user.id) };
+    return {
+      ...tokens,
+      user: this.vueCompte(user),
+      household: await this.households.currentOrNull(),
+    };
   }
 }

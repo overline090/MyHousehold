@@ -11,6 +11,11 @@ services:
     environment:
       DATABASE_URL: postgresql://myhousehold:${POSTGRES_PASSWORD}@db:5432/myhousehold
       REDIS_URL: redis://redis:6379
+      MH_DATA_DIR: /data
+    volumes:
+      # Les photos de profil sont des fichiers, à côté de la base : une
+      # sauvegarde doit prendre les deux (voir docs/self-hosting.md).
+      - app-data:/data
     ports:
       # Exposé seulement sur la machine locale : l'accès depuis
       # l'extérieur passe par un reverse proxy TLS, jamais en direct.
@@ -54,3 +59,4 @@ services:
 
 volumes:
   db-data:
+  app-data:

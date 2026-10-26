@@ -136,14 +136,26 @@ export const setupApi = {
 
 // ── Foyer ─────────────────────────────────────────────────────────────
 
+export interface Status {
+  id: string;
+  name: string;
+  rights: string[];
+  isDefault: boolean;
+  position: number;
+  memberCount: number;
+}
+
 export const householdApi = {
-  createInvite: (householdId: string, token: string) =>
-    request<{ code: string; expiresAt: string }>(
-      `/api/v1/households/${householdId}/invites`,
-      {
-        method: 'POST',
-        headers: { authorization: `Bearer ${token}` },
-        body: JSON.stringify({ role: 'ADULT' }),
-      },
-    ),
+  statuses: (token: string) =>
+    request<Status[]>('/api/v1/statuses', {
+      headers: { authorization: `Bearer ${token}` },
+    }),
+
+  /** Le statut est explicite : un code d'invitation donne des droits. */
+  createInvite: (statusId: string, token: string) =>
+    request<{ code: string; expiresAt: string }>('/api/v1/invites', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}` },
+      body: JSON.stringify({ statusId }),
+    }),
 };

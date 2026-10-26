@@ -1,10 +1,12 @@
-import { Controller, Get, Param, ParseUUIDPipe, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { IsDateString } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
-import { HouseholdMemberGuard } from '../households/guards/household-member.guard';
+import { Right } from '@prisma/client';
+import { RequireRight } from '../households/decorators/require-right.decorator';
+import { HouseholdsService } from '../households/households.service';
 import { AgendaService } from './agenda.service';
 
 export class ListAgendaDto {
@@ -18,20 +20,24 @@ export class ListAgendaDto {
 }
 
 @ApiTags('agenda')
-@Controller('households/:householdId/agenda')
-@UseGuards(HouseholdMemberGuard)
+@Controller('agenda')
 export class AgendaController {
-  constructor(private readonly agenda: AgendaService) {}
+  constructor(
+    private readonly agenda: AgendaService,
+    private readonly households: HouseholdsService,
+  ) {}
 
   @Get()
+  @RequireRight(Right.VIEW)
   @ApiOperation({
     summary: 'Vue fusionnée : rendez-vous, tâches et compteurs à échéance',
   })
-  list(
-    @Param('householdId', ParseUUIDPipe) householdId: string,
-    @CurrentUser() user: AuthenticatedUser,
-    @Query() query: ListAgendaDto,
-  ) {
-    return this.agenda.list(householdId, user.id, query.from, query.to);
+  async list(@CurrentUser() user: AuthenticatedUser, @Query() query: ListAgendaDto) {
+    return this.agenda.list(
+      await this.households.currentId(),
+      user.id,
+      query.from,
+      query.to,
+    );
   }
 }

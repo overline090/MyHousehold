@@ -2,7 +2,6 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   AssignmentMode,
-  HouseholdRole,
   Prisma,
   ServerSetup,
   SetupPairingPurpose,
@@ -15,6 +14,8 @@ import { AppException } from '../common/errors/app.exception';
 import { ErrorCode } from '../common/errors/error-codes';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { generateInviteCode } from '../households/invite-code';
+import { HouseholdsService } from '../households/households.service';
+import { StatusesService } from '../households/statuses.service';
 import { TasksService } from '../tasks/tasks.service';
 import { ClaimDto, ImportDto, SetupHouseholdDto } from './dto/setup.dto';
 
@@ -44,6 +45,8 @@ export class SetupService implements OnModuleInit {
     private readonly passwords: PasswordService,
     private readonly tokens: TokensService,
     private readonly tasks: TasksService,
+    private readonly households: HouseholdsService,
+    private readonly statuses: StatusesService,
   ) {}
 
   /**
@@ -260,8 +263,8 @@ export class SetupService implements OnModuleInit {
     }
 
     // Le foyer naît sans membre : le compte administrateur arrive à
-    // l'étape suivante et devient son propriétaire. C'est le seul
-    // moment de la vie d'un foyer où il n'a pas de propriétaire.
+    // l'étape suivante. C'est le seul moment de la vie d'un foyer où
+    // personne ne l'administre.
     const household = await this.prisma.household.create({
       data: {
         name: dto.name.trim(),
@@ -308,6 +311,7 @@ export class SetupService implements OnModuleInit {
     const passwordHash = await this.passwords.hash(dto.password);
     const householdId = setup.householdId;
     const pending = (setup.pendingImport as ImportSummary | null) ?? null;
+    const statutAdministrateur = await this.statuses.administratorStatusId();
 
     const importedTaskIds: string[] = [];
 
@@ -315,15 +319,21 @@ export class SetupService implements OnModuleInit {
       const created = await tx.user.create({
         data: {
           email,
-          displayName: dto.displayName.trim(),
+          firstName: dto.firstName.trim(),
+          lastName: dto.lastName.trim(),
           passwordHash,
-          isServerAdmin: true,
+          // Le premier compte administre le foyer : quelqu'un doit
+          // pouvoir configurer les statuts et supprimer le compte d'un
+          // titulaire devenu injoignable.
+          statusId: statutAdministrateur,
         },
-        select: { id: true, email: true, displayName: true, isServerAdmin: true },
-      });
-
-      await tx.householdMember.create({
-        data: { householdId, userId: created.id, role: HouseholdRole.OWNER },
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          status: { select: { id: true, name: true, rights: true } },
+        },
       });
 
       await tx.activityLog.create({
@@ -361,8 +371,15 @@ export class SetupService implements OnModuleInit {
 
     return {
       ...(await this.tokens.issue(user.id)),
-      user,
-      households: [{ id: householdId, role: HouseholdRole.OWNER }],
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        status: { id: user.status.id, name: user.status.name },
+        rights: user.status.rights,
+      },
+      household: await this.households.currentOrNull(),
     };
   }
 
@@ -408,7 +425,7 @@ export class SetupService implements OnModuleInit {
       missing: [
         { id: 'account', label: 'Premier compte, administrateur', required: true },
         { id: 'members', label: 'Les autres membres du foyer', required: false },
-        { id: 'roles', label: 'Rôles et tour de rôle des tâches', required: false },
+        { id: 'statuses', label: 'Statuts, droits et tour de rôle des tâches', required: false },
       ],
     };
   }

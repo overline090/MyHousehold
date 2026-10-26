@@ -36,7 +36,7 @@ const appointmentSelect = {
   attendees: {
     select: {
       response: true,
-      user: { select: { id: true, displayName: true } },
+      user: { select: { id: true, firstName: true, lastName: true } },
     },
   },
 } satisfies Prisma.AppointmentSelect;
@@ -54,7 +54,7 @@ export interface AppointmentInstance {
   isRecurring: boolean;
   visibility: AppointmentVisibility;
   source: AppointmentSource;
-  attendees: { id: string; displayName: string; response: string }[];
+  attendees: { id: string; firstName: string; lastName: string; response: string }[];
 }
 
 @Injectable()
@@ -69,7 +69,7 @@ export class AppointmentsService {
       assertValidRrule(dto.rrule);
     }
     this.assertChronological(dto.startAt, dto.endAt);
-    await this.assertAttendeesAreMembers(householdId, dto.attendees ?? []);
+    await this.assertAttendeesSontMembres(dto.attendees ?? []);
 
     if (dto.id) {
       const existing = await this.prisma.appointment.findUnique({
@@ -213,7 +213,7 @@ export class AppointmentsService {
     this.assertChronological(startAt, endAt);
 
     if (dto.attendees) {
-      await this.assertAttendeesAreMembers(householdId, dto.attendees);
+      await this.assertAttendeesSontMembres(dto.attendees);
     }
 
     await this.prisma.$transaction(async (tx) => {
@@ -374,17 +374,14 @@ export class AppointmentsService {
     }
   }
 
-  private async assertAttendeesAreMembers(
-    householdId: string,
-    attendees: string[],
-  ): Promise<void> {
+  private async assertAttendeesSontMembres(attendees: string[]): Promise<void> {
     if (attendees.length === 0) {
       return;
     }
 
-    const members = await this.prisma.householdMember.findMany({
-      where: { householdId, userId: { in: attendees }, deletedAt: null },
-      select: { userId: true },
+    const members = await this.prisma.user.findMany({
+      where: { id: { in: attendees }, deletedAt: null },
+      select: { id: true },
     });
 
     if (members.length !== new Set(attendees).size) {
@@ -401,7 +398,8 @@ function shape(row: AppointmentRow) {
     ...row,
     attendees: row.attendees.map((a) => ({
       id: a.user.id,
-      displayName: a.user.displayName,
+      firstName: a.user.firstName,
+      lastName: a.user.lastName,
       response: a.response,
     })),
   };
@@ -425,7 +423,8 @@ function toInstance(
     source: row.source,
     attendees: row.attendees.map((a) => ({
       id: a.user.id,
-      displayName: a.user.displayName,
+      firstName: a.user.firstName,
+      lastName: a.user.lastName,
       response: a.response,
     })),
   };

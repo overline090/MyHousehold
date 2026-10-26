@@ -56,10 +56,15 @@ export class ClaimDto {
   @MaxLength(256)
   password!: string;
 
-  @ApiProperty()
+  @ApiProperty({ example: 'Marie' })
   @IsString()
   @Length(1, 60)
-  displayName!: string;
+  firstName!: string;
+
+  @ApiProperty({ example: 'Dupont' })
+  @IsString()
+  @Length(1, 60)
+  lastName!: string;
 }
 
 export class ImportedTaskDto {

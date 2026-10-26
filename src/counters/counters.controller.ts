@@ -11,14 +11,13 @@ import {
   Patch,
   Post,
   Query,
-  UseGuards,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Right } from '@prisma/client';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { RequireRight } from '../households/decorators/require-right.decorator';
+import { HouseholdsService } from '../households/households.service';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
-import { RequireRole } from '../households/decorators/require-role.decorator';
-import { HouseholdMemberGuard } from '../households/guards/household-member.guard';
-import { ROLE_TO_COMPLETE, ROLE_TO_MANAGE_CONTENT } from '../households/roles';
 import { CountersService } from './counters.service';
 import {
   CreateCounterDto,
@@ -28,96 +27,101 @@ import {
 } from './dto/counter.dto';
 
 @ApiTags('counters')
-@Controller('households/:householdId/counters')
-@UseGuards(HouseholdMemberGuard)
+@Controller('counters')
 export class CountersController {
-  constructor(private readonly counters: CountersService) {}
+  constructor(
+    private readonly counters: CountersService,
+    private readonly households: HouseholdsService,
+  ) {}
 
   @Get()
+  @RequireRight(Right.VIEW)
   @ApiOperation({ summary: 'Compteurs du foyer, avec leur état dérivé' })
-  findAll(
-    @Param('householdId', ParseUUIDPipe) householdId: string,
+  async findAll(
     @Query('isActive', new ParseBoolPipe({ optional: true })) isActive?: boolean,
   ) {
-    return this.counters.findAll(householdId, isActive);
+    return this.counters.findAll(
+      await this.households.currentId(), isActive);
   }
 
   @Post()
-  @RequireRole(ROLE_TO_MANAGE_CONTENT)
+  @RequireRight(Right.MANAGE_TASKS)
   @ApiOperation({ summary: 'Créer un compteur' })
-  create(
-    @Param('householdId', ParseUUIDPipe) householdId: string,
+  async create(
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: CreateCounterDto,
   ) {
-    return this.counters.create(householdId, user.id, dto);
+    return this.counters.create(
+      await this.households.currentId(), user.id, dto);
   }
 
   @Get(':counterId')
+  @RequireRight(Right.VIEW)
   @ApiOperation({ summary: 'Détail d’un compteur et ses vingt derniers événements' })
-  findOne(
-    @Param('householdId', ParseUUIDPipe) householdId: string,
+  async findOne(
     @Param('counterId', ParseUUIDPipe) counterId: string,
   ) {
-    return this.counters.findOne(householdId, counterId);
+    return this.counters.findOne(
+      await this.households.currentId(), counterId);
   }
 
   @Patch(':counterId')
-  @RequireRole(ROLE_TO_MANAGE_CONTENT)
+  @RequireRight(Right.MANAGE_TASKS)
   @ApiOperation({ summary: 'Modifier un compteur' })
-  update(
-    @Param('householdId', ParseUUIDPipe) householdId: string,
+  async update(
     @Param('counterId', ParseUUIDPipe) counterId: string,
     @Body() dto: UpdateCounterDto,
   ) {
-    return this.counters.update(householdId, counterId, dto);
+    return this.counters.update(
+      await this.households.currentId(), counterId, dto);
   }
 
   @Delete(':counterId')
-  @RequireRole(ROLE_TO_MANAGE_CONTENT)
+  @RequireRight(Right.MANAGE_TASKS)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Supprimer un compteur' })
-  remove(
-    @Param('householdId', ParseUUIDPipe) householdId: string,
+  async remove(
     @Param('counterId', ParseUUIDPipe) counterId: string,
   ): Promise<void> {
-    return this.counters.remove(householdId, counterId);
+    return this.counters.remove(
+      await this.households.currentId(), counterId);
   }
 
   // Remettre à zéro, c'est faire l'action : un enfant en a le droit,
   // un invité non.
   @Post(':counterId/events')
   @HttpCode(HttpStatus.OK)
-  @RequireRole(ROLE_TO_COMPLETE)
+  @RequireRight(Right.COMPLETE_TASKS)
   @ApiOperation({ summary: 'Remettre le compteur à zéro' })
-  addEvent(
-    @Param('householdId', ParseUUIDPipe) householdId: string,
+  async addEvent(
     @Param('counterId', ParseUUIDPipe) counterId: string,
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: CreateCounterEventDto,
   ) {
-    return this.counters.addEvent(householdId, counterId, user.id, dto);
+    return this.counters.addEvent(
+      await this.households.currentId(), counterId, user.id, dto);
   }
 
   @Get(':counterId/events')
+  @RequireRight(Right.VIEW)
   @ApiOperation({ summary: 'Historique du compteur' })
-  listEvents(
-    @Param('householdId', ParseUUIDPipe) householdId: string,
+  async listEvents(
     @Param('counterId', ParseUUIDPipe) counterId: string,
     @Query() query: ListCounterEventsDto,
   ) {
-    return this.counters.listEvents(householdId, counterId, query);
+    return this.counters.listEvents(
+      await this.households.currentId(), counterId, query);
   }
 
   @Delete(':counterId/events/:eventId')
-  @RequireRole(ROLE_TO_COMPLETE)
+  @RequireRight(Right.COMPLETE_TASKS)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Corriger une saisie erronée' })
-  removeEvent(
-    @Param('householdId', ParseUUIDPipe) householdId: string,
+  async removeEvent(
     @Param('counterId', ParseUUIDPipe) counterId: string,
     @Param('eventId', ParseUUIDPipe) eventId: string,
   ): Promise<void> {
-    return this.counters.removeEvent(householdId, counterId, eventId);
+    return this.counters.removeEvent(
+      await this.households.currentId(), counterId, eventId);
   }
 }

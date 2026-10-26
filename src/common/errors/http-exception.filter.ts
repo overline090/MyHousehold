@@ -112,7 +112,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       case HttpStatus.UNAUTHORIZED:
         return ErrorCode.UNAUTHENTICATED;
       case HttpStatus.FORBIDDEN:
-        return ErrorCode.FORBIDDEN_ROLE;
+        return ErrorCode.FORBIDDEN_RIGHT;
       case HttpStatus.NOT_FOUND:
         return ErrorCode.NOT_FOUND;
       case HttpStatus.TOO_MANY_REQUESTS:

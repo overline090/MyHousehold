@@ -10,14 +10,13 @@ import {
   Patch,
   Post,
   Query,
-  UseGuards,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Right } from '@prisma/client';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { RequireRight } from '../households/decorators/require-right.decorator';
+import { HouseholdsService } from '../households/households.service';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
-import { RequireRole } from '../households/decorators/require-role.decorator';
-import { HouseholdMemberGuard } from '../households/guards/household-member.guard';
-import { ROLE_TO_MANAGE_CONTENT } from '../households/roles';
 import { AppointmentsService } from './appointments.service';
 import {
   CreateAppointmentDto,
@@ -27,77 +26,82 @@ import {
 } from './dto/appointment.dto';
 
 @ApiTags('appointments')
-@Controller('households/:householdId/appointments')
-@UseGuards(HouseholdMemberGuard)
+@Controller('appointments')
 export class AppointmentsController {
-  constructor(private readonly appointments: AppointmentsService) {}
+  constructor(
+    private readonly appointments: AppointmentsService,
+    private readonly households: HouseholdsService,
+  ) {}
 
   @Get()
+  @RequireRight(Right.VIEW)
   @ApiOperation({ summary: 'Rendez-vous d’une fenêtre, récurrences déroulées' })
-  list(
-    @Param('householdId', ParseUUIDPipe) householdId: string,
+  async list(
     @CurrentUser() user: AuthenticatedUser,
     @Query() query: ListAppointmentsDto,
   ) {
-    return this.appointments.list(householdId, user.id, query.from, query.to);
+    return this.appointments.list(
+      await this.households.currentId(), user.id, query.from, query.to);
   }
 
   @Post()
-  @RequireRole(ROLE_TO_MANAGE_CONTENT)
+  @RequireRight(Right.MANAGE_APPOINTMENTS)
   @ApiOperation({ summary: 'Créer un rendez-vous' })
-  create(
-    @Param('householdId', ParseUUIDPipe) householdId: string,
+  async create(
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: CreateAppointmentDto,
   ) {
-    return this.appointments.create(householdId, user.id, dto);
+    return this.appointments.create(
+      await this.households.currentId(), user.id, dto);
   }
 
   @Get(':appointmentId')
+  @RequireRight(Right.VIEW)
   @ApiOperation({ summary: 'Détail d’un rendez-vous' })
-  findOne(
-    @Param('householdId', ParseUUIDPipe) householdId: string,
+  async findOne(
     @Param('appointmentId', ParseUUIDPipe) appointmentId: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.appointments.findOne(householdId, appointmentId, user.id);
+    return this.appointments.findOne(
+      await this.households.currentId(), appointmentId, user.id);
   }
 
   @Patch(':appointmentId')
-  @RequireRole(ROLE_TO_MANAGE_CONTENT)
+  @RequireRight(Right.MANAGE_APPOINTMENTS)
   @ApiOperation({ summary: 'Modifier un rendez-vous' })
-  update(
-    @Param('householdId', ParseUUIDPipe) householdId: string,
+  async update(
     @Param('appointmentId', ParseUUIDPipe) appointmentId: string,
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: UpdateAppointmentDto,
   ) {
-    return this.appointments.update(householdId, appointmentId, user.id, dto);
+    return this.appointments.update(
+      await this.households.currentId(), appointmentId, user.id, dto);
   }
 
   @Delete(':appointmentId')
-  @RequireRole(ROLE_TO_MANAGE_CONTENT)
+  @RequireRight(Right.MANAGE_APPOINTMENTS)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Supprimer un rendez-vous' })
-  remove(
-    @Param('householdId', ParseUUIDPipe) householdId: string,
+  async remove(
     @Param('appointmentId', ParseUUIDPipe) appointmentId: string,
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<void> {
-    return this.appointments.remove(householdId, appointmentId, user.id);
+    return this.appointments.remove(
+      await this.households.currentId(), appointmentId, user.id);
   }
 
   // Répondre ne demande pas d'être adulte : on répond pour soi, et un
   // enfant invité chez le dentiste peut dire qu'il a vu le rendez-vous.
   @Post(':appointmentId/respond')
+  @RequireRight(Right.VIEW)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Répondre à une invitation' })
-  respond(
-    @Param('householdId', ParseUUIDPipe) householdId: string,
+  async respond(
     @Param('appointmentId', ParseUUIDPipe) appointmentId: string,
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: RespondDto,
   ) {
-    return this.appointments.respond(householdId, appointmentId, user.id, dto);
+    return this.appointments.respond(
+      await this.households.currentId(), appointmentId, user.id, dto);
   }
 }

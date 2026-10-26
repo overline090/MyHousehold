@@ -77,7 +77,8 @@ function verifier(libelle, attendu, obtenu) {
       code,
       email: 'marie@example.test',
       password: 'un mot de passe assez long',
-      displayName: 'Marie',
+      firstName: 'Marie',
+      lastName: 'Dupont',
     }),
   });
   verifier('le téléphone crée le compte administrateur', 201, reponse.status);

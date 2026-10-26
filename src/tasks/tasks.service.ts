@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { AssignmentMode, HouseholdRole, OccurrenceStatus, Prisma } from '@prisma/client';
+import { AssignmentMode, Right, OccurrenceStatus, Prisma } from '@prisma/client';
 import { ClockService } from '../common/clock/clock.service';
 import { AppException } from '../common/errors/app.exception';
 import { ErrorCode } from '../common/errors/error-codes';
@@ -66,7 +66,7 @@ export class TasksService {
     const mode = dto.assignmentMode ?? AssignmentMode.ANYONE;
     const assignees = dto.assignees ?? [];
     assertAssignmentIsCoherent(mode, assignees);
-    await this.assertAssigneesAreMembers(householdId, assignees);
+    await this.assertAssigneesPeuventCompleter(assignees);
     assertDateOrder(dto.startsOn, dto.endsOn);
 
     if (dto.id) {
@@ -188,7 +188,7 @@ export class TasksService {
       dto.assignees ??
       (dto.assignmentMode ? [] : existing.assignees.map((a) => a.userId));
     assertAssignmentIsCoherent(mode, assignees);
-    await this.assertAssigneesAreMembers(householdId, assignees);
+    await this.assertAssigneesPeuventCompleter(assignees);
 
     await this.prisma.$transaction(async (tx) => {
       await tx.taskDefinition.update({
@@ -390,27 +390,23 @@ export class TasksService {
     return updated;
   }
 
-  private async assertAssigneesAreMembers(
-    householdId: string,
-    assignees: string[],
-  ): Promise<void> {
+  private async assertAssigneesPeuventCompleter(assignees: string[]): Promise<void> {
     if (assignees.length === 0) {
       return;
     }
 
-    const members = await this.prisma.householdMember.findMany({
+    const members = await this.prisma.user.findMany({
       where: {
-        householdId,
-        userId: { in: assignees },
+        id: { in: assignees },
         deletedAt: null,
-        // Un invité ne se voit pas assigner de tâche : il n'a pas le
-        // droit de la compléter, ce serait une impasse.
-        role: { in: [HouseholdRole.OWNER, HouseholdRole.ADULT, HouseholdRole.CHILD] },
+        // Une personne sans le droit de compléter ne se voit pas
+        // assigner de tâche : ce serait une impasse.
+        status: { rights: { has: Right.COMPLETE_TASKS } },
       },
-      select: { userId: true },
+      select: { id: true },
     });
 
-    const known = new Set(members.map((m) => m.userId));
+    const known = new Set(members.map((m) => m.id));
     const unknown = assignees.filter((id) => !known.has(id));
 
     if (unknown.length > 0) {

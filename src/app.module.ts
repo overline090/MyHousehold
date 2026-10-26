@@ -8,6 +8,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
+import { RightsGuard } from './households/guards/rights.guard';
 import { ClockModule } from './common/clock/clock.module';
 import { HttpExceptionFilter } from './common/errors/http-exception.filter';
 import { PrismaModule } from './common/prisma/prisma.module';
@@ -118,6 +119,9 @@ function interfaceWeb(): DynamicModule[] {
   providers: [
     // Route protégée par défaut : c'est l'ouverture qui est explicite.
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+    // Puis le droit exigé par la route, s'il y en a un. L'ordre compte :
+    // il faut un compte résolu pour lire ses droits.
+    { provide: APP_GUARD, useClass: RightsGuard },
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_FILTER, useClass: HttpExceptionFilter },
   ],

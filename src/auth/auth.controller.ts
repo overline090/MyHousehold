@@ -56,7 +56,7 @@ export class AuthController {
   }
 
   @Get('me')
-  @ApiOperation({ summary: 'Profil et foyers de l’utilisateur connecté' })
+  @ApiOperation({ summary: 'Profil, statut et droits de l’utilisateur connecté' })
   me(@CurrentUser() user: AuthenticatedUser) {
     return this.auth.me(user.id);
   }

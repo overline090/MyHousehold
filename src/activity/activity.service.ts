@@ -21,7 +21,9 @@ export class ActivityService {
         subjectType: true,
         subjectId: true,
         createdAt: true,
-        actor: { select: { id: true, displayName: true, avatarColor: true } },
+        actor: {
+          select: { id: true, firstName: true, lastName: true, avatarColor: true },
+        },
       },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: limit + 1,

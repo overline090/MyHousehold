@@ -67,11 +67,11 @@ cela ?**
    droits à ceux exigés par la route (`@RequiresRight('MANAGE_TASKS')`). Un droit
    manquant est un `403` : il n'y a plus d'existence à cacher, donc plus de raison de
    répondre `404`.
-3. Le cache des statuts (30 s) vit dans un fournisseur distinct, et **pas** dans le
-   garde : Nest peut créer sa propre instance d'un garde déclaré par `@UseGuards`, et
-   un cache porté par le garde n'est alors pas celui que le service invalide. Symptôme
-   observé avant correction sur l'ancien cache d'appartenance : un changement restait
-   sans effet pendant 30 secondes.
+3. **Aucun cache de droits.** Le statut est lu dans la même requête que le compte,
+   par `JwtStrategy`, à chaque appel. L'ancien cache d'appartenance (30 s) a disparu
+   avec le problème qu'il créait : porté par le garde, il n'était pas celui que le
+   service invalidait, et un changement restait sans effet pendant 30 secondes. Une
+   jointure de plus sur un index coûte moins cher qu'un cache à invalider.
 4. Les routes exigent un **droit**, jamais un nom de statut. Un foyer qui renomme
    « Adulte » en « Grand » ne doit pas changer de comportement, et un foyer qui crée
    un statut « Colocataire » ne doit pas avoir à patcher le serveur.

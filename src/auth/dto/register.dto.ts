@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  IsDateString,
   IsEmail,
   IsOptional,
   IsString,
@@ -25,7 +26,27 @@ export class RegisterDto {
   @ApiProperty({ example: 'Marie' })
   @IsString()
   @Length(1, 60)
-  displayName!: string;
+  firstName!: string;
+
+  @ApiProperty({ example: 'Dupont' })
+  @IsString()
+  @Length(1, 60)
+  lastName!: string;
+
+  @ApiPropertyOptional({ example: '1986-03-12', description: 'Date de naissance' })
+  @IsOptional()
+  @IsDateString()
+  birthDate?: string;
+
+  @ApiPropertyOptional({
+    description:
+      "Code d'invitation. Exigé dès que les inscriptions libres sont fermées, c'est-à-dire dès la fin de l'installation.",
+    example: 'K7PQ2M4R',
+  })
+  @IsOptional()
+  @IsString()
+  @Length(4, 20)
+  inviteCode?: string;
 
   @ApiPropertyOptional({ example: 'Europe/Paris' })
   @IsOptional()

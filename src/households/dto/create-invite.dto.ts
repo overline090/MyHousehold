@@ -1,12 +1,10 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { HouseholdRole } from '@prisma/client';
-import { IsEnum, IsInt, IsOptional, Max, Min } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsInt, IsOptional, IsUUID, Max, Min } from 'class-validator';
 
 export class CreateInviteDto {
-  @ApiPropertyOptional({ enum: HouseholdRole, default: HouseholdRole.ADULT })
-  @IsOptional()
-  @IsEnum(HouseholdRole)
-  role?: HouseholdRole;
+  @ApiProperty({ description: "Statut attribué à l'arrivée" })
+  @IsUUID()
+  statusId!: string;
 
   @ApiPropertyOptional({ default: 1, minimum: 1, maximum: 20 })
   @IsOptional()

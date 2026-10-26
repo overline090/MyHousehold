@@ -60,6 +60,11 @@ const schema = z.object({
 
   MH_NETWORK_SETUP_SOCKET: z.string().optional(),
 
+  // Volume de données à côté de la base : photos de profil aujourd'hui,
+  // miroir de l'APK demain. Une sauvegarde doit prendre les deux — c'est
+  // dit dans docs/self-hosting.md.
+  MH_DATA_DIR: z.string().default('./data'),
+
   MH_GOOGLE_CLIENT_ID: z.string().optional(),
   MH_GOOGLE_CLIENT_SECRET: z.string().optional(),
 });

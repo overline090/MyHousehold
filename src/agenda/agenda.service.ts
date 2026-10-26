@@ -19,7 +19,7 @@ export interface AgendaEntry {
   isAllDay?: boolean;
   location?: string | null;
   status?: string;
-  assignee?: { id: string; displayName: string } | null;
+  assignee?: { id: string; firstName: string; lastName: string } | null;
   points?: number;
 }
 
@@ -62,7 +62,7 @@ export class AgendaService {
           dueAt: true,
           status: true,
           task: { select: { title: true, points: true } },
-          assignee: { select: { id: true, displayName: true } },
+          assignee: { select: { id: true, firstName: true, lastName: true } },
         },
       }),
       this.counters.findAll(householdId, true),

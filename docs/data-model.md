@@ -3,9 +3,10 @@
 Ce document est la source de vérité du domaine. Toute évolution de l'API ou du
 schéma de base part d'ici.
 
-> ⚠️ **Révision en cours.** Ce document décrit le modèle **décidé**, qui n'est pas
-> encore celui du code : le serveur implémente encore le modèle précédent
-> (compteurs séparés, foyers multiples, points). La reprise est en cours ; voir
+> ⚠️ **Révision en cours.** Le foyer unique, les statuts à droits et le profil
+> (prénom, nom, date de naissance, photo) sont en base et servis. Les **tâches ne
+> sont pas encore unifiées** : les compteurs restent une table à part, et `Task` n'a
+> ni `kind`, ni groupe, ni priorité, et porte encore des points. Voir
 > [`roadmap.md`](roadmap.md).
 
 ## Un serveur, un foyer

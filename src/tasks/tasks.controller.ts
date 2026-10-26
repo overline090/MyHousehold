@@ -11,15 +11,13 @@ import {
   Patch,
   Post,
   Query,
-  UseGuards,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { HouseholdRole } from '@prisma/client';
+import { Right } from '@prisma/client';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { RequireRight } from '../households/decorators/require-right.decorator';
+import { HouseholdsService } from '../households/households.service';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
-import { RequireRole } from '../households/decorators/require-role.decorator';
-import { HouseholdMemberGuard } from '../households/guards/household-member.guard';
-import { ROLE_TO_COMPLETE, ROLE_TO_MANAGE_CONTENT } from '../households/roles';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { ListOccurrencesDto } from './dto/list-occurrences.dto';
 import {
@@ -32,10 +30,10 @@ import { OccurrencesService } from './occurrences.service';
 import { TasksService } from './tasks.service';
 
 @ApiTags('tasks')
-@Controller('households/:householdId')
-@UseGuards(HouseholdMemberGuard)
+@Controller()
 export class TasksController {
   constructor(
+    private readonly households: HouseholdsService,
     private readonly tasks: TasksService,
     private readonly occurrences: OccurrencesService,
   ) {}
@@ -45,68 +43,71 @@ export class TasksController {
   // complète ce qui lui est assigné sans redéfinir les règles.
 
   @Get('tasks')
+  @RequireRight(Right.VIEW)
   @ApiOperation({ summary: 'Tâches récurrentes du foyer' })
-  findAll(
-    @Param('householdId', ParseUUIDPipe) householdId: string,
+  async findAll(
     @Query('isActive', new ParseBoolPipe({ optional: true })) isActive?: boolean,
   ) {
-    return this.tasks.findAll(householdId, isActive);
+    return this.tasks.findAll(
+      await this.households.currentId(), isActive);
   }
 
   @Post('tasks')
-  @RequireRole(ROLE_TO_MANAGE_CONTENT)
+  @RequireRight(Right.MANAGE_TASKS)
   @ApiOperation({ summary: 'Créer une tâche récurrente' })
-  create(
-    @Param('householdId', ParseUUIDPipe) householdId: string,
+  async create(
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: CreateTaskDto,
   ) {
-    return this.tasks.create(householdId, user.id, dto);
+    return this.tasks.create(
+      await this.households.currentId(), user.id, dto);
   }
 
   @Get('tasks/:taskId')
+  @RequireRight(Right.VIEW)
   @ApiOperation({ summary: 'Détail d’une tâche et ses dix prochaines échéances' })
-  findOne(
-    @Param('householdId', ParseUUIDPipe) householdId: string,
+  async findOne(
     @Param('taskId', ParseUUIDPipe) taskId: string,
   ) {
-    return this.tasks.findOne(householdId, taskId);
+    return this.tasks.findOne(
+      await this.households.currentId(), taskId);
   }
 
   @Patch('tasks/:taskId')
-  @RequireRole(ROLE_TO_MANAGE_CONTENT)
+  @RequireRight(Right.MANAGE_TASKS)
   @ApiOperation({
     summary: 'Modifier une tâche. Regénère les échéances futures en attente',
   })
-  update(
-    @Param('householdId', ParseUUIDPipe) householdId: string,
+  async update(
     @Param('taskId', ParseUUIDPipe) taskId: string,
     @Body() dto: UpdateTaskDto,
   ) {
-    return this.tasks.update(householdId, taskId, dto);
+    return this.tasks.update(
+      await this.households.currentId(), taskId, dto);
   }
 
   @Delete('tasks/:taskId')
-  @RequireRole(ROLE_TO_MANAGE_CONTENT)
+  @RequireRight(Right.MANAGE_TASKS)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Supprimer une tâche en conservant son historique' })
-  remove(
-    @Param('householdId', ParseUUIDPipe) householdId: string,
+  async remove(
     @Param('taskId', ParseUUIDPipe) taskId: string,
   ): Promise<void> {
-    return this.tasks.remove(householdId, taskId);
+    return this.tasks.remove(
+      await this.households.currentId(), taskId);
   }
 
   // ── Occurrences ──────────────────────────────────────────────────────
 
   @Get('occurrences')
+  @RequireRight(Right.VIEW)
   @ApiOperation({ summary: 'Ce qu’il y a à faire, sur une fenêtre de jours' })
-  list(
-    @Param('householdId', ParseUUIDPipe) householdId: string,
+  async list(
     @CurrentUser() user: AuthenticatedUser,
     @Query() query: ListOccurrencesDto,
   ) {
-    return this.occurrences.list(householdId, user.id, query);
+    return this.occurrences.list(
+      await this.households.currentId(), user.id, query);
   }
 
   // 200 et non 201 : cocher une tâche ne crée pas de ressource, c'est un
@@ -114,51 +115,51 @@ export class TasksController {
   // que le premier envoi, ce qui simplifie le client hors-ligne.
   @Post('occurrences/:occurrenceId/complete')
   @HttpCode(HttpStatus.OK)
-  @RequireRole(ROLE_TO_COMPLETE)
+  @RequireRight(Right.COMPLETE_TASKS)
   @ApiOperation({ summary: 'Marquer faite' })
-  complete(
-    @Param('householdId', ParseUUIDPipe) householdId: string,
+  async complete(
     @Param('occurrenceId', ParseUUIDPipe) occurrenceId: string,
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: CompleteOccurrenceDto,
   ) {
-    return this.occurrences.complete(householdId, occurrenceId, user.id, dto);
+    return this.occurrences.complete(
+      await this.households.currentId(), occurrenceId, user.id, dto);
   }
 
   @Post('occurrences/:occurrenceId/uncomplete')
   @HttpCode(HttpStatus.OK)
-  @RequireRole(ROLE_TO_COMPLETE)
+  @RequireRight(Right.COMPLETE_TASKS)
   @ApiOperation({ summary: 'Décocher (48 heures)' })
-  uncomplete(
-    @Param('householdId', ParseUUIDPipe) householdId: string,
+  async uncomplete(
     @Param('occurrenceId', ParseUUIDPipe) occurrenceId: string,
   ) {
-    return this.occurrences.uncomplete(householdId, occurrenceId);
+    return this.occurrences.uncomplete(
+      await this.households.currentId(), occurrenceId);
   }
 
   @Post('occurrences/:occurrenceId/skip')
   @HttpCode(HttpStatus.OK)
-  @RequireRole(ROLE_TO_COMPLETE)
+  @RequireRight(Right.COMPLETE_TASKS)
   @ApiOperation({ summary: 'Passer son tour' })
-  skip(
-    @Param('householdId', ParseUUIDPipe) householdId: string,
+  async skip(
     @Param('occurrenceId', ParseUUIDPipe) occurrenceId: string,
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: SkipOccurrenceDto,
   ) {
-    return this.occurrences.skip(householdId, occurrenceId, user.id, dto);
+    return this.occurrences.skip(
+      await this.households.currentId(), occurrenceId, user.id, dto);
   }
 
   @Patch('occurrences/:occurrenceId')
   // Réassigner ou reporter touche à l'organisation du foyer, pas à
   // l'exécution d'une tâche : c'est un acte d'adulte.
-  @RequireRole(HouseholdRole.ADULT)
+  @RequireRight(Right.MANAGE_TASKS)
   @ApiOperation({ summary: 'Réassigner, reporter, annoter' })
-  updateOccurrence(
-    @Param('householdId', ParseUUIDPipe) householdId: string,
+  async updateOccurrence(
     @Param('occurrenceId', ParseUUIDPipe) occurrenceId: string,
     @Body() dto: UpdateOccurrenceDto,
   ) {
-    return this.occurrences.update(householdId, occurrenceId, dto);
+    return this.occurrences.update(
+      await this.households.currentId(), occurrenceId, dto);
   }
 }
