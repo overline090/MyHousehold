@@ -240,6 +240,22 @@ check "une personne sans le droit de compléter ne se voit pas assigner" "400" \
   "$(status -X POST "$BASE/tasks" -H "authorization: Bearer $ADMIN" \
     -H 'content-type: application/json' -d "{\"title\":\"X\",\"rrule\":\"FREQ=DAILY\",\"assignmentMode\":\"FIXED\",\"assignees\":[\"$INVITE_ID\"]}")"
 
+check "les cinq formes de répétition dispensent de la RRULE" "FREQ=WEEKLY;BYDAY=MO,TH" \
+  "$(curl -s -X POST "$BASE/tasks" -H "authorization: Bearer $ADMIN" \
+    -H 'content-type: application/json' \
+    -d '{"title":"Poubelles (formes)","recurrence":{"form":"WEEKDAYS","days":["MO","TH"]}}' \
+    | field "['rrule']")"
+check "la tâche renvoie sa forme, pas sa règle brute" "WEEKDAYS MO,TH" \
+  "$(curl -s "$BASE/tasks" -H "authorization: Bearer $ADMIN" | py "
+import json,sys
+t = next(t for t in json.load(sys.stdin) if t['title'] == 'Poubelles (formes)')
+print(t['recurrence']['form'], ','.join(t['recurrence']['days']))")"
+check "une forme incohérente est refusée en clair" "INVALID_RECURRENCE" \
+  "$(status -X POST "$BASE/tasks" -H "authorization: Bearer $ADMIN" \
+    -H 'content-type: application/json' \
+    -d '{"title":"X","recurrence":{"form":"YEAR_DATES","dates":["03-15","06-02"]}}' > /dev/null
+     cat /tmp/mh-smoke-body | field "['error']['code']")"
+
 echo
 echo "Faire, défaire, passer son tour"
 TODAY=$(py "import datetime; print(datetime.date.today().isoformat())")

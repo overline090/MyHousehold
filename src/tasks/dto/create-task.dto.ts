@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { AssignmentMode, TaskKind } from '@prisma/client';
+import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   IsArray,
@@ -15,7 +16,9 @@ import {
   Matches,
   Max,
   Min,
+  ValidateNested,
 } from 'class-validator';
+import { RecurrenceDto } from './recurrence.dto';
 
 /**
  * Une seule ressource pour les trois façons d'être due. C'est le `kind`
@@ -69,7 +72,17 @@ export class CreateTaskDto {
 
   @ApiPropertyOptional({
     description:
-      'SCHEDULED : RRULE RFC 5545 sans le préfixe « RRULE: ». Au maximum quotidienne.',
+      'SCHEDULED : la répétition, dans l’une des cinq formes. Traduite en RRULE par le serveur.',
+    type: RecurrenceDto,
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => RecurrenceDto)
+  recurrence?: RecurrenceDto;
+
+  @ApiPropertyOptional({
+    description:
+      'SCHEDULED : RRULE RFC 5545 sans le préfixe « RRULE: », pour qui sait ce qu’il fait. `recurrence` suffit dans tous les autres cas.',
     example: 'FREQ=WEEKLY;BYDAY=MO',
   })
   @IsOptional()

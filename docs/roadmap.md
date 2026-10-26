@@ -64,15 +64,14 @@ ci-dessous, parce que chaque écran écrit sur l'ancien modèle serait à rééc
 - [x] Profil : prénom, nom, date de naissance, photo redimensionnée à l'arrivée
 - [x] Tâches unifiées : `SCHEDULED`, `BACKGROUND`, `ONE_OFF` dans une seule ressource
 - [x] Groupes de tâches, priorités de +3 à −3
-- [ ] Les cinq formes de récurrence exposées à la place de la RRULE brute
+- [x] Les cinq formes de récurrence exposées à la place de la RRULE brute
 - [x] Retrait des points, et des compteurs comme objet distinct
 - [x] Migration des rôles en statuts, et d'un serveur multi-foyer vers un seul
 - [x] Migration des compteurs en tâches de fond, et de leurs remises à zéro en
       occurrences faites
 
-**Jalon :** le serveur parle le modèle décidé, et une installation en v0.3 se migre
-sans perte. Reste l'app, et les cinq formes de récurrence à exposer en place de la
-RRULE brute.
+**Jalon atteint :** le serveur parle le modèle décidé, et une installation en v0.3 se
+migre sans perte. Reste l'app, qui n'a pas encore commencé.
 
 ## v0.4 — Application Android, utilisable seule (prochaine étape)
 

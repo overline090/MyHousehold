@@ -14,6 +14,8 @@ import { PrismaService } from '../common/prisma/prisma.service';
 import { assertAssignmentIsCoherent, assigneeForOrdinal } from './assignment';
 import { BackgroundStateInfo, deriveBackgroundState } from './background-state';
 import { CreateTaskDto } from './dto/create-task.dto';
+import { versForme } from './dto/recurrence.dto';
+import { formToRrule, rruleToForm } from './recurrence-forms';
 import { MarkDoneDto } from './dto/mark-done.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import {
@@ -82,8 +84,9 @@ export class TasksService {
 
   async create(householdId: string, createdById: string, dto: CreateTaskDto) {
     const kind = dto.kind ?? TaskKind.SCHEDULED;
+    const rrule = dto.recurrence ? formToRrule(versForme(dto.recurrence)) : dto.rrule;
     assertChampsCoherents(kind, {
-      rrule: dto.rrule,
+      rrule,
       dueTime: dto.dueTime,
       graceHours: dto.graceHours,
       startsOn: dto.startsOn,
@@ -92,9 +95,9 @@ export class TasksService {
       warnRatio: dto.warnRatio,
       dueDate: dto.dueDate,
     });
-    assertRecurrenceRequise(kind, dto.rrule);
-    if (dto.rrule) {
-      assertValidRrule(dto.rrule);
+    assertRecurrenceRequise(kind, rrule);
+    if (rrule) {
+      assertValidRrule(rrule);
     }
 
     const mode = dto.assignmentMode ?? AssignmentMode.ANYONE;
@@ -130,7 +133,7 @@ export class TasksService {
         kind,
         groupId: dto.groupId ?? null,
         priority: dto.priority ?? 0,
-        rrule: dto.rrule ?? null,
+        rrule: rrule ?? null,
         dueTime: dto.dueTime ?? null,
         graceHours: dto.graceHours ?? 24,
         maxIntervalSeconds: dto.maxIntervalSeconds ?? null,
@@ -327,8 +330,10 @@ export class TasksService {
       );
     }
 
+    const rrule = dto.recurrence ? formToRrule(versForme(dto.recurrence)) : dto.rrule;
+
     assertChampsCoherents(existing.kind, {
-      rrule: dto.rrule,
+      rrule,
       dueTime: dto.dueTime,
       graceHours: dto.graceHours,
       startsOn: dto.startsOn,
@@ -338,8 +343,8 @@ export class TasksService {
       dueDate: dto.dueDate,
     });
 
-    if (dto.rrule !== undefined) {
-      assertValidRrule(dto.rrule);
+    if (rrule !== undefined) {
+      assertValidRrule(rrule);
     }
 
     await this.assertGroupeDuFoyer(householdId, dto.groupId ?? null);
@@ -360,7 +365,7 @@ export class TasksService {
           description: dto.description?.trim(),
           groupId: dto.groupId === undefined ? undefined : dto.groupId,
           priority: dto.priority,
-          rrule: dto.rrule,
+          rrule,
           dueTime: dto.dueTime,
           graceHours: dto.graceHours,
           maxIntervalSeconds: dto.maxIntervalSeconds,
@@ -732,6 +737,10 @@ function shapeTask(
   return {
     ...reste,
     warnRatio: Number(warnRatio),
+    // La forme plutôt que la règle brute : c'est ce que l'interface
+    // montre. `null` quand la règle sort de ce que les cinq formes
+    // savent dire — une règle affichée de travers serait pire.
+    recurrence: task.rrule ? rruleToForm(task.rrule) : null,
     startsOn: task.startsOn ? toLocalDate(task.startsOn) : null,
     endsOn: task.endsOn ? toLocalDate(task.endsOn) : null,
     dueDate: task.dueDate ? toLocalDate(task.dueDate) : null,

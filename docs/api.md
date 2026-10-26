@@ -235,13 +235,19 @@ le foyer formule spontanément :
 | `WEEKDAYS` | `days` (`MO`…`SU`) | Poubelles le lundi et le jeudi |
 | `MONTH_DAYS` | `days` (1–31, `-1` = dernier jour) | Loyer le 1er, relevé le 15 |
 | `YEAR_DATES` | `dates` (`MM-DD`) | Entretien chaudière le 15 septembre |
-| `EVERY_N` | `unit` (`WEEK`\|`MONTH`), `interval`, `anchor` | Grand ménage toutes les 3 semaines |
+| `EVERY_N` | `unit` (`WEEK`\|`MONTH`), `interval` | Grand ménage toutes les 3 semaines |
 
-Le serveur traduit la forme en **RRULE RFC 5545** et la renvoie dans `rrule` à titre
-informatif ; un client peut envoyer `rrule` directement, mais l'interface ne montre
-jamais la règle brute — elle propose les cinq formes et affiche les trois prochaines
-dates, parce que personne ne vérifie une règle dans l'abstrait alors que tout le monde
-vérifie trois dates.
+Le serveur traduit la forme en **RRULE RFC 5545**, la stocke, et la renvoie dans
+`rrule` à titre informatif. En lecture, chaque tâche porte aussi `recurrence` : sa
+règle relue comme l'une des cinq formes, ou `null` quand elle en sort — une règle
+affichée de travers serait pire qu'une règle affichée telle quelle. Un client peut
+envoyer `rrule` directement, mais l'interface ne montre jamais la règle brute : elle
+propose les cinq formes et affiche les trois prochaines dates, parce que personne ne
+vérifie une règle dans l'abstrait alors que tout le monde vérifie trois dates.
+
+Deux dates annuelles qui ne partagent ni le jour ni le mois sont refusées en
+`400 INVALID_RECURRENCE` : `BYMONTH` × `BYMONTHDAY` est un produit, pas une liste de
+couples, et « le 15 mars et le 2 juin » donnerait aussi le 2 mars et le 15 juin.
 
 Selon le `kind` :
 
