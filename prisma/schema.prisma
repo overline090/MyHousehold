@@ -32,6 +32,21 @@ enum Right {
   MANAGE_SERVER
 }
 
+/// Les trois façons d'être due. Ce qui change d'une tâche à l'autre,
+/// c'est *quand* elle est due — et c'est le seul axe qui compte pour
+/// l'organisation d'un foyer.
+enum TaskKind {
+  /// À une date, selon une récurrence.
+  SCHEDULED
+  /// À refaire dans un délai, pas à une date. Ce que la version
+  /// précédente appelait un « compteur » : ce n'était pas une autre
+  /// nature d'objet, et deux listes là où le foyer n'en vit qu'une
+  /// était une erreur.
+  BACKGROUND
+  /// Une seule fois, avec ou sans date limite.
+  ONE_OFF
+}
+
 enum AssignmentMode {
   FIXED
   ROTATION
@@ -83,7 +98,6 @@ enum PushProvider {
 enum ReminderTargetType {
   APPOINTMENT
   TASK_OCCURRENCE
-  COUNTER
 }
 
 enum SetupPairingPurpose {
@@ -97,7 +111,7 @@ enum ActivityVerb {
   TASK_COMPLETED
   TASK_SKIPPED
   TASK_MISSED
-  COUNTER_RESET
+  BACKGROUND_TASK_DONE
   APPOINTMENT_CREATED
   MEMBER_JOINED
   MEMBER_ACCOUNT_DELETED
@@ -144,7 +158,6 @@ model User {
   assignedTasks        TaskAssignee[]
   assignedOccurrences  TaskOccurrence[]        @relation("occurrenceAssignee")
   completedOccurrences TaskOccurrence[]        @relation("occurrenceCompletedBy")
-  counterEvents        CounterEvent[]
   attendances          AppointmentAttendee[]
   reminders            Reminder[]
   activities           ActivityLog[]
@@ -190,13 +203,12 @@ model Household {
   updatedAt DateTime  @updatedAt @db.Timestamptz
   deletedAt DateTime? @db.Timestamptz
 
-  invites       Invite[]
-  tasks         TaskDefinition[]
-  occurrences   TaskOccurrence[]
-  counters      CounterDefinition[]
-  counterEvents CounterEvent[]
-  appointments  Appointment[]
-  activities    ActivityLog[]
+  invites      Invite[]
+  tasks        Task[]
+  taskGroups   TaskGroup[]
+  occurrences  TaskOccurrence[]
+  appointments Appointment[]
+  activities   ActivityLog[]
 
   @@map("household")
 }
@@ -226,50 +238,90 @@ model Invite {
 
 // ──────────────────────── Tâches récurrentes ────────────────────────────
 
-model TaskDefinition {
-  id          String  @id @default(uuid(7)) @db.Uuid
-  householdId String  @db.Uuid
+/// Un groupe rassemble des tâches qui vont ensemble. Une tâche
+/// appartient à **un groupe au plus** : les appartenances multiples
+/// transforment une liste de corvées en système de classement, et
+/// personne ne range ses corvées.
+model TaskGroup {
+  id          String @id @default(uuid(7)) @db.Uuid
+  householdId String @db.Uuid
+  name        String
+  /// Repère de lecture en liste.
+  color       String @default("#0F766E")
+  position    Int    @default(0)
+
+  createdAt DateTime  @default(now()) @db.Timestamptz
+  updatedAt DateTime  @updatedAt @db.Timestamptz
+  deletedAt DateTime? @db.Timestamptz
+
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  tasks     Task[]
+
+  @@index([householdId])
+  @@map("task_group")
+}
+
+/// **Tout est une tâche.** Récurrente, de fond ou ponctuelle : seule
+/// change la façon dont elle est due.
+model Task {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  householdId String   @db.Uuid
   title       String
   description String?
-  category    String?
-  /// RRULE RFC 5545, sans le préfixe « RRULE: ». Ex. FREQ=WEEKLY;BYDAY=MO
-  rrule       String
-  /// Heure locale d'échéance. Null = toute la journée.
-  dueTime     String? @db.VarChar(5)
+  kind        TaskKind @default(SCHEDULED)
+  groupId     String?  @db.Uuid
+  /// De +3 (urgente) à −3 (en dernier), 0 = normale. Entier signé : le
+  /// tri est évident, et un niveau s'ajoute sans migration de données.
+  priority    Int      @default(0)
 
-  durationMinutes Int?
-  assignmentMode  AssignmentMode @default(ANYONE)
-  /// Délai après l'échéance avant de marquer MISSED.
-  graceHours      Int            @default(24)
-  points          Int            @default(1)
-  isActive        Boolean        @default(true)
-  startsOn        DateTime?      @db.Date
-  endsOn          DateTime?      @db.Date
-  createdById     String         @db.Uuid
+  /// SCHEDULED — RRULE RFC 5545, sans le préfixe « RRULE: ».
+  rrule      String?
+  /// SCHEDULED — heure locale d'échéance. Null = toute la journée.
+  dueTime    String? @db.VarChar(5)
+  /// SCHEDULED — délai après l'échéance avant de marquer MISSED.
+  graceHours Int     @default(24)
+
+  /// BACKGROUND — délai maximum entre deux fois. Null = la tâche ne fait
+  /// que compter le temps écoulé, sans jamais être en retard.
+  maxIntervalSeconds Int?
+  /// BACKGROUND — fraction du délai à partir de laquelle on prévient.
+  warnRatio          Decimal @default(0.8) @db.Decimal(3, 2)
+
+  /// ONE_OFF — date limite, facultative.
+  dueDate DateTime? @db.Date
+
+  assignmentMode AssignmentMode @default(ANYONE)
+  isActive       Boolean        @default(true)
+  startsOn       DateTime?      @db.Date
+  endsOn         DateTime?      @db.Date
+  createdById    String         @db.Uuid
 
   createdAt DateTime  @default(now()) @db.Timestamptz
   updatedAt DateTime  @updatedAt @db.Timestamptz
   deletedAt DateTime? @db.Timestamptz
 
   household   Household        @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  group       TaskGroup?       @relation(fields: [groupId], references: [id], onDelete: SetNull)
   assignees   TaskAssignee[]
   occurrences TaskOccurrence[]
 
   @@index([householdId, isActive])
+  @@index([householdId, kind, isActive])
   @@index([householdId, updatedAt])
-  @@map("task_definition")
+  @@index([groupId])
+  @@map("task")
 }
 
 model TaskAssignee {
-  taskDefinitionId String @db.Uuid
-  userId           String @db.Uuid
+  taskId   String @db.Uuid
+  userId   String @db.Uuid
   /// Ordre du tour de rôle.
-  position         Int    @default(0)
+  position Int    @default(0)
 
-  task TaskDefinition @relation(fields: [taskDefinitionId], references: [id], onDelete: Cascade)
-  user User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@id([taskDefinitionId, userId])
+  @@id([taskId, userId])
   @@map("task_assignee")
 }
 
@@ -277,16 +329,17 @@ model TaskAssignee {
 /// une occurrence s'assigne, s'annote, se reporte, et un client
 /// hors-ligne doit pouvoir la porter.
 model TaskOccurrence {
-  id               String   @id @default(uuid(7)) @db.Uuid
-  taskDefinitionId String   @db.Uuid
+  id           String    @id @default(uuid(7)) @db.Uuid
+  taskId       String    @db.Uuid
   /// Dupliqué depuis la définition pour filtrer sans jointure.
-  householdId      String   @db.Uuid
+  householdId  String    @db.Uuid
   /// Jour d'échéance en heure locale du foyer. Date pure : la convertir
-  /// en instant la décalerait d'un jour selon le fuseau.
-  scheduledFor     DateTime @db.Date
+  /// en instant la décalerait d'un jour selon le fuseau. Absent pour une
+  /// tâche de fond, qui n'a pas de date mais un délai.
+  scheduledFor DateTime? @db.Date
   /// Instant calculé depuis scheduledFor + dueTime dans le fuseau du foyer.
-  dueAt            DateTime @db.Timestamptz
-  assigneeId       String?  @db.Uuid
+  dueAt        DateTime? @db.Timestamptz
+  assigneeId   String?   @db.Uuid
 
   status        OccurrenceStatus @default(PENDING)
   completedAt   DateTime?        @db.Timestamptz
@@ -298,72 +351,20 @@ model TaskOccurrence {
   updatedAt DateTime  @updatedAt @db.Timestamptz
   deletedAt DateTime? @db.Timestamptz
 
-  task        TaskDefinition @relation(fields: [taskDefinitionId], references: [id], onDelete: Cascade)
-  household   Household      @relation(fields: [householdId], references: [id], onDelete: Cascade)
-  assignee    User?          @relation("occurrenceAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
-  completedBy User?          @relation("occurrenceCompletedBy", fields: [completedById], references: [id], onDelete: SetNull)
+  task        Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  assignee    User?     @relation("occurrenceAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  completedBy User?     @relation("occurrenceCompletedBy", fields: [completedById], references: [id], onDelete: SetNull)
 
   /// Rend le job de matérialisation idempotent et rejouable sans danger.
-  @@unique([taskDefinitionId, scheduledFor])
+  /// Une tâche de fond, dont `scheduledFor` est nul, n'est pas
+  /// concernée : PostgreSQL ne considère jamais deux NULL comme égaux,
+  /// et deux complétions sont bien deux faits distincts.
+  @@unique([taskId, scheduledFor])
   @@index([householdId, scheduledFor, status])
   @@index([assigneeId, status])
   @@index([householdId, updatedAt])
   @@map("task_occurrence")
-}
-
-// ───────────────────────── Compteurs de temps ───────────────────────────
-
-model CounterDefinition {
-  id                    String         @id @default(uuid(7)) @db.Uuid
-  householdId           String         @db.Uuid
-  title                 String
-  description           String?
-  category              String?
-  /// Intervalle cible, ex. 14 jours. Null = compteur purement informatif,
-  /// qui ne fait que compter sans jamais être « en retard ».
-  targetIntervalSeconds Int?
-  /// Fraction de l'intervalle à partir de laquelle on prévient (0.8 = 80 %).
-  warnRatio             Decimal        @default(0.8) @db.Decimal(3, 2)
-  assignmentMode        AssignmentMode @default(ANYONE)
-  isActive              Boolean        @default(true)
-  createdById           String         @db.Uuid
-
-  createdAt DateTime  @default(now()) @db.Timestamptz
-  updatedAt DateTime  @updatedAt @db.Timestamptz
-  deletedAt DateTime? @db.Timestamptz
-
-  household Household      @relation(fields: [householdId], references: [id], onDelete: Cascade)
-  events    CounterEvent[]
-
-  @@index([householdId, isActive])
-  @@index([householdId, updatedAt])
-  @@map("counter_definition")
-}
-
-/// Journal d'événements, et non un champ « lastResetAt » modifiable.
-/// C'est ce qui rend deux remises à zéro hors-ligne non destructives :
-/// deux saisies sont deux faits, seule la plus récente détermine l'état.
-model CounterEvent {
-  id                  String   @id @default(uuid(7)) @db.Uuid
-  counterDefinitionId String   @db.Uuid
-  householdId         String   @db.Uuid
-  /// Quand l'action a été faite, et non quand elle a été saisie : on doit
-  /// pouvoir déclarer dimanche soir une action faite samedi matin.
-  occurredAt          DateTime @db.Timestamptz
-  recordedById        String   @db.Uuid
-  note                String?
-
-  createdAt DateTime  @default(now()) @db.Timestamptz
-  updatedAt DateTime  @updatedAt @db.Timestamptz
-  deletedAt DateTime? @db.Timestamptz
-
-  counter    CounterDefinition @relation(fields: [counterDefinitionId], references: [id], onDelete: Cascade)
-  household  Household         @relation(fields: [householdId], references: [id], onDelete: Cascade)
-  recordedBy User              @relation(fields: [recordedById], references: [id])
-
-  @@index([counterDefinitionId, occurredAt(sort: Desc)])
-  @@index([householdId, updatedAt])
-  @@map("counter_event")
 }
 
 // ──────────────────────────── Rendez-vous ───────────────────────────────
@@ -544,7 +545,6 @@ model NotificationPreference {
   userId String @id @db.Uuid
 
   tasksEnabled        Boolean @default(true)
-  countersEnabled     Boolean @default(true)
   appointmentsEnabled Boolean @default(true)
   householdActivity   Boolean @default(false)
 

@@ -256,7 +256,7 @@ DAILY_ID=$(echo "$DAILY_JSON" | field "['id']")
 check "les jours écoulés sont rattrapés" "yes" \
   "$(curl -s "$BASE/occurrences?from=$FROM_PAST&to=$TODAY" -H "authorization: Bearer $ADMIN" | py "
 import json,sys
-mine = [o for o in json.load(sys.stdin)['data'] if o['taskDefinitionId'] == '$DAILY_ID']
+mine = [o for o in json.load(sys.stdin)['data'] if o['taskId'] == '$DAILY_ID']
 print('yes' if len(mine) == 4 else len(mine))")"
 
 echo
@@ -278,7 +278,7 @@ for _ in range(20):
         data = json.loads(urllib.request.urlopen(req).read())
     except Exception:
         continue
-    mine = [o for o in data['data'] if o['taskDefinitionId'] == '$DAILY_ID']
+    mine = [o for o in data['data'] if o['taskId'] == '$DAILY_ID']
     if any(o['status'] == 'MISSED' for o in mine):
         print('yes'); break
 else:
@@ -290,7 +290,7 @@ else:
 OCC_ID=$(curl -s "$BASE/occurrences?from=$TODAY&to=$TODAY" -H "authorization: Bearer $ADMIN" \
   | py "
 import json,sys
-print(next(o['id'] for o in json.load(sys.stdin)['data'] if o['taskDefinitionId'] == '$DAILY_ID'))")
+print(next(o['id'] for o in json.load(sys.stdin)['data'] if o['taskId'] == '$DAILY_ID'))")
 check "un enfant peut cocher une tâche" "DONE" \
   "$(curl -s -X POST "$BASE/occurrences/$OCC_ID/complete" \
     -H "authorization: Bearer $ENFANT_TOKEN" -H 'content-type: application/json' -d '{}' | field "['status']")"
@@ -326,44 +326,99 @@ check "un adulte réassigne" "Paul-Henri" \
 import json,sys; print((json.load(sys.stdin)['assignee'] or {}).get('firstName'))")"
 
 echo
-echo "Compteurs de temps"
-COUNTER_ID=$(curl -s -X POST "$BASE/counters" -H "authorization: Bearer $ADMIN" \
+echo "Tâches de fond"
+FOND_ID=$(curl -s -X POST "$BASE/tasks" -H "authorization: Bearer $ADMIN" \
   -H 'content-type: application/json' \
-  -d '{"title":"Changer les draps","targetIntervalSeconds":1209600}' | field "['id']")
-check "un compteur est créé" "NEVER_DONE" \
-  "$(curl -s "$BASE/counters/$COUNTER_ID" -H "authorization: Bearer $ADMIN" | field "['status']")"
-check "un enfant ne crée pas de compteur" "403" \
-  "$(status -X POST "$BASE/counters" -H "authorization: Bearer $ENFANT_TOKEN" \
-    -H 'content-type: application/json' -d '{"title":"X"}')"
+  -d '{"title":"Changer les draps","kind":"BACKGROUND","maxIntervalSeconds":1209600}' | field "['id']")
+check "une tâche de fond est créée" "NEVER_DONE" \
+  "$(curl -s "$BASE/tasks/$FOND_ID" -H "authorization: Bearer $ADMIN" | field "['state']")"
+check "elle n'a pas d'échéance : elle a un délai" "yes" \
+  "$(curl -s "$BASE/tasks/$FOND_ID" -H "authorization: Bearer $ADMIN" | py "
+import json,sys
+t = json.load(sys.stdin)
+print('yes' if t['rrule'] is None and 'history' in t else t)")"
+check "une tâche de fond avec une récurrence est refusée" "400" \
+  "$(status -X POST "$BASE/tasks" -H "authorization: Bearer $ADMIN" \
+    -H 'content-type: application/json' -d '{"title":"X","kind":"BACKGROUND","rrule":"FREQ=DAILY"}')"
+check "un tour de rôle sur une tâche de fond est refusé" "400" \
+  "$(status -X POST "$BASE/tasks" -H "authorization: Bearer $ADMIN" \
+    -H 'content-type: application/json' -d "{\"title\":\"X\",\"kind\":\"BACKGROUND\",\"assignmentMode\":\"ROTATION\",\"assignees\":[\"$ADMIN_ID\",\"$ADULTE_ID\"]}")"
+check "un enfant ne crée pas de tâche de fond" "403" \
+  "$(status -X POST "$BASE/tasks" -H "authorization: Bearer $ENFANT_TOKEN" \
+    -H 'content-type: application/json' -d '{"title":"X","kind":"BACKGROUND"}')"
 
-OLD_EVENT=$(py "import datetime; print((datetime.datetime.now(datetime.UTC) - datetime.timedelta(days=20)).isoformat().replace('+00:00','Z'))")
-check "une action déclarée il y a vingt jours met le compteur en retard" "OVERDUE" \
-  "$(curl -s -X POST "$BASE/counters/$COUNTER_ID/events" -H "authorization: Bearer $ENFANT_TOKEN" \
-    -H 'content-type: application/json' -d "{\"occurredAt\":\"$OLD_EVENT\"}" | field "['status']")"
+VIEUX=$(py "import datetime; print((datetime.datetime.now(datetime.UTC) - datetime.timedelta(days=20)).isoformat().replace('+00:00','Z'))")
+check "une action déclarée il y a vingt jours la met en retard" "OVERDUE" \
+  "$(curl -s -X POST "$BASE/tasks/$FOND_ID/done" -H "authorization: Bearer $ENFANT_TOKEN" \
+    -H 'content-type: application/json' -d "{\"completedAt\":\"$VIEUX\"}" | field "['state']")"
 check "le temps écoulé est renvoyé en secondes" "20" \
-  "$(curl -s "$BASE/counters/$COUNTER_ID" -H "authorization: Bearer $ADMIN" | py "
+  "$(curl -s "$BASE/tasks/$FOND_ID" -H "authorization: Bearer $ADMIN" | py "
 import json,sys; print(round(json.load(sys.stdin)['elapsedSeconds'] / 86400))")"
 
-EVENT_UUID=$(py "import uuid; print(uuid.uuid4())")
-curl -s -X POST "$BASE/counters/$COUNTER_ID/events" -H "authorization: Bearer $ENFANT_TOKEN" \
-  -H 'content-type: application/json' -d "{\"id\":\"$EVENT_UUID\"}" > /dev/null
-check "remettre à zéro repart de l'état OK" "OK" \
-  "$(curl -s "$BASE/counters/$COUNTER_ID" -H "authorization: Bearer $ADMIN" | field "['status']")"
-curl -s -X POST "$BASE/counters/$COUNTER_ID/events" -H "authorization: Bearer $ENFANT_TOKEN" \
-  -H 'content-type: application/json' -d "{\"id\":\"$EVENT_UUID\"}" > /dev/null
-check "le même événement rejoué n'en crée pas un second" "2" \
-  "$(curl -s "$BASE/counters/$COUNTER_ID/events" -H "authorization: Bearer $ADMIN" | py "
-import json,sys; print(len(json.load(sys.stdin)['data']))")"
+FOND_UUID=$(py "import uuid; print(uuid.uuid4())")
+curl -s -X POST "$BASE/tasks/$FOND_ID/done" -H "authorization: Bearer $ENFANT_TOKEN" \
+  -H 'content-type: application/json' -d "{\"id\":\"$FOND_UUID\"}" > /dev/null
+check "la refaire repart de l'état OK" "OK" \
+  "$(curl -s "$BASE/tasks/$FOND_ID" -H "authorization: Bearer $ADMIN" | field "['state']")"
+curl -s -X POST "$BASE/tasks/$FOND_ID/done" -H "authorization: Bearer $ENFANT_TOKEN" \
+  -H 'content-type: application/json' -d "{\"id\":\"$FOND_UUID\"}" > /dev/null
+check "le même geste rejoué n'ajoute pas une seconde fois" "2" \
+  "$(curl -s "$BASE/tasks/$FOND_ID" -H "authorization: Bearer $ADMIN" | py "
+import json,sys; print(len(json.load(sys.stdin)['history']))")"
 check "une action datée dans le futur est refusée" "400" \
-  "$(status -X POST "$BASE/counters/$COUNTER_ID/events" -H "authorization: Bearer $ENFANT_TOKEN" \
+  "$(status -X POST "$BASE/tasks/$FOND_ID/done" -H "authorization: Bearer $ENFANT_TOKEN" \
     -H 'content-type: application/json' \
-    -d "{\"occurredAt\":\"$(py "import datetime; print((datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=1)).isoformat().replace('+00:00','Z'))")\"}")"
+    -d "{\"completedAt\":\"$(py "import datetime; print((datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=1)).isoformat().replace('+00:00','Z'))")\"}")"
+check "un invité ne fait pas une tâche de fond" "403" \
+  "$(status -X POST "$BASE/tasks/$FOND_ID/done" -H "authorization: Bearer $INVITE_TOKEN" \
+    -H 'content-type: application/json' -d '{}')"
 
-LAST_EVENT=$(curl -s "$BASE/counters/$COUNTER_ID/events" -H "authorization: Bearer $ADMIN" | py "
-import json,sys; print(json.load(sys.stdin)['data'][0]['id'])")
-check "supprimer une saisie erronée recalcule l'état" "OVERDUE" \
-  "$(curl -s -X DELETE "$BASE/counters/$COUNTER_ID/events/$LAST_EVENT" -H "authorization: Bearer $ENFANT_TOKEN" > /dev/null
-     curl -s "$BASE/counters/$COUNTER_ID" -H "authorization: Bearer $ADMIN" | field "['status']")"
+DERNIERE=$(curl -s "$BASE/tasks/$FOND_ID" -H "authorization: Bearer $ADMIN" | py "
+import json,sys; print(json.load(sys.stdin)['history'][0]['id'])")
+check "corriger une saisie erronée recalcule l'état" "OVERDUE" \
+  "$(curl -s -X POST "$BASE/occurrences/$DERNIERE/uncomplete" -H "authorization: Bearer $ENFANT_TOKEN" > /dev/null
+     curl -s "$BASE/tasks/$FOND_ID" -H "authorization: Bearer $ADMIN" | field "['state']")"
+
+echo
+echo "Groupes, priorités, tâches ponctuelles"
+GROUPE_ID=$(curl -s -X POST "$BASE/task-groups" -H "authorization: Bearer $ADMIN" \
+  -H 'content-type: application/json' -d '{"name":"Cuisine","color":"#0F766E"}' | field "['id']")
+check "un groupe de tâches est créé" "ok" "$([[ -n $GROUPE_ID ]] && echo ok)"
+PONCTUELLE_ID=$(curl -s -X POST "$BASE/tasks" -H "authorization: Bearer $ADMIN" \
+  -H 'content-type: application/json' \
+  -d "{\"title\":\"Changer le fusible\",\"kind\":\"ONE_OFF\",\"dueDate\":\"2026-11-15\",\"priority\":3,\"groupId\":\"$GROUPE_ID\"}" | field "['id']")
+check "une tâche ponctuelle est créée avec sa date limite" "2026-11-15" \
+  "$(curl -s "$BASE/tasks/$PONCTUELLE_ID" -H "authorization: Bearer $ADMIN" | field "['dueDate']")"
+check "elle n'a qu'une occurrence" "1" \
+  "$(curl -s "$BASE/tasks/$PONCTUELLE_ID" -H "authorization: Bearer $ADMIN" | py "
+import json,sys; print(len(json.load(sys.stdin)['upcoming']))")"
+check "elle porte son groupe et sa priorité" "Cuisine 3" \
+  "$(curl -s "$BASE/tasks/$PONCTUELLE_ID" -H "authorization: Bearer $ADMIN" | py "
+import json,sys
+t = json.load(sys.stdin); print(t['group']['name'], t['priority'])")"
+check "une priorité hors de +3..−3 est refusée" "400" \
+  "$(status -X POST "$BASE/tasks" -H "authorization: Bearer $ADMIN" \
+    -H 'content-type: application/json' -d '{"title":"X","rrule":"FREQ=DAILY","priority":9}')"
+check "une date limite sur une tâche récurrente est refusée" "400" \
+  "$(status -X POST "$BASE/tasks" -H "authorization: Bearer $ADMIN" \
+    -H 'content-type: application/json' -d '{"title":"X","rrule":"FREQ=DAILY","dueDate":"2026-12-01"}')"
+check "le type d'une tâche ne se change pas après coup" "400" \
+  "$(status -X PATCH "$BASE/tasks/$PONCTUELLE_ID" -H "authorization: Bearer $ADMIN" \
+    -H 'content-type: application/json' -d '{"kind":"SCHEDULED"}')"
+check "la liste se filtre par type" "yes" \
+  "$(curl -s "$BASE/tasks?kind=BACKGROUND" -H "authorization: Bearer $ADMIN" | py "
+import json,sys
+taches = json.load(sys.stdin)
+print('yes' if taches and all(t['kind'] == 'BACKGROUND' for t in taches) else [t['kind'] for t in taches])")"
+check "la liste sort le plus urgent en premier" "3" \
+  "$(curl -s "$BASE/tasks" -H "authorization: Bearer $ADMIN" | py "
+import json,sys; print(json.load(sys.stdin)[0]['priority'])")"
+check "supprimer un groupe détache ses tâches sans les supprimer" "yes" \
+  "$(curl -s -X DELETE "$BASE/task-groups/$GROUPE_ID" -H "authorization: Bearer $ADMIN" > /dev/null
+     curl -s "$BASE/tasks/$PONCTUELLE_ID" -H "authorization: Bearer $ADMIN" | py "
+import json,sys
+t = json.load(sys.stdin)
+print('yes' if t['group'] is None and t['title'] else t)")"
 
 echo
 echo "Rendez-vous"
@@ -415,12 +470,12 @@ import json,sys; print(any(a['appointmentId'] == '$PRIVE_ID' for a in json.load(
 
 echo
 echo "Agenda fusionné et fil d'activité"
-check "l'agenda mêle rendez-vous, tâches et compteurs en retard" "yes" \
+check "l'agenda mêle rendez-vous, tâches et tâches de fond en retard" "yes" \
   "$(curl -s "$BASE/agenda?from=$TODAY&to=$(py "import datetime; print((datetime.date.today() + datetime.timedelta(days=2)).isoformat())")" \
     -H "authorization: Bearer $ADMIN" | py "
 import json,sys
 types = {e['type'] for e in json.load(sys.stdin)['data']}
-print('yes' if {'APPOINTMENT','TASK','COUNTER_DUE'} <= types else sorted(types))")"
+print('yes' if {'APPOINTMENT','TASK','BACKGROUND_DUE'} <= types else sorted(types))")"
 check "l'agenda est trié par instant" "yes" \
   "$(curl -s "$BASE/agenda?from=$TODAY&to=$RDV_TO" -H "authorization: Bearer $ADMIN" | py "
 import json,sys
@@ -430,7 +485,7 @@ check "le fil d'activité retrace ce qui s'est passé" "yes" \
   "$(curl -s "$BASE/activity?limit=50" -H "authorization: Bearer $ADMIN" | py "
 import json,sys
 verbes = {a['verb'] for a in json.load(sys.stdin)['data']}
-attendus = {'COUNTER_RESET','APPOINTMENT_CREATED','TASK_COMPLETED','MEMBER_STATUS_CHANGED'}
+attendus = {'BACKGROUND_TASK_DONE','APPOINTMENT_CREATED','TASK_COMPLETED','MEMBER_STATUS_CHANGED'}
 print('yes' if attendus <= verbes else sorted(attendus - verbes))")"
 
 echo
@@ -452,7 +507,7 @@ check "supprimer la tâche conserve l'historique" "yes" \
      curl -s "$BASE/occurrences?from=$FROM_PAST&to=$TODAY" -H "authorization: Bearer $ADMIN" | py "
 import json,sys
 # Uniquement la tâche supprimée : le foyer en contient d'autres.
-mine = [o['status'] for o in json.load(sys.stdin)['data'] if o['taskDefinitionId'] == '$DAILY_ID']
+mine = [o['status'] for o in json.load(sys.stdin)['data'] if o['taskId'] == '$DAILY_ID']
 # Ce qui est en attente disparaît, ce qui porte une trace reste.
 print('yes' if 'SKIPPED' in mine and 'PENDING' not in mine else mine)")"
 

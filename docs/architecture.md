@@ -26,19 +26,18 @@ monter en charge.
 
 ## Modules NestJS
 
-« ✅ » = implémenté, « · » = spécifié, pas encore écrit, « ⟳ » = à reprendre pour le
-modèle décidé dans [`data-model.md`](data-model.md). L'ancien module `counters` est
-absorbé par `tasks` : une tâche de fond est une tâche, pas un autre objet.
+« ✅ » = implémenté, « · » = spécifié, pas encore écrit. L'ancien module `counters` a
+été absorbé par `tasks` : une tâche de fond est une tâche, pas un autre objet.
 
 | Module | État | Responsabilité |
 |---|---|---|
 | `auth` | ✅ | Inscription, connexion, rotation des refresh tokens, gardes |
-| `household` | ✅ | Le foyer, ses membres, ses invitations (⟳ foyer unique) |
-| `statuses` | · | Statuts et droits, modifiables depuis l'interface web seulement |
+| `household` | ✅ | Le foyer, ses membres, ses invitations |
+| `statuses` | ✅ | Statuts et droits, modifiables depuis l'interface web seulement |
 | `users` | ✅ | Profil, photo, suppression de compte avec anonymisation |
 | `admin` | ✅ | Administration du serveur : comptes, santé, balayages, mises à jour |
 | `health` | ✅ | `/health` et `/version` |
-| `tasks` | ✅ | Définitions, groupes, priorités, assignation, occurrences, complétion (⟳ types unifiés) |
+| `tasks` | ✅ | Tâches des trois types, groupes, priorités, assignation, occurrences, complétion |
 | `scheduler` | ✅ | Jobs BullMQ : matérialisation, passage en « manquée » |
 | `appointments` | ✅ | Rendez-vous, participants, récurrences déroulées |
 | `agenda` | ✅ | Vue fusionnée rendez-vous + tâches |

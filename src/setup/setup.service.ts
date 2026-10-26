@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   AssignmentMode,
+  TaskKind,
   Prisma,
   ServerSetup,
   SetupPairingPurpose,
@@ -222,7 +223,7 @@ export class SetupService implements OnModuleInit {
       householdName: dto.householdName.trim(),
       timezone: dto.timezone ?? null,
       tasks: dto.tasks ?? [],
-      counters: dto.counters ?? [],
+      backgroundTasks: dto.backgroundTasks ?? [],
       appointments: dto.appointments ?? [],
     };
 
@@ -418,7 +419,7 @@ export class SetupService implements OnModuleInit {
         householdName: summary.householdName,
         timezone: summary.timezone,
         tasks: summary.tasks.length,
-        counters: summary.counters.length,
+        backgroundTasks: summary.backgroundTasks.length,
         appointments: summary.appointments.length,
       },
       // Ce qu'un foyer utilisé seul n'a pas, et que le serveur apporte.
@@ -440,17 +441,18 @@ export class SetupService implements OnModuleInit {
     const taskIds: string[] = [];
 
     for (const task of summary.tasks) {
-      const created = await tx.taskDefinition.create({
+      const created = await tx.task.create({
         data: {
           id: task.id,
           householdId,
           createdById,
           title: task.title,
+          kind: TaskKind.SCHEDULED,
           rrule: task.rrule,
           dueTime: task.dueTime ?? null,
-          points: task.points ?? 1,
+          priority: task.priority ?? 0,
           // Les tâches arrivent sans assignation : il n'y avait qu'une
-          // personne dans le foyer local. Les rôles se règlent ensuite.
+          // personne dans le foyer local. Les statuts se règlent ensuite.
           assignmentMode: AssignmentMode.ANYONE,
         },
         select: { id: true },
@@ -458,14 +460,18 @@ export class SetupService implements OnModuleInit {
       taskIds.push(created.id);
     }
 
-    for (const counter of summary.counters) {
-      await tx.counterDefinition.create({
+    // Les tâches de fond du téléphone — ce que l'app appelait des
+    // compteurs — arrivent comme ce qu'elles sont.
+    for (const deFond of summary.backgroundTasks) {
+      await tx.task.create({
         data: {
-          id: counter.id,
+          id: deFond.id,
           householdId,
           createdById,
-          title: counter.title,
-          targetIntervalSeconds: counter.targetIntervalSeconds ?? null,
+          title: deFond.title,
+          kind: TaskKind.BACKGROUND,
+          maxIntervalSeconds: deFond.maxIntervalSeconds ?? null,
+          assignmentMode: AssignmentMode.ANYONE,
         },
       });
     }
@@ -517,9 +523,9 @@ interface ImportSummary {
     title: string;
     rrule: string;
     dueTime?: string;
-    points?: number;
+    priority?: number;
   }[];
-  counters: { id?: string; title: string; targetIntervalSeconds?: number }[];
+  backgroundTasks: { id?: string; title: string; maxIntervalSeconds?: number }[];
   appointments: {
     id?: string;
     title: string;

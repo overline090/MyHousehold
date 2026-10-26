@@ -19,7 +19,6 @@ import { ActivityModule } from './activity/activity.module';
 import { AdminModule } from './admin/admin.module';
 import { AgendaModule } from './agenda/agenda.module';
 import { AppointmentsModule } from './appointments/appointments.module';
-import { CountersModule } from './counters/counters.module';
 import { HouseholdsModule } from './households/households.module';
 import { ReleasesModule } from './releases/releases.module';
 import { SchedulerModule } from './scheduler/scheduler.module';
@@ -105,7 +104,6 @@ function interfaceWeb(): DynamicModule[] {
     AuthModule,
     HouseholdsModule,
     TasksModule,
-    CountersModule,
     AppointmentsModule,
     AgendaModule,
     ActivityModule,

@@ -60,8 +60,8 @@ l'ordre**.
     },
     {
       "clientMutationId": "0192f2b2-...",
-      "type": "CREATE_COUNTER_EVENT",
-      "payload": { "id": "...", "counterDefinitionId": "...", "occurredAt": "..." }
+      "type": "COMPLETE_BACKGROUND_TASK",
+      "payload": { "id": "...", "taskId": "...", "completedAt": "..." }
     }
   ]
 }

@@ -1,16 +1,16 @@
 import { Injectable } from '@nestjs/common';
-import { OccurrenceStatus } from '@prisma/client';
+import { OccurrenceStatus, TaskKind } from '@prisma/client';
 import { AppointmentsService } from '../appointments/appointments.service';
 import { PrismaService } from '../common/prisma/prisma.service';
-import { CountersService } from '../counters/counters.service';
-import { CounterStatus } from '../counters/counter-status';
+import { BackgroundState } from '../tasks/background-state';
+import { TasksService } from '../tasks/tasks.service';
 import { LocalDate } from '../tasks/recurrence';
 
-export type AgendaEntryType = 'APPOINTMENT' | 'TASK' | 'COUNTER_DUE';
+export type AgendaEntryType = 'APPOINTMENT' | 'TASK' | 'BACKGROUND_DUE';
 
 export interface AgendaEntry {
   type: AgendaEntryType;
-  /** Identifiant de l'objet sous-jacent : occurrence, rendez-vous, compteur. */
+  /** Identifiant de l'objet sous-jacent : occurrence, rendez-vous, tâche. */
   id: string;
   title: string;
   /** Instant qui sert au tri et à l'affichage. */
@@ -19,8 +19,8 @@ export interface AgendaEntry {
   isAllDay?: boolean;
   location?: string | null;
   status?: string;
+  priority?: number;
   assignee?: { id: string; firstName: string; lastName: string } | null;
-  points?: number;
 }
 
 /**
@@ -37,7 +37,7 @@ export class AgendaService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly appointments: AppointmentsService,
-    private readonly counters: CountersService,
+    private readonly tasks: TasksService,
   ) {}
 
   async list(
@@ -46,12 +46,16 @@ export class AgendaService {
     from: LocalDate,
     to: LocalDate,
   ): Promise<{ from: LocalDate; to: LocalDate; data: AgendaEntry[] }> {
-    const [appointments, occurrences, counters] = await Promise.all([
+    const [appointments, occurrences, deFond] = await Promise.all([
       this.appointments.list(householdId, userId, from, to),
       this.prisma.taskOccurrence.findMany({
         where: {
           householdId,
           deletedAt: null,
+          // Une occurrence sans date est celle d'une tâche de fond ou
+          // d'une tâche ponctuelle sans échéance : rien à placer dans un
+          // agenda.
+          dueAt: { not: null },
           scheduledFor: {
             gte: new Date(`${from}T00:00:00Z`),
             lte: new Date(`${to}T00:00:00Z`),
@@ -61,11 +65,11 @@ export class AgendaService {
           id: true,
           dueAt: true,
           status: true,
-          task: { select: { title: true, points: true } },
+          task: { select: { title: true, priority: true } },
           assignee: { select: { id: true, firstName: true, lastName: true } },
         },
       }),
-      this.counters.findAll(householdId, true),
+      this.tasks.findAll(householdId, { isActive: true, kind: TaskKind.BACKGROUND }),
     ]);
 
     const windowStart = new Date(`${from}T00:00:00Z`).getTime();
@@ -85,29 +89,30 @@ export class AgendaService {
         type: 'TASK',
         id: occurrence.id,
         title: occurrence.task.title,
-        at: occurrence.dueAt,
+        at: occurrence.dueAt as Date,
         status: occurrence.status,
+        priority: occurrence.task.priority,
         assignee: occurrence.assignee,
-        points: occurrence.task.points,
       })),
-      // Un compteur n'a pas de date propre : il n'entre dans l'agenda que
-      // s'il arrive à échéance dans la fenêtre. Ceux qui sont déjà en
-      // retard y figurent aussi, sinon ils disparaîtraient de la vue au
-      // moment où ils comptent le plus.
-      ...counters
+      // Une tâche de fond n'a pas de date propre : elle n'entre dans
+      // l'agenda que si son délai arrive à terme dans la fenêtre. Celles
+      // qui sont déjà en retard y figurent aussi, sinon elles
+      // disparaîtraient de la vue au moment où elles comptent le plus.
+      ...deFond
         .filter(
-          (counter) =>
-            counter.nextDueAt !== null &&
-            (counter.status === CounterStatus.OVERDUE ||
-              (counter.nextDueAt.getTime() >= windowStart &&
-                counter.nextDueAt.getTime() <= windowEnd)),
+          (tache) =>
+            tache.nextDueAt != null &&
+            (tache.state === BackgroundState.OVERDUE ||
+              (tache.nextDueAt.getTime() >= windowStart &&
+                tache.nextDueAt.getTime() <= windowEnd)),
         )
-        .map((counter): AgendaEntry => ({
-          type: 'COUNTER_DUE',
-          id: counter.id,
-          title: counter.title,
-          at: counter.nextDueAt as Date,
-          status: counter.status,
+        .map((tache): AgendaEntry => ({
+          type: 'BACKGROUND_DUE',
+          id: tache.id,
+          title: tache.title,
+          at: tache.nextDueAt as Date,
+          status: tache.state,
+          priority: tache.priority,
         })),
     ];
 

@@ -6,18 +6,17 @@ rendez-vous et synchronisation des agendas personnels.
 Ce dépôt contient le **serveur auto-hébergé**. L'application mobile Android vit dans
 [MyHousehold-android](https://github.com/overline090/MyHousehold-android).
 
-> ⚠️ **v0.3.** Les quatre besoins ci-dessus sont couverts **côté serveur** : comptes,
-> membres et invitations, tâches récurrentes, compteurs de temps, rendez-vous et
-> agenda fusionné. Restent à écrire l'**application Android**, l'**interface web**
-> avec son assistant d'installation, et la **synchronisation des agendas externes** :
-> voir [`docs/roadmap.md`](docs/roadmap.md).
+> ⚠️ **v0.4.** Les quatre besoins ci-dessus sont couverts **côté serveur** : comptes,
+> statuts et droits, tâches des trois sortes, rendez-vous et agenda fusionné. Restent
+> à écrire l'**application Android**, la partie authentifiée de l'**interface web**,
+> et la **synchronisation des agendas externes** : voir
+> [`docs/roadmap.md`](docs/roadmap.md).
 >
-> Le modèle a été **révisé** depuis : un seul foyer par serveur, une seule notion de
-> tâche (récurrente, de fond ou ponctuelle), des statuts à droits configurables depuis
-> l'interface web, plus de points. C'est décidé dans
-> [`docs/data-model.md`](docs/data-model.md) et [`docs/api.md`](docs/api.md), et pas
-> encore dans le code : la reprise est le premier chantier de la feuille de route. Les
-> contributions sur la spécification sont aussi bienvenues que celles sur le code.
+> Le modèle a été **révisé** : un seul foyer par serveur, une seule notion de tâche
+> (récurrente, de fond ou ponctuelle), des statuts à droits configurables depuis
+> l'interface web, plus de points. C'est en base et servi ; l'app, elle, reste à
+> écrire. Les contributions sur la spécification sont aussi bienvenues que celles sur
+> le code.
 
 ## L'idée
 

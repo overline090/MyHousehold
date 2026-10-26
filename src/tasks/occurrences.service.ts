@@ -21,7 +21,7 @@ export const UNCOMPLETE_WINDOW_HOURS = 48;
 
 const occurrenceSelect = {
   id: true,
-  taskDefinitionId: true,
+  taskId: true,
   scheduledFor: true,
   dueAt: true,
   status: true,
@@ -30,7 +30,15 @@ const occurrenceSelect = {
   completedById: true,
   note: true,
   updatedAt: true,
-  task: { select: { title: true, points: true, category: true, graceHours: true } },
+  task: {
+    select: {
+      title: true,
+      kind: true,
+      priority: true,
+      graceHours: true,
+      group: { select: { id: true, name: true, color: true } },
+    },
+  },
   assignee: { select: { id: true, firstName: true, lastName: true } },
   completedBy: { select: { id: true, firstName: true, lastName: true } },
 } satisfies Prisma.TaskOccurrenceSelect;
@@ -161,7 +169,7 @@ export class OccurrencesService {
       );
     }
 
-    const completedAt = occurrence.completedAt ?? occurrence.dueAt;
+    const completedAt = occurrence.completedAt ?? occurrence.dueAt ?? this.clock.now();
     const elapsedHours = (this.clock.now().getTime() - completedAt.getTime()) / 3_600_000;
 
     if (elapsedHours > UNCOMPLETE_WINDOW_HOURS) {
@@ -306,13 +314,15 @@ export class OccurrencesService {
 function shapeOccurrence(row: OccurrenceRow) {
   return {
     id: row.id,
-    taskDefinitionId: row.taskDefinitionId,
-    // Titre et points recopiés depuis la définition : l'app affiche une
-    // liste sans résoudre les définitions, et reste lisible hors-ligne.
+    taskId: row.taskId,
+    // Titre, type, priorité et groupe recopiés depuis la définition :
+    // l'app affiche une liste sans résoudre les définitions, et reste
+    // lisible hors-ligne.
     title: row.task.title,
-    category: row.task.category,
-    points: row.task.points,
-    scheduledFor: row.scheduledFor.toISOString().slice(0, 10),
+    kind: row.task.kind,
+    priority: row.task.priority,
+    group: row.task.group,
+    scheduledFor: row.scheduledFor ? row.scheduledFor.toISOString().slice(0, 10) : null,
     dueAt: row.dueAt,
     status: row.status,
     assignee: row.assignee,

@@ -80,7 +80,7 @@ export interface ImportedSummary {
   householdName: string;
   timezone: string | null;
   tasks: unknown[];
-  counters: unknown[];
+  backgroundTasks: unknown[];
   appointments: unknown[];
 }
 

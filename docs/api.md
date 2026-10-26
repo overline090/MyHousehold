@@ -6,13 +6,11 @@ Ce document est le contrat entre le serveur, l'app Android et l'interface web. T
 modification cassante passe par une nouvelle version de préfixe (`/api/v2`), jamais
 par une mutation silencieuse de `v1`.
 
-> ⚠️ **Révision en cours.** Le **foyer unique**, les **statuts à droits**, le
-> **profil** (prénom, nom, date de naissance, photo) et l'inscription par **code
-> d'invitation** sont implémentés et couverts par `scripts/smoke.sh`. Restent à
-> écrire : l'**unification des tâches** (les compteurs sont encore une ressource à
-> part), les **groupes**, les **priorités** et le **retrait des points**. Ce qui n'est
-> pas encore servi est marqué *(à venir)*, et la liste des différences avec la v0.3
-> est à la fin.
+> ✅ **Révision faite.** Foyer unique, statuts à droits, profil et photo, tâches
+> unifiées (récurrentes, de fond, ponctuelles), groupes, priorités, plus de points :
+> tout ce qui suit est servi par le serveur et couvert par `scripts/smoke.sh`, sauf
+> ce qui est marqué *(à venir)* — agendas externes, synchronisation mobile,
+> notifications. La liste des différences avec la v0.3 est à la fin.
 
 ## Conventions
 
@@ -192,7 +190,7 @@ de choses à faire.
 
 | Méthode | Route | Droit | Description |
 |---|---|---|---|
-| `GET` | `/tasks` | `VIEW` | `?isActive=` — *(`kind`, `groupId`, `minPriority` à venir)* |
+| `GET` | `/tasks` | `VIEW` | `?kind=&groupId=&isActive=` |
 | `POST` | `/tasks` | `MANAGE_TASKS` | Création |
 | `GET` | `/tasks/:id` | `VIEW` | Définition + dix prochaines échéances, ou vingt dernières fois |
 | `PATCH` | `/tasks/:id` | `MANAGE_TASKS` | Regénère les échéances futures en attente |

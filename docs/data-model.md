@@ -3,11 +3,10 @@
 Ce document est la source de vérité du domaine. Toute évolution de l'API ou du
 schéma de base part d'ici.
 
-> ⚠️ **Révision en cours.** Le foyer unique, les statuts à droits et le profil
-> (prénom, nom, date de naissance, photo) sont en base et servis. Les **tâches ne
-> sont pas encore unifiées** : les compteurs restent une table à part, et `Task` n'a
-> ni `kind`, ni groupe, ni priorité, et porte encore des points. Voir
-> [`roadmap.md`](roadmap.md).
+> ✅ **Révision faite.** Ce document décrit le modèle **en base** : foyer unique,
+> statuts à droits, profil et photo, tâches unifiées avec groupes et priorités, plus
+> de points. Les compteurs sont devenus des tâches de fond, et leurs remises à zéro
+> des occurrences faites — rien n'a été perdu au passage.
 
 ## Un serveur, un foyer
 

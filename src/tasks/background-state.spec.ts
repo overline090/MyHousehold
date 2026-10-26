@@ -1,95 +1,95 @@
-import { CounterStatus, deriveCounterState } from './counter-status';
+import { BackgroundState, deriveBackgroundState } from './background-state';
 
 const NOW = new Date('2026-10-24T18:00:00Z');
 const DAY = 86_400;
 
 const at = (daysAgo: number): Date => new Date(NOW.getTime() - daysAgo * DAY * 1000);
 
-describe('deriveCounterState', () => {
+describe('deriveBackgroundState', () => {
   it('signale une action jamais faite', () => {
-    const state = deriveCounterState({
-      lastEventAt: null,
-      targetIntervalSeconds: 14 * DAY,
+    const state = deriveBackgroundState({
+      lastDoneAt: null,
+      maxIntervalSeconds: 14 * DAY,
       warnRatio: 0.8,
       now: NOW,
     });
-    expect(state.status).toBe(CounterStatus.NEVER_DONE);
+    expect(state.status).toBe(BackgroundState.NEVER_DONE);
     expect(state.elapsedSeconds).toBeNull();
     expect(state.nextDueAt).toBeNull();
   });
 
   it('reste OK tant qu’on est loin de l’échéance', () => {
-    const state = deriveCounterState({
-      lastEventAt: at(3),
-      targetIntervalSeconds: 14 * DAY,
+    const state = deriveBackgroundState({
+      lastDoneAt: at(3),
+      maxIntervalSeconds: 14 * DAY,
       warnRatio: 0.8,
       now: NOW,
     });
-    expect(state.status).toBe(CounterStatus.OK);
+    expect(state.status).toBe(BackgroundState.OK);
     expect(state.elapsedSeconds).toBe(3 * DAY);
     expect(state.nextDueAt?.toISOString()).toBe('2026-11-04T18:00:00.000Z');
   });
 
   it('prévient à partir de la fraction d’alerte', () => {
     // 80 % de 14 jours, c'est 11,2 jours.
-    const avant = deriveCounterState({
-      lastEventAt: at(11),
-      targetIntervalSeconds: 14 * DAY,
+    const avant = deriveBackgroundState({
+      lastDoneAt: at(11),
+      maxIntervalSeconds: 14 * DAY,
       warnRatio: 0.8,
       now: NOW,
     });
-    const apres = deriveCounterState({
-      lastEventAt: at(12),
-      targetIntervalSeconds: 14 * DAY,
+    const apres = deriveBackgroundState({
+      lastDoneAt: at(12),
+      maxIntervalSeconds: 14 * DAY,
       warnRatio: 0.8,
       now: NOW,
     });
-    expect(avant.status).toBe(CounterStatus.OK);
-    expect(apres.status).toBe(CounterStatus.DUE_SOON);
+    expect(avant.status).toBe(BackgroundState.OK);
+    expect(apres.status).toBe(BackgroundState.DUE_SOON);
   });
 
   it('passe en retard une fois l’intervalle dépassé', () => {
-    const state = deriveCounterState({
-      lastEventAt: at(23),
-      targetIntervalSeconds: 14 * DAY,
+    const state = deriveBackgroundState({
+      lastDoneAt: at(23),
+      maxIntervalSeconds: 14 * DAY,
       warnRatio: 0.8,
       now: NOW,
     });
-    expect(state.status).toBe(CounterStatus.OVERDUE);
+    expect(state.status).toBe(BackgroundState.OVERDUE);
     expect(state.elapsedSeconds).toBe(23 * DAY);
   });
 
   it('bascule pile à l’échéance', () => {
-    const state = deriveCounterState({
-      lastEventAt: at(14),
-      targetIntervalSeconds: 14 * DAY,
+    const state = deriveBackgroundState({
+      lastDoneAt: at(14),
+      maxIntervalSeconds: 14 * DAY,
       warnRatio: 0.8,
       now: NOW,
     });
-    expect(state.status).toBe(CounterStatus.OVERDUE);
+    expect(state.status).toBe(BackgroundState.OVERDUE);
   });
 
   it('ne juge pas un compteur sans intervalle cible', () => {
     // « Il s'est passé tant de jours depuis… », sans notion de retard.
-    const state = deriveCounterState({
-      lastEventAt: at(400),
-      targetIntervalSeconds: null,
+    const state = deriveBackgroundState({
+      lastDoneAt: at(400),
+      maxIntervalSeconds: null,
       warnRatio: 0.8,
       now: NOW,
     });
-    expect(state.status).toBe(CounterStatus.OK);
+    expect(state.status).toBe(BackgroundState.OK);
     expect(state.elapsedSeconds).toBe(400 * DAY);
     expect(state.nextDueAt).toBeNull();
   });
 
   it('ne rend jamais un écoulement négatif', () => {
-    const state = deriveCounterState({
-      lastEventAt: new Date(NOW.getTime() + 60_000),
-      targetIntervalSeconds: 14 * DAY,
+    const state = deriveBackgroundState({
+      lastDoneAt: new Date(NOW.getTime() + 60_000),
+      maxIntervalSeconds: 14 * DAY,
       warnRatio: 0.8,
       now: NOW,
     });
     expect(state.elapsedSeconds).toBe(0);
-    expect(state.status).toBe(CounterStatus.OK);
+    expect(state.status).toBe(BackgroundState.OK);
   });
 });

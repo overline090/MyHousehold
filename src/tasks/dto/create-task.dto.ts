@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { AssignmentMode } from '@prisma/client';
+import { AssignmentMode, TaskKind } from '@prisma/client';
 import {
   ArrayMaxSize,
   IsArray,
@@ -7,14 +7,21 @@ import {
   IsDateString,
   IsEnum,
   IsInt,
+  IsNumber,
   IsOptional,
   IsString,
+  IsUUID,
   Length,
   Matches,
   Max,
   Min,
 } from 'class-validator';
 
+/**
+ * Une seule ressource pour les trois façons d'être due. C'est le `kind`
+ * qui change, pas l'endpoint : le foyer ne vit qu'une liste de choses à
+ * faire.
+ */
 export class CreateTaskDto {
   @ApiPropertyOptional({
     description:
@@ -35,22 +42,43 @@ export class CreateTaskDto {
   @Length(0, 2000)
   description?: string;
 
-  @ApiPropertyOptional({ example: 'cuisine' })
+  @ApiPropertyOptional({ enum: TaskKind, default: TaskKind.SCHEDULED })
   @IsOptional()
-  @IsString()
-  @Length(1, 40)
-  category?: string;
+  @IsEnum(TaskKind)
+  kind?: TaskKind;
 
-  @ApiProperty({
-    description: 'RRULE RFC 5545 sans le préfixe « RRULE: ». Au maximum quotidienne.',
-    example: 'FREQ=WEEKLY;BYDAY=MO',
-  })
-  @IsString()
-  @Length(1, 500)
-  rrule!: string;
+  @ApiPropertyOptional({ description: 'Groupe de tâches. Une tâche en a un au plus.' })
+  @IsOptional()
+  @IsUUID()
+  groupId?: string | null;
 
   @ApiPropertyOptional({
-    description: "Heure locale d'échéance. Absente = toute la journée.",
+    description:
+      'De +3 (urgente) à −3 (en dernier), 0 = normale. Une priorité négative n’est pas une tâche sans importance : c’est une tâche qui cède le passage.',
+    default: 0,
+    minimum: -3,
+    maximum: 3,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(-3)
+  @Max(3)
+  priority?: number;
+
+  // ── Tâche récurrente ───────────────────────────────────────────────
+
+  @ApiPropertyOptional({
+    description:
+      'SCHEDULED : RRULE RFC 5545 sans le préfixe « RRULE: ». Au maximum quotidienne.',
+    example: 'FREQ=WEEKLY;BYDAY=MO',
+  })
+  @IsOptional()
+  @IsString()
+  @Length(1, 500)
+  rrule?: string;
+
+  @ApiPropertyOptional({
+    description: "SCHEDULED : heure locale d'échéance. Absente = toute la journée.",
     example: '19:00',
   })
   @IsOptional()
@@ -59,12 +87,51 @@ export class CreateTaskDto {
   })
   dueTime?: string;
 
-  @ApiPropertyOptional({ description: 'Estimation, pour équilibrer la charge' })
+  @ApiPropertyOptional({
+    description: "SCHEDULED : délai après l'échéance avant de marquer la tâche manquée.",
+    default: 24,
+  })
   @IsOptional()
   @IsInt()
-  @Min(1)
-  @Max(1440)
-  durationMinutes?: number;
+  @Min(0)
+  @Max(168)
+  graceHours?: number;
+
+  // ── Tâche de fond ──────────────────────────────────────────────────
+
+  @ApiPropertyOptional({
+    description:
+      'BACKGROUND : délai maximum entre deux fois, en secondes. Absent = la tâche compte le temps sans jamais être en retard.',
+    example: 1209600,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(3600)
+  @Max(10 * 365 * 24 * 3600)
+  maxIntervalSeconds?: number;
+
+  @ApiPropertyOptional({
+    description: 'BACKGROUND : fraction du délai à partir de laquelle on prévient.',
+    default: 0.8,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0.1)
+  @Max(1)
+  warnRatio?: number;
+
+  // ── Tâche ponctuelle ───────────────────────────────────────────────
+
+  @ApiPropertyOptional({
+    description:
+      'ONE_OFF : date limite, facultative. « Sans date limite » est un choix normal.',
+    example: '2026-11-15',
+  })
+  @IsOptional()
+  @IsDateString({ strict: true })
+  dueDate?: string;
+
+  // ── Commun ─────────────────────────────────────────────────────────
 
   @ApiPropertyOptional({ enum: AssignmentMode, default: AssignmentMode.ANYONE })
   @IsOptional()
@@ -81,23 +148,6 @@ export class CreateTaskDto {
   @ArrayMaxSize(20)
   @IsString({ each: true })
   assignees?: string[];
-
-  @ApiPropertyOptional({
-    description: "Délai après l'échéance avant de marquer la tâche manquée.",
-    default: 24,
-  })
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  @Max(168)
-  graceHours?: number;
-
-  @ApiPropertyOptional({ default: 1 })
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  @Max(100)
-  points?: number;
 
   @ApiPropertyOptional({ description: 'Premier jour possible, YYYY-MM-DD' })
   @IsOptional()

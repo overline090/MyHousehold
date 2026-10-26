@@ -38,7 +38,7 @@ de bout en bout à l'API.
 
 ## v0.3 — Compteurs et rendez-vous (faite)
 
-- [x] Compteurs : définitions, événements, état dérivé jamais stocké *(devenus les tâches de fond, voir la reprise ci-dessous)*
+- [x] Compteurs : définitions, événements, état dérivé jamais stocké *(devenus les tâches de fond — voir la reprise ci-dessous)*
 - [x] Rendez-vous : CRUD, participants, réponses, visibilité privée
 - [x] Récurrence des rendez-vous déroulée à la lecture, en heure locale
 - [x] Vue fusionnée `/agenda`
@@ -62,15 +62,17 @@ ci-dessous, parce que chaque écran écrit sur l'ancien modèle serait à rééc
       d'appartenance, remplacé par un garde de droits
 - [x] Statuts et droits à la place des rôles, règle du dernier administrateur
 - [x] Profil : prénom, nom, date de naissance, photo redimensionnée à l'arrivée
-- [ ] Tâches unifiées : `SCHEDULED`, `BACKGROUND`, `ONE_OFF` dans une seule ressource
-- [ ] Groupes de tâches, priorités de +3 à −3
+- [x] Tâches unifiées : `SCHEDULED`, `BACKGROUND`, `ONE_OFF` dans une seule ressource
+- [x] Groupes de tâches, priorités de +3 à −3
 - [ ] Les cinq formes de récurrence exposées à la place de la RRULE brute
-- [ ] Retrait des points, et des compteurs comme objet distinct
+- [x] Retrait des points, et des compteurs comme objet distinct
 - [x] Migration des rôles en statuts, et d'un serveur multi-foyer vers un seul
-- [ ] Migration des compteurs en tâches de fond
+- [x] Migration des compteurs en tâches de fond, et de leurs remises à zéro en
+      occurrences faites
 
-**Jalon :** le serveur et l'app parlent le modèle décidé, et une installation en v0.3
-se migre sans perte.
+**Jalon :** le serveur parle le modèle décidé, et une installation en v0.3 se migre
+sans perte. Reste l'app, et les cinq formes de récurrence à exposer en place de la
+RRULE brute.
 
 ## v0.4 — Application Android, utilisable seule (prochaine étape)
 

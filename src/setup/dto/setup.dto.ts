@@ -16,6 +16,7 @@ import {
   Length,
   Matches,
   MaxLength,
+  Max,
   Min,
   MinLength,
   ValidateNested,
@@ -88,14 +89,20 @@ export class ImportedTaskDto {
   @Matches(/^([01]\d|2[0-3]):[0-5]\d$/)
   dueTime?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    description: 'De +3 (urgente) à −3 (en dernier), 0 = normale.',
+    minimum: -3,
+    maximum: 3,
+  })
   @IsOptional()
   @IsInt()
-  @Min(0)
-  points?: number;
+  @Min(-3)
+  @Max(3)
+  priority?: number;
 }
 
-export class ImportedCounterDto {
+/** Une tâche de fond du téléphone : ce que l'app appelait un compteur. */
+export class ImportedBackgroundTaskDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsUUID()
@@ -110,7 +117,7 @@ export class ImportedCounterDto {
   @IsOptional()
   @IsInt()
   @Min(60)
-  targetIntervalSeconds?: number;
+  maxIntervalSeconds?: number;
 }
 
 export class ImportedAppointmentDto {
@@ -168,13 +175,13 @@ export class ImportDto {
   @Type(() => ImportedTaskDto)
   tasks?: ImportedTaskDto[];
 
-  @ApiPropertyOptional({ type: [ImportedCounterDto] })
+  @ApiPropertyOptional({ type: [ImportedBackgroundTaskDto] })
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(500)
   @ValidateNested({ each: true })
-  @Type(() => ImportedCounterDto)
-  counters?: ImportedCounterDto[];
+  @Type(() => ImportedBackgroundTaskDto)
+  backgroundTasks?: ImportedBackgroundTaskDto[];
 
   @ApiPropertyOptional({ type: [ImportedAppointmentDto] })
   @IsOptional()

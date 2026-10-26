@@ -64,15 +64,15 @@ RECAP=$(curl -s -X POST "$BASE/setup/import" -H 'content-type: application/json'
   \"householdName\": \"Maison des Dupont\",
   \"timezone\": \"Europe/Paris\",
   \"tasks\": [
-    {\"title\": \"Sortir les poubelles\", \"rrule\": \"FREQ=WEEKLY;BYDAY=MO\", \"dueTime\": \"19:00\", \"points\": 2},
+    {\"title\": \"Sortir les poubelles\", \"rrule\": \"FREQ=WEEKLY;BYDAY=MO\", \"dueTime\": \"19:00\", \"priority\": 1},
     {\"title\": \"Vider le lave-vaisselle\", \"rrule\": \"FREQ=DAILY\"}
   ],
-  \"counters\": [{\"title\": \"Changer les draps\", \"targetIntervalSeconds\": 1209600}]
+  \"backgroundTasks\": [{\"title\": \"Changer les draps\", \"maxIntervalSeconds\": 1209600}]
 }")
 check "l'import récapitule ce qui a été repris" "2 1" \
   "$(echo "$RECAP" | py "
 import json,sys
-d = json.load(sys.stdin)['imported']; print(d['tasks'], d['counters'])")"
+d = json.load(sys.stdin)['imported']; print(d['tasks'], d['backgroundTasks'])")"
 check "il dit aussi ce qui manque" "yes" \
   "$(echo "$RECAP" | py "
 import json,sys
@@ -118,15 +118,17 @@ check "la session nomme le foyer servi par cette machine" "ok" \
   "$(echo "$SESSION" | py "
 import json,sys; print('ok' if json.load(sys.stdin)['household']['id'] else 'aucun')")"
 
-check "les tâches du téléphone sont là" "2" \
-  "$(curl -s "$API/tasks" -H "authorization: Bearer $TOKEN" | py "
+# Tout est une tâche : la liste contient aussi le compteur importé,
+# devenu tâche de fond. On compte donc les récurrentes.
+check "les tâches récurrentes du téléphone sont là" "2" \
+  "$(curl -s "$API/tasks?kind=SCHEDULED" -H "authorization: Bearer $TOKEN" | py "
 import json,sys; print(len(json.load(sys.stdin)))")"
 check "leurs échéances sont déjà matérialisées" "yes" \
   "$(curl -s "$API/occurrences?from=$(py "import datetime; print(datetime.date.today().isoformat())")&to=$(py "import datetime; print((datetime.date.today()+datetime.timedelta(days=14)).isoformat())")" \
     -H "authorization: Bearer $TOKEN" | py "
 import json,sys; print('yes' if json.load(sys.stdin)['data'] else 'aucune')")"
-check "le compteur du téléphone est là" "1" \
-  "$(curl -s "$API/counters" -H "authorization: Bearer $TOKEN" | py "
+check "le compteur du téléphone est devenu une tâche de fond" "1" \
+  "$(curl -s "$API/tasks?kind=BACKGROUND" -H "authorization: Bearer $TOKEN" | py "
 import json,sys; print(len(json.load(sys.stdin)))")"
 
 echo

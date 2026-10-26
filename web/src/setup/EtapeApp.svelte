@@ -111,7 +111,7 @@
     <div class="encadre accent">
       <p>
         Déjà repris&nbsp;: <strong>{etat.imported.householdName}</strong>,
-        {etat.imported.tasks.length} tâche(s) et {etat.imported.counters.length} compteur(s).
+        {etat.imported.tasks.length} tâche(s) et {etat.imported.backgroundTasks.length} tâche(s) de fond.
       </p>
     </div>
   {/if}
