@@ -530,7 +530,13 @@ Toutes répondent :
 | `400 SETUP_NOT_APPLICABLE` | L'étape n'existe pas sur cette installation (le réseau, hors image Raspberry Pi) |
 | `400 PAIRING_INVALID` | Code d'appariement inconnu, expiré, ou déjà utilisé |
 
-`POST /setup/import` **stocke** la configuration au lieu de l'appliquer : les tâches
+`POST /setup/import` reprend le foyer d'un téléphone utilisé sans serveur : nom et fuseau,
+**groupes** (`groups`), tâches **récurrentes** et **ponctuelles** (`tasks`, `kind` =
+`SCHEDULED` ou `ONE_OFF` avec `dueDate`), tâches **de fond** (`backgroundTasks`, avec
+`lastDoneAt` pour ne pas repartir à « jamais faite ») et rendez-vous. Les identifiants
+du téléphone sont conservés, les tâches gardent leur groupe.
+
+Il **stocke** la configuration au lieu de l'appliquer : les tâches
 ont besoin d'un auteur, et aucun compte n'existe à cette étape. Tout est créé au
 moment où le compte administrateur l'est, et les occurrences des tâches importées sont
 matérialisées dans la foulée — sinon le foyer s'ouvrirait sur une liste vide alors que

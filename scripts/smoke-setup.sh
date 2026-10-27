@@ -63,16 +63,21 @@ RECAP=$(curl -s -X POST "$BASE/setup/import" -H 'content-type: application/json'
   \"code\": \"$CODE_IMPORT\",
   \"householdName\": \"Maison des Dupont\",
   \"timezone\": \"Europe/Paris\",
+  \"groups\": [{\"id\": \"0195a0c0-0000-7000-8000-000000000001\", \"name\": \"Cuisine\", \"color\": \"#0F766E\"}],
   \"tasks\": [
-    {\"title\": \"Sortir les poubelles\", \"rrule\": \"FREQ=WEEKLY;BYDAY=MO\", \"dueTime\": \"19:00\", \"priority\": 1},
-    {\"title\": \"Vider le lave-vaisselle\", \"rrule\": \"FREQ=DAILY\"}
+    {\"title\": \"Sortir les poubelles\", \"rrule\": \"FREQ=WEEKLY;BYDAY=MO\", \"dueTime\": \"19:00\", \"priority\": 1, \"groupId\": \"0195a0c0-0000-7000-8000-000000000001\"},
+    {\"title\": \"Vider le lave-vaisselle\", \"rrule\": \"FREQ=DAILY\"},
+    {\"title\": \"Changer le fusible\", \"kind\": \"ONE_OFF\", \"dueDate\": \"2099-11-15\"}
   ],
-  \"backgroundTasks\": [{\"title\": \"Changer les draps\", \"maxIntervalSeconds\": 1209600}]
+  \"backgroundTasks\": [{\"title\": \"Changer les draps\", \"maxIntervalSeconds\": 1209600, \"lastDoneAt\": \"2026-01-10T09:00:00.000Z\"}]
 }")
-check "l'import récapitule ce qui a été repris" "2 1" \
+check "l'import récapitule ce qui a été repris" "1 2 1 1" \
   "$(echo "$RECAP" | py "
 import json,sys
-d = json.load(sys.stdin)['imported']; print(d['tasks'], d['backgroundTasks'])")"
+d = json.load(sys.stdin)['imported']; print(d['groups'], d['tasks'], d['oneOffTasks'], d['backgroundTasks'])")"
+status -X POST "$BASE/setup/import" -H 'content-type: application/json' \
+  -d '{"code":"ZZZZ-ZZZZ","householdName":"M","tasks":[{"title":"Sans règle"}]}' > /dev/null
+check "une tâche récurrente sans règle est refusée" "VALIDATION_FAILED" "$(code_erreur)"
 check "il dit aussi ce qui manque" "yes" \
   "$(echo "$RECAP" | py "
 import json,sys
@@ -130,6 +135,15 @@ import json,sys; print('yes' if json.load(sys.stdin)['data'] else 'aucune')")"
 check "le compteur du téléphone est devenu une tâche de fond" "1" \
   "$(curl -s "$API/tasks?kind=BACKGROUND" -H "authorization: Bearer $TOKEN" | py "
 import json,sys; print(len(json.load(sys.stdin)))")"
+check "elle garde sa dernière fois" "2026-01-10T09:00:00.000Z" \
+  "$(curl -s "$API/tasks?kind=BACKGROUND" -H "authorization: Bearer $TOKEN" | py "
+import json,sys; print(json.load(sys.stdin)[0]['lastDoneAt'])")"
+check "la tâche ponctuelle arrive avec sa date limite" "2099-11-15" \
+  "$(curl -s "$API/tasks?kind=ONE_OFF" -H "authorization: Bearer $TOKEN" | py "
+import json,sys; print(json.load(sys.stdin)[0]['dueDate'])")"
+check "les tâches gardent leur groupe" "Cuisine" \
+  "$(curl -s "$API/task-groups" -H "authorization: Bearer $TOKEN" | py "
+import json,sys; print(','.join(g['name'] for g in json.load(sys.stdin)))")"
 
 echo
 echo "Étape 5 — terminé"

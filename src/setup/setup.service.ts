@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   AssignmentMode,
+  OccurrenceStatus,
   TaskKind,
   Prisma,
   ServerSetup,
@@ -244,6 +245,7 @@ export class SetupService implements OnModuleInit {
     const summary: ImportSummary = {
       householdName: dto.householdName.trim(),
       timezone: dto.timezone ?? null,
+      groups: dto.groups ?? [],
       tasks: dto.tasks ?? [],
       backgroundTasks: dto.backgroundTasks ?? [],
       appointments: dto.appointments ?? [],
@@ -440,7 +442,9 @@ export class SetupService implements OnModuleInit {
       imported: {
         householdName: summary.householdName,
         timezone: summary.timezone,
-        tasks: summary.tasks.length,
+        groups: summary.groups?.length ?? 0,
+        tasks: summary.tasks.filter((t) => t.kind !== 'ONE_OFF').length,
+        oneOffTasks: summary.tasks.filter((t) => t.kind === 'ONE_OFF').length,
         backgroundTasks: summary.backgroundTasks.length,
         appointments: summary.appointments.length,
       },
@@ -466,16 +470,39 @@ export class SetupService implements OnModuleInit {
   ): Promise<string[]> {
     const taskIds: string[] = [];
 
+    // Les groupes d'abord, avec leur identifiant : les tâches y renvoient.
+    const groupes = new Set<string>();
+    for (const [position, groupe] of (summary.groups ?? []).entries()) {
+      const cree = await tx.taskGroup.create({
+        data: {
+          id: groupe.id,
+          householdId,
+          name: groupe.name,
+          color: groupe.color ?? undefined,
+          position,
+        },
+        select: { id: true },
+      });
+      groupes.add(cree.id);
+    }
+    // Un groupe absent de la liste n'est pas une erreur à refuser : la
+    // tâche arrive simplement sans groupe.
+    const groupeConnu = (id?: string) => (id && groupes.has(id) ? id : null);
+
     for (const task of summary.tasks) {
+      const ponctuelle = task.kind === 'ONE_OFF';
       const created = await tx.task.create({
         data: {
           id: task.id,
           householdId,
           createdById,
           title: task.title,
-          kind: TaskKind.SCHEDULED,
-          rrule: task.rrule,
+          description: task.description ?? null,
+          kind: ponctuelle ? TaskKind.ONE_OFF : TaskKind.SCHEDULED,
+          rrule: ponctuelle ? null : task.rrule,
           dueTime: task.dueTime ?? null,
+          dueDate: ponctuelle && task.dueDate ? new Date(task.dueDate) : null,
+          groupId: groupeConnu(task.groupId),
           priority: task.priority ?? 0,
           // Les tâches arrivent sans assignation : il n'y avait qu'une
           // personne dans le foyer local. Les statuts se règlent ensuite.
@@ -489,17 +516,35 @@ export class SetupService implements OnModuleInit {
     // Les tâches de fond du téléphone — ce que l'app appelait des
     // compteurs — arrivent comme ce qu'elles sont.
     for (const deFond of summary.backgroundTasks) {
-      await tx.task.create({
+      const creee = await tx.task.create({
         data: {
           id: deFond.id,
           householdId,
           createdById,
           title: deFond.title,
+          description: deFond.description ?? null,
           kind: TaskKind.BACKGROUND,
           maxIntervalSeconds: deFond.maxIntervalSeconds ?? null,
+          priority: deFond.priority ?? 0,
+          groupId: groupeConnu(deFond.groupId),
           assignmentMode: AssignmentMode.ANYONE,
         },
+        select: { id: true },
       });
+
+      // Sans sa dernière fois, une tâche de fond repartirait à « jamais
+      // faite » : la reprise la garde, au nom du premier compte.
+      if (deFond.lastDoneAt) {
+        await tx.taskOccurrence.create({
+          data: {
+            taskId: creee.id,
+            householdId,
+            status: OccurrenceStatus.DONE,
+            completedAt: new Date(deFond.lastDoneAt),
+            completedById: createdById,
+          },
+        });
+      }
     }
 
     for (const appointment of summary.appointments) {
@@ -544,14 +589,28 @@ export class SetupService implements OnModuleInit {
 interface ImportSummary {
   householdName: string;
   timezone: string | null;
+  /** Absent des reprises stockées avant que les groupes y entrent. */
+  groups?: { id?: string; name: string; color?: string }[];
   tasks: {
     id?: string;
     title: string;
-    rrule: string;
+    description?: string;
+    kind?: 'SCHEDULED' | 'ONE_OFF';
+    rrule?: string;
     dueTime?: string;
+    dueDate?: string;
+    groupId?: string;
     priority?: number;
   }[];
-  backgroundTasks: { id?: string; title: string; maxIntervalSeconds?: number }[];
+  backgroundTasks: {
+    id?: string;
+    title: string;
+    description?: string;
+    maxIntervalSeconds?: number;
+    priority?: number;
+    groupId?: string;
+    lastDoneAt?: string;
+  }[];
   appointments: {
     id?: string;
     title: string;

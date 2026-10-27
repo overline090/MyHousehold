@@ -19,6 +19,7 @@ import {
   Min,
   MinLength,
   ValidateNested,
+  ValidateIf,
 } from 'class-validator';
 import { IsUsername } from '../../users/username';
 
@@ -72,6 +73,24 @@ export class ClaimDto {
   birthDate?: string;
 }
 
+/** Un groupe de tâches du téléphone, repris avec son identifiant. */
+export class ImportedGroupDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  id?: string;
+
+  @ApiProperty({ example: 'Cuisine' })
+  @IsString()
+  @Length(1, 60)
+  name!: string;
+
+  @ApiPropertyOptional({ example: '#0F766E' })
+  @IsOptional()
+  @Matches(/^#[0-9A-Fa-f]{6}$/)
+  color?: string;
+}
+
 export class ImportedTaskDto {
   @ApiPropertyOptional()
   @IsOptional()
@@ -83,10 +102,41 @@ export class ImportedTaskDto {
   @Length(1, 120)
   title!: string;
 
-  @ApiProperty({ example: 'FREQ=WEEKLY;BYDAY=MO' })
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  description?: string;
+
+  @ApiPropertyOptional({
+    enum: ['SCHEDULED', 'ONE_OFF'],
+    description: 'SCHEDULED par défaut. Les tâches de fond ont leur propre liste.',
+  })
+  @IsOptional()
+  @IsIn(['SCHEDULED', 'ONE_OFF'])
+  kind?: 'SCHEDULED' | 'ONE_OFF';
+
+  @ApiPropertyOptional({
+    example: 'FREQ=WEEKLY;BYDAY=MO',
+    description: 'Exigée pour une tâche récurrente.',
+  })
+  @ValidateIf((tache: ImportedTaskDto) => tache.kind !== 'ONE_OFF')
   @IsString()
   @Length(1, 500)
-  rrule!: string;
+  rrule?: string;
+
+  @ApiPropertyOptional({
+    example: '2026-11-15',
+    description: 'Date limite d’une tâche ponctuelle.',
+  })
+  @IsOptional()
+  @IsDateString()
+  dueDate?: string;
+
+  @ApiPropertyOptional({ description: 'Un groupe de `groups`.' })
+  @IsOptional()
+  @IsUUID()
+  groupId?: string;
 
   @ApiPropertyOptional({ example: '19:00' })
   @IsOptional()
@@ -122,6 +172,32 @@ export class ImportedBackgroundTaskDto {
   @IsInt()
   @Min(60)
   maxIntervalSeconds?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  description?: string;
+
+  @ApiPropertyOptional({ minimum: -3, maximum: 3 })
+  @IsOptional()
+  @IsInt()
+  @Min(-3)
+  @Max(3)
+  priority?: number;
+
+  @ApiPropertyOptional({ description: 'Un groupe de `groups`.' })
+  @IsOptional()
+  @IsUUID()
+  groupId?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Dernière fois qu’elle a été faite : sans elle, la tâche repartirait à « jamais faite ».',
+  })
+  @IsOptional()
+  @IsDateString()
+  lastDoneAt?: string;
 }
 
 export class ImportedAppointmentDto {
@@ -170,6 +246,14 @@ export class ImportDto {
   @IsOptional()
   @IsString()
   timezone?: string;
+
+  @ApiPropertyOptional({ type: [ImportedGroupDto] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(100)
+  @ValidateNested({ each: true })
+  @Type(() => ImportedGroupDto)
+  groups?: ImportedGroupDto[];
 
   @ApiPropertyOptional({ type: [ImportedTaskDto] })
   @IsOptional()
