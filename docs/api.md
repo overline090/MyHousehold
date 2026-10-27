@@ -48,7 +48,7 @@ Codes HTTP : `200` lecture, `201` création, `204` suppression, `400` validation
 | Méthode | Route | Description |
 |---|---|---|
 | `POST` | `/auth/register` | Création de compte. Fermé si `MH_ALLOW_REGISTRATION=false` |
-| `POST` | `/auth/login` | `{ email, password, deviceId, deviceName }` |
+| `POST` | `/auth/login` | `{ username, password, deviceId, deviceName }` |
 | `POST` | `/auth/refresh` | Échange et **rotation** du refresh token |
 | `POST` | `/auth/logout` | Révoque le refresh token de cet appareil |
 | `GET` | `/auth/me` | Profil, statut et droits effectifs |
@@ -73,6 +73,11 @@ Codes HTTP : `200` lecture, `201` création, `204` suppression, `400` validation
   "household": { "id": "...", "name": "Maison des Dupont", "timezone": "Europe/Paris" }
 }
 ```
+
+**Pas d'adresse e-mail** : un compte se reconnaît à son **identifiant** (`username`),
+3 à 32 caractères parmi minuscules, chiffres, `.`, `-` et `_`, en minuscules — « Marie »
+et « marie » sont le même compte. Un serveur de maison n'envoie pas de courrier, et
+personne n'a à y donner son adresse. Identifiant déjà pris : `409 USERNAME_ALREADY_USED`.
 
 Il n'y a **pas de liste de foyers** : un serveur sert un seul foyer, le client n'a
 donc rien à choisir et aucune route ne porte d'identifiant de foyer.
@@ -486,7 +491,7 @@ lieu d'en résoudre.
 `DELETE /users/me` — `{ "password": "..." }`.
 
 C'est la seule sortie du foyer. Le compte est **anonymisé** plutôt qu'effacé, pour que
-l'historique garde un auteur sans garder une identité : nom, prénom, e-mail, date de
+l'historique garde un auteur sans garder une identité : nom, prénom, identifiant, date de
 naissance, photo, agendas et appareils disparaissent ; les tâches faites restent au
 nom d'« Ancien membre ».
 

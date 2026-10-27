@@ -95,14 +95,14 @@ check "l'assistant passe à l'étape du compte" "account" \
 echo
 echo "Étape 4 — premier compte, depuis le téléphone"
 status -X POST "$BASE/setup/claim" -H 'content-type: application/json' \
-  -d '{"code":"ZZZZ-ZZZZ","email":"marie@example.test","password":"un mot de passe assez long","firstName":"Marie","lastName":"Dupont"}' > /dev/null
+  -d '{"code":"ZZZZ-ZZZZ","username":"marie","password":"un mot de passe assez long","firstName":"Marie","lastName":"Dupont"}' > /dev/null
 check "sans code d'appariement valable, pas de compte" "PAIRING_INVALID" "$(code_erreur)"
 
 CODE_CLAIM=$(curl -s -X POST "$BASE/setup/pairing" -H 'content-type: application/json' \
   -d '{"purpose":"CLAIM"}' | field "['code']")
 SESSION=$(curl -s -X POST "$BASE/setup/claim" -H 'content-type: application/json' -d "{
   \"code\": \"$CODE_CLAIM\",
-  \"email\": \"marie@example.test\",
+  \"username\": \"marie\",
   \"password\": \"un mot de passe assez long\",
   \"firstName\": \"Marie\",
   \"lastName\": \"Dupont\"
@@ -138,7 +138,7 @@ check "l'installation se verrouille" "True" \
 status "$BASE/setup/state" > /dev/null
 check "l'assistant ne répond plus" "SETUP_ALREADY_DONE" "$(code_erreur)"
 status -X POST "$API/auth/register" -H 'content-type: application/json' \
-  -d '{"email":"inconnu@example.test","password":"un mot de passe assez long","firstName":"X","lastName":"Y"}' > /dev/null
+  -d '{"username":"inconnu","password":"un mot de passe assez long","firstName":"X","lastName":"Y"}' > /dev/null
 check "les inscriptions libres sont fermées" "REGISTRATION_CLOSED" "$(code_erreur)"
 check "le foyer reste utilisable" "200" \
   "$(status "$API/household" -H "authorization: Bearer $TOKEN")"

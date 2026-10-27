@@ -50,7 +50,7 @@ register() { # register <identifiant> <prénom> <statusId>
   code=$(curl -s -X POST "$BASE/invites" -H "authorization: Bearer $ADMIN" \
     -H 'content-type: application/json' -d "{\"statusId\":\"$3\"}" | field "['code']")
   curl -s -X POST "$BASE/auth/register" -H 'content-type: application/json' \
-    -d "{\"email\":\"$1-$SUFFIX@example.test\",\"password\":\"un mot de passe assez long\",\"firstName\":\"$2\",\"lastName\":\"Dupont\",\"inviteCode\":\"$code\"}"
+    -d "{\"username\":\"$1-$SUFFIX\",\"password\":\"un mot de passe assez long\",\"firstName\":\"$2\",\"lastName\":\"Dupont\",\"inviteCode\":\"$code\"}"
 }
 
 echo "Serveur : $BASE"
@@ -76,7 +76,7 @@ curl -s -X POST "$ROOT/setup/household" -H 'content-type: application/json' \
 PAIRING=$(curl -s -X POST "$ROOT/setup/pairing" -H 'content-type: application/json' \
   -d '{"purpose":"CLAIM"}' | field "['code']")
 ADMIN_JSON=$(curl -s -X POST "$ROOT/setup/claim" -H 'content-type: application/json' \
-  -d "{\"code\":\"$PAIRING\",\"email\":\"admin-$SUFFIX@example.test\",\"password\":\"un mot de passe assez long\",\"firstName\":\"Marie\",\"lastName\":\"Dupont\"}")
+  -d "{\"code\":\"$PAIRING\",\"username\":\"admin-$SUFFIX\",\"password\":\"un mot de passe assez long\",\"firstName\":\"Marie\",\"lastName\":\"Dupont\"}")
 ADMIN=$(echo "$ADMIN_JSON" | field "['accessToken']")
 ADMIN_ID=$(echo "$ADMIN_JSON" | field "['user']['id']")
 check "le premier compte est créé depuis le téléphone" "ok" "$([[ -n $ADMIN_ID ]] && echo ok)"
@@ -110,14 +110,14 @@ check "le code donne le statut prévu" "Enfant" \
   "$(echo "$ENFANT_JSON" | field "['user']['status']['name']")"
 check "sans code, l'inscription est fermée une fois installé" "403" \
   "$(status -X POST "$BASE/auth/register" -H 'content-type: application/json' \
-    -d "{\"email\":\"intrus-$SUFFIX@example.test\",\"password\":\"un mot de passe assez long\",\"firstName\":\"X\",\"lastName\":\"Y\"}")"
+    -d "{\"username\":\"intrus-$SUFFIX\",\"password\":\"un mot de passe assez long\",\"firstName\":\"X\",\"lastName\":\"Y\"}")"
 check "un code à usage unique ne sert pas deux fois" "400" \
   "$(CODE=$(curl -s -X POST "$BASE/invites" -H "authorization: Bearer $ADMIN" \
       -H 'content-type: application/json' -d "{\"statusId\":\"$ADULTE\"}" | field "['code']")
      curl -s -X POST "$BASE/auth/register" -H 'content-type: application/json' \
-       -d "{\"email\":\"premier-$SUFFIX@example.test\",\"password\":\"un mot de passe assez long\",\"firstName\":\"A\",\"lastName\":\"B\",\"inviteCode\":\"$CODE\"}" > /dev/null
+       -d "{\"username\":\"premier-$SUFFIX\",\"password\":\"un mot de passe assez long\",\"firstName\":\"A\",\"lastName\":\"B\",\"inviteCode\":\"$CODE\"}" > /dev/null
      status -X POST "$BASE/auth/register" -H 'content-type: application/json' \
-       -d "{\"email\":\"second-$SUFFIX@example.test\",\"password\":\"un mot de passe assez long\",\"firstName\":\"C\",\"lastName\":\"D\",\"inviteCode\":\"$CODE\"}")"
+       -d "{\"username\":\"second-$SUFFIX\",\"password\":\"un mot de passe assez long\",\"firstName\":\"C\",\"lastName\":\"D\",\"inviteCode\":\"$CODE\"}")"
 
 echo
 echo "Droits"
@@ -552,11 +552,11 @@ check "l'historique d'un compte supprimé est anonymisé" "Ancien membre" \
 import json,sys
 for u in json.load(sys.stdin):
     if u['id'] == '$INVITE_ID': print(u['firstName'], u['lastName'])")"
-check "son adresse e-mail est rendue inutilisable" "yes" \
+check "son identifiant est rendu inutilisable" "yes" \
   "$(curl -s "$BASE/admin/users?includeDeleted=true" -H "authorization: Bearer $ADMIN" | py "
 import json,sys
 for u in json.load(sys.stdin):
-    if u['id'] == '$INVITE_ID': print('yes' if u['email'].endswith('@invalide.local') else u['email'])")"
+    if u['id'] == '$INVITE_ID': print('yes' if u['username'].startswith('Supprimé:') else u['username'])")"
 check "l'état des mises à jour est réservé à l'administrateur" "403" \
   "$(status "$BASE/admin/updates" -H "authorization: Bearer $ADULTE_TOKEN")"
 check "l'administrateur voit l'état des mises à jour" "yes" \
@@ -596,7 +596,7 @@ echo "Limitation de débit sur la connexion"
 LAST=""
 for _ in 1 2 3 4 5 6; do
   LAST=$(status -X POST "$BASE/auth/login" -H 'content-type: application/json' \
-    -d '{"email":"inconnu@example.test","password":"mauvais mot de passe"}')
+    -d '{"username":"inconnu","password":"mauvais mot de passe"}')
 done
 check "la force brute est bloquée après quelques essais" "429" "$LAST"
 

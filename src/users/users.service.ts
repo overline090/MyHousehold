@@ -19,7 +19,7 @@ export const DELETED_LAST_NAME = 'membre';
 
 const SELECTION_PROFIL = {
   id: true,
-  email: true,
+  username: true,
   firstName: true,
   lastName: true,
   birthDate: true,
@@ -209,9 +209,10 @@ export class UsersService {
       await tx.user.update({
         where: { id: target.id },
         data: {
-          // L'adresse doit rester unique tout en devenant inutilisable
-          // pour se connecter ou être reconnue.
-          email: `supprime+${target.id}@invalide.local`,
+          // L'identifiant doit rester unique tout en devenant
+          // inutilisable : la majuscule et le « : » sont hors du motif
+          // qu'accepte la connexion, personne ne peut le saisir.
+          username: `Supprimé:${target.id}`,
           firstName: DELETED_FIRST_NAME,
           lastName: DELETED_LAST_NAME,
           birthDate: null,
@@ -317,7 +318,7 @@ export class UsersService {
       where: includeDeleted ? {} : { deletedAt: null },
       select: {
         id: true,
-        email: true,
+        username: true,
         firstName: true,
         lastName: true,
         createdAt: true,
@@ -329,7 +330,7 @@ export class UsersService {
 
     return users.map((user) => ({
       id: user.id,
-      email: user.email,
+      username: user.username,
       firstName: user.firstName,
       lastName: user.lastName,
       status: { id: user.status.id, name: user.status.name },
@@ -341,7 +342,7 @@ export class UsersService {
 
   private vue(user: {
     id: string;
-    email: string;
+    username: string;
     firstName: string;
     lastName: string;
     birthDate: Date | null;
@@ -354,7 +355,7 @@ export class UsersService {
   }) {
     return {
       id: user.id,
-      email: user.email,
+      username: user.username,
       firstName: user.firstName,
       lastName: user.lastName,
       birthDate: user.birthDate,

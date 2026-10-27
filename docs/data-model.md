@@ -71,7 +71,7 @@ converties en UTC — jamais l'inverse.
 | Champ | Type | Notes |
 |---|---|---|
 | `id` | uuid | |
-| `email` | text unique | Identifiant de connexion, normalisé en minuscules |
+| `username` | text unique | Identifiant de connexion, en minuscules. Pas d'adresse e-mail |
 | `firstName` | text | Prénom |
 | `lastName` | text | Nom |
 | `birthDate` | date? | Date de naissance |

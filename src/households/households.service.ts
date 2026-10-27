@@ -11,7 +11,7 @@ import { DROITS_D_ADMINISTRATION } from './rights';
 
 const SELECTION_MEMBRE = {
   id: true,
-  email: true,
+  username: true,
   firstName: true,
   lastName: true,
   birthDate: true,
@@ -202,7 +202,7 @@ export class HouseholdsService {
 
   vueMembre(membre: {
     id: string;
-    email: string;
+    username: string;
     firstName: string;
     lastName: string;
     birthDate: Date | null;
@@ -213,7 +213,7 @@ export class HouseholdsService {
   }) {
     return {
       id: membre.id,
-      email: membre.email,
+      username: membre.username,
       firstName: membre.firstName,
       lastName: membre.lastName,
       birthDate: membre.birthDate,

@@ -75,7 +75,7 @@ function verifier(libelle, attendu, obtenu) {
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       code,
-      email: 'marie@example.test',
+      username: 'marie',
       password: 'un mot de passe assez long',
       firstName: 'Marie',
       lastName: 'Dupont',

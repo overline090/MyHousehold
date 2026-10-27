@@ -11,7 +11,7 @@ import { Right } from '@prisma/client';
 
 export interface AuthenticatedUser {
   id: string;
-  email: string;
+  username: string;
   firstName: string;
   lastName: string;
   status: { id: string; name: string };
@@ -45,7 +45,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       where: { id: payload.sub, deletedAt: null },
       select: {
         id: true,
-        email: true,
+        username: true,
         firstName: true,
         lastName: true,
         status: { select: { id: true, name: true, rights: true } },
@@ -58,7 +58,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     return {
       id: user.id,
-      email: user.email,
+      username: user.username,
       firstName: user.firstName,
       lastName: user.lastName,
       status: { id: user.status.id, name: user.status.name },

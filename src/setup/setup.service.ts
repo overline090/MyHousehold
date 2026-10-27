@@ -330,7 +330,6 @@ export class SetupService implements OnModuleInit {
 
     await this.consumePairing(dto.code, SetupPairingPurpose.CLAIM);
 
-    const email = dto.email.trim().toLowerCase();
     const passwordHash = await this.passwords.hash(dto.password);
     const householdId = setup.householdId;
     const pending = (setup.pendingImport as ImportSummary | null) ?? null;
@@ -341,9 +340,10 @@ export class SetupService implements OnModuleInit {
     const user = await this.prisma.$transaction(async (tx) => {
       const created = await tx.user.create({
         data: {
-          email,
+          username: dto.username,
           firstName: dto.firstName.trim(),
           lastName: dto.lastName.trim(),
+          birthDate: dto.birthDate ? new Date(dto.birthDate) : null,
           passwordHash,
           // Le premier compte administre le foyer : quelqu'un doit
           // pouvoir configurer les statuts et supprimer le compte d'un
@@ -352,7 +352,7 @@ export class SetupService implements OnModuleInit {
         },
         select: {
           id: true,
-          email: true,
+          username: true,
           firstName: true,
           lastName: true,
           status: { select: { id: true, name: true, rights: true } },
@@ -396,7 +396,7 @@ export class SetupService implements OnModuleInit {
       ...(await this.tokens.issue(user.id)),
       user: {
         id: user.id,
-        email: user.email,
+        username: user.username,
         firstName: user.firstName,
         lastName: user.lastName,
         status: { id: user.status.id, name: user.status.name },

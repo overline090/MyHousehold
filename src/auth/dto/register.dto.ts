@@ -1,18 +1,17 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsDateString,
-  IsEmail,
   IsOptional,
   IsString,
   Length,
   MaxLength,
   MinLength,
 } from 'class-validator';
+import { IsUsername } from '../../users/username';
 
 export class RegisterDto {
-  @ApiProperty({ example: 'marie@example.com' })
-  @IsEmail({}, { message: 'Adresse e-mail invalide.' })
-  email!: string;
+  @IsUsername()
+  username!: string;
 
   @ApiProperty({ minLength: 10, example: 'un mot de passe long' })
   // 10 caractères minimum, sans exigence de symboles : la longueur

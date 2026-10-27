@@ -183,7 +183,7 @@ scénario qui finit par un foyer dont personne ne peut plus rien administrer.
 
 Le QR contient l'adresse du serveur sur le réseau de la maison, l'**empreinte** de son
 certificat et un jeton d'appariement à usage unique, valable 15 minutes. L'adresse et
-l'empreinte sont aussi écrites sous le QR code, pour qui saisit l'adresse à la main. L'app crée le compte (nom, e-mail, mot de passe) et le serveur le marque
+l'empreinte sont aussi écrites sous le QR code, pour qui saisit l'adresse à la main. L'app crée le compte (prénom, nom, identifiant, mot de passe) et le serveur le marque
 `isServerAdmin`. La page web le détecte et passe à l'étape suivante.
 
 Si le téléphone n'est pas disponible, un lien discret permet de créer le compte depuis

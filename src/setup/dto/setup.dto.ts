@@ -6,7 +6,6 @@ import {
   IsArray,
   IsBoolean,
   IsDateString,
-  IsEmail,
   IsEnum,
   IsIn,
   IsInt,
@@ -21,6 +20,7 @@ import {
   MinLength,
   ValidateNested,
 } from 'class-validator';
+import { IsUsername } from '../../users/username';
 
 export class CreatePairingDto {
   @ApiProperty({ enum: SetupPairingPurpose })
@@ -47,9 +47,8 @@ export class ClaimDto {
   @Length(4, 20)
   code!: string;
 
-  @ApiProperty()
-  @IsEmail()
-  email!: string;
+  @IsUsername()
+  username!: string;
 
   @ApiProperty({ minLength: 10 })
   @IsString()
@@ -66,6 +65,11 @@ export class ClaimDto {
   @IsString()
   @Length(1, 60)
   lastName!: string;
+
+  @ApiPropertyOptional({ example: '1986-03-12' })
+  @IsOptional()
+  @IsDateString()
+  birthDate?: string;
 }
 
 export class ImportedTaskDto {

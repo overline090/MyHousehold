@@ -123,9 +123,10 @@ enum ActivityVerb {
 
 model User {
   id           String    @id @default(uuid(7)) @db.Uuid
-  /// Normalisé en minuscules côté serveur avant écriture.
+  /// Ce qu'on tape pour se connecter — pas d'adresse e-mail : un
+  /// serveur de maison n'envoie pas de courrier. En minuscules.
   /// Après suppression du compte : remplacé par une valeur inutilisable.
-  email        String    @unique
+  username     String    @unique
   firstName    String
   lastName     String
   /// Facultative : on ne force personne à déclarer sa date de naissance.
@@ -147,7 +148,7 @@ model User {
   updatedAt DateTime  @updatedAt @db.Timestamptz
   /// Compte supprimé : la ligne est conservée anonymisée pour que
   /// l'historique du foyer reste cohérent (« Ancien membre a sorti les
-  /// poubelles »). Email, nom et empreinte sont écrasés à la suppression.
+  /// poubelles »). Identifiant, nom et empreinte sont écrasés à la suppression.
   deletedAt DateTime? @db.Timestamptz
 
   status               Status                  @relation(fields: [statusId], references: [id])
@@ -163,7 +164,6 @@ model User {
   activities           ActivityLog[]
   createdInvites       Invite[]
 
-  @@index([email])
   @@index([statusId])
   @@map("user")
 }

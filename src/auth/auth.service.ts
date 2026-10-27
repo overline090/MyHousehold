@@ -21,7 +21,7 @@ export interface HouseholdSummary {
 
 export interface UserSummary {
   id: string;
-  email: string;
+  username: string;
   firstName: string;
   lastName: string;
   birthDate: Date | null;
@@ -39,7 +39,7 @@ export interface SessionResponse extends TokenPair {
 
 const SELECTION_COMPTE = {
   id: true,
-  email: true,
+  username: true,
   firstName: true,
   lastName: true,
   birthDate: true,
@@ -49,7 +49,7 @@ const SELECTION_COMPTE = {
 
 type CompteSelectionne = {
   id: string;
-  email: string;
+  username: string;
   firstName: string;
   lastName: string;
   birthDate: Date | null;
@@ -96,11 +96,10 @@ export class AuthService {
       );
     }
 
-    const email = dto.email.trim().toLowerCase();
     const passwordHash = await this.passwords.hash(dto.password);
 
     // Le code est consommé avant la création : un compte créé puis
-    // refusé laisserait une adresse prise pour rien.
+    // refusé laisserait un identifiant pris pour rien.
     const premierCompte = (await this.prisma.user.count()) === 0;
     const statusId = dto.inviteCode
       ? (await this.invites.consume(dto.inviteCode)).statusId
@@ -111,7 +110,7 @@ export class AuthService {
     try {
       const user = await this.prisma.user.create({
         data: {
-          email,
+          username: dto.username,
           firstName: dto.firstName.trim(),
           lastName: dto.lastName.trim(),
           birthDate: dto.birthDate ? new Date(dto.birthDate) : null,
@@ -126,14 +125,14 @@ export class AuthService {
     } catch (error) {
       // On s'appuie sur la contrainte d'unicité plutôt que sur un
       // « SELECT puis INSERT » : deux inscriptions simultanées avec le
-      // même e-mail passeraient entre les deux.
+      // même identifiant passeraient entre les deux.
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2002'
       ) {
         throw AppException.conflict(
-          ErrorCode.EMAIL_ALREADY_USED,
-          'Un compte existe déjà avec cette adresse.',
+          ErrorCode.USERNAME_ALREADY_USED,
+          'Cet identifiant est déjà pris. Choisissez-en un autre.',
         );
       }
       throw error;
@@ -141,9 +140,9 @@ export class AuthService {
   }
 
   async login(dto: LoginDto): Promise<SessionResponse> {
-    const email = dto.email.trim().toLowerCase();
+    const username = dto.username;
     const user = await this.prisma.user.findFirst({
-      where: { email, deletedAt: null },
+      where: { username, deletedAt: null },
     });
 
     // Un mot de passe est vérifié même quand le compte n'existe pas :
@@ -221,7 +220,7 @@ export class AuthService {
   private vueCompte(user: CompteSelectionne): UserSummary {
     return {
       id: user.id,
-      email: user.email,
+      username: user.username,
       firstName: user.firstName,
       lastName: user.lastName,
       birthDate: user.birthDate,
