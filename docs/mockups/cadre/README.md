@@ -23,6 +23,7 @@ node docs/mockups/cadre/rendre.js   # 1280 × 800 pour l'ordinateur, 390 × 844 
 | `12-stock.html` | Plugin **Gestion de stock** : les tableaux, et les articles du tableau choisi |
 | `13-stock-article.html` | La fiche d'un article : image, nom, quantité et minimum, péremption, lien, détail |
 | `14-stock-tableau.html` | Nouveau tableau : son nom et son image |
+| `15-stock-sortie.html` | Déclarer une sortie : cocher un ou plusieurs articles, et combien sortent |
 
 ## Ce que ce cadre décide
 
@@ -56,4 +57,6 @@ node docs/mockups/cadre/rendre.js   # 1280 × 800 pour l'ordinateur, 390 × 844 
   image (aucune, une icône, ou une image importée). Un article a une image (aucune,
   icône ou image importée), un nom, une quantité, et — chacun facultatif — un
   minimum, une date de péremption, un lien pour en racheter et un détail. Sous le
-  minimum, il rejoint « À racheter » ; près de sa date, « Bientôt périmé ».
+  minimum, il rejoint « À racheter » ; près de sa date, « Bientôt périmé ». Une
+  tuile « À racheter » les réunit sur l'accueil. « Déclarer une sortie » retire d'un
+  coup ce qui a été consommé, utilisé ou jeté, en un ou plusieurs articles.
