@@ -28,6 +28,10 @@ node docs/mockups/cadre/rendre.js   # 1280 × 800 pour l'ordinateur, 390 × 844 
 | `17-tache.html` | La fiche d'une tâche, en panneau : type, répétition, trois prochaines fois, groupe, priorité, qui |
 | `18-agenda.html` | **Agenda** : le mois en grand, et le jour choisi à droite |
 | `19-foyer.html` | **Foyer** : les membres, ce qui a été fait par groupe, les réglages en lecture |
+| `20-admin-statuts.html` | Administration › **Statuts et droits** : la matrice droits × statuts |
+| `21-admin-reglages.html` | Administration › **Réglages du foyer** : nom, fuseau, semaine, invitations, groupes |
+| `22-admin-serveur.html` | Administration › **Serveur** : mise à jour, version d'app, connecter un téléphone, santé |
+| `23-admin-activite.html` | Administration › **Activité** : le journal du foyer, filtrable |
 
 ## Ce que ce cadre décide
 

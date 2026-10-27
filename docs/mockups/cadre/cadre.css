@@ -248,3 +248,22 @@ p { margin: 0; }
 .membre { background: var(--surface); border: 1px solid var(--trait); border-radius: 16px; padding: 18px 16px; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; }
 .barre-contrib { height: 10px; border-radius: 999px; background: var(--accent); }
 .etiquette.basse { color: var(--gris); background: var(--surface-douce); border: 1px solid var(--trait); }
+
+/* ── Administration : statuts, réglages, serveur, activité ─────────── */
+.matrice .rang { padding: 10px 16px; }
+.matrice .c-droit { flex: 2.2; min-width: 0; }
+.matrice .c-statut { flex: 1; text-align: center; }
+.coche { color: var(--accent); font-weight: 800; font-size: 16px; }
+.sans { color: var(--trait-net); font-size: 16px; }
+.verrou { font-size: 11px; color: var(--gris); }
+.cartes-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.carte-admin { background: var(--surface); border: 1px solid var(--trait); border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.carte-admin .ligne-reglage { display: flex; align-items: center; gap: 12px; font-size: 14px; }
+.carte-admin .ligne-reglage .valeur { margin-left: auto; color: var(--gris); font-size: 13px; }
+.etat { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; }
+.etat i { width: 8px; height: 8px; border-radius: 50%; display: block; }
+.qr-mini { width: 92px; height: 92px; border-radius: 10px; background:
+  repeating-linear-gradient(0deg,#16211e 0 6px,#fff 6px 12px), #fff; background-blend-mode: multiply;
+  -webkit-mask: repeating-linear-gradient(90deg,#000 0 6px,transparent 6px 9px); border: 6px solid #fff; outline: 1px solid var(--trait); }
+.journal .rang { align-items: flex-start; }
+.journal .heure-j { flex: none; width: 62px; font-size: 13px; color: var(--gris); padding-top: 2px; }
