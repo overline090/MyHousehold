@@ -14,6 +14,8 @@ node docs/mockups/cadre/rendre.js   # 1280 × 800 pour l'ordinateur, 390 × 844 
 | `3-ordi-menu-compte.html` | Le menu du compte, ouvert depuis la photo |
 | `4-mobile.html` | Téléphone : comme l'app — barre du bas, bouton d'ajout, menu ☰ |
 | `5-mobile-volet.html` | Téléphone, menu ouvert |
+| `6-accueil-ordi.html` | **Accueil**, ordinateur : ce que je dois faire à gauche, la semaine à droite |
+| `7-accueil-mobile.html` | **Accueil**, téléphone : le même que dans l'app |
 
 ## Ce que ce cadre décide
 

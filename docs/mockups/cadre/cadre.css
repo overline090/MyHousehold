@@ -79,3 +79,35 @@ svg { flex: none; }
 .barre .logo { width: 32px; height: 32px; border-radius: 9px; background: var(--accent); color: #fff;
   display: flex; align-items: center; justify-content: center; }
 .titre-page { margin: 0; font-size: 24px; font-weight: 700; }
+
+/* ── Contenu des pages : mêmes éléments que l'app ─────────────────── */
+h2 { margin: 0; font-size: 12px; font-weight: 700; color: var(--gris); text-transform: uppercase; letter-spacing: .05em; }
+h3 { margin: 0; font-size: 15px; font-weight: 600; }
+p { margin: 0; }
+.colonnes { display: flex; gap: 24px; min-height: 0; align-items: flex-start; }
+.section { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.carte { background: var(--surface); border: 1px solid var(--trait); border-radius: 14px; padding: 12px 14px; }
+.carte.retard { border-color: #f0c98a; }
+.carte.retard.fond { background: #fef3e2; }
+.ligne { display: flex; align-items: center; gap: 12px; }
+.case { flex: none; width: 24px; height: 24px; border-radius: 7px; border: 2px solid var(--trait-net); background: var(--surface); }
+.case.cochee { background: var(--accent); border-color: var(--accent); color: #fff; display: flex; align-items: center;
+  justify-content: center; font-size: 14px; font-weight: 700; }
+.fait h3 { text-decoration: line-through; color: var(--gris); }
+.etiquette { font-size: 11px; font-weight: 600; border-radius: 999px; padding: 3px 9px; white-space: nowrap; }
+.etiquette.urgente { color: #fff; background: #b91c1c; }
+.etiquette.haute { color: #991b1b; background: #fee2e2; }
+.etiquette.fond { color: #6b3c09; background: #fef3e2; }
+.etiquette.neutre { color: var(--gris); background: var(--surface-douce); border: 1px solid var(--trait); }
+.alerte { color: #6b3c09; }
+.groupe-tache { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: var(--gris); }
+.groupe-tache i { width: 8px; height: 8px; border-radius: 50%; display: block; }
+.rdv { display: flex; align-items: center; gap: 12px; padding: 6px 0; }
+.rdv .heure { flex: none; width: 64px; font-weight: 700; font-size: 15px; }
+.rdv .trait { flex: none; width: 3px; align-self: stretch; border-radius: 2px; }
+.jour-rdv { font-size: 11px; font-weight: 700; color: var(--gris); text-transform: uppercase; letter-spacing: .04em; padding-top: 8px; }
+.jauge { height: 6px; border-radius: 999px; background: var(--trait); overflow: hidden; margin-top: 8px; }
+.jauge span { display: block; height: 100%; border-radius: 999px; }
+.lien { font-size: 13px; color: var(--gris); padding-top: 8px; border-top: 1px solid var(--trait); margin-top: 6px; }
+.photo.mini { width: 22px; height: 22px; font-size: 10px; }
+.entete-page { display: flex; align-items: baseline; gap: 12px; }
