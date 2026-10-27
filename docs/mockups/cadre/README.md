@@ -21,8 +21,10 @@ node docs/mockups/cadre/rendre.js   # 1280 × 800 pour l'ordinateur, 390 × 844 
   l'**Administration**, qui n'apparaît qu'aux comptes qui en ont le droit — absente,
   pas grisée.
 - **Repliable** sur ordinateur ; le choix est retenu d'une visite à l'autre.
-- **La barre d'outils** : replier, le titre de la page (sans sous-titre), Ajouter,
-  la mise à jour du serveur quand il y en a une (administrateurs), la photo qui ouvre
-  le menu du compte.
+- **La barre d'outils est au-dessus de tout**, sur toute la largeur : le bouton ☰
+  qui replie la navigation, le foyer, puis Ajouter, la mise à jour du serveur quand
+  il y en a une (administrateurs) et la photo qui ouvre le menu du compte. La
+  navigation et la page sont dessous ; le titre de la page ouvre la page, sans
+  sous-titre.
 - **Sur téléphone, la page se comporte comme l'app**, pour qu'on n'ait pas deux
   façons de faire la même chose.
