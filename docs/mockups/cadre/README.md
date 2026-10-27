@@ -28,7 +28,9 @@ node docs/mockups/cadre/rendre.js   # 1280 × 800 pour l'ordinateur, 390 × 844 
   n'apparaît qu'aux comptes qui ont au moins un de ces droits, et chaque rubrique
   seulement à qui en a le droit — absente, pas grisée.
 - **L'accueil est fait de tuiles**, que chacun dispose à sa façon : l'ordre, la
-  taille et les tuiles affichées appartiennent au compte, pas au foyer.
+  taille et les tuiles affichées appartiennent au compte, pas au foyer. Ses boutons
+  (Personnaliser, puis Rétablir et Terminé) sont dans la barre d'outils, à gauche
+  d'Ajouter : les tuiles commencent tout en haut.
 - **Repliable** sur ordinateur ; le choix est retenu d'une visite à l'autre.
 - **La barre d'outils est au-dessus de tout**, sur toute la largeur : le bouton ☰
   qui replie la navigation, le foyer, puis Ajouter, la mise à jour du serveur quand
