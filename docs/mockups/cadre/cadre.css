@@ -172,3 +172,42 @@ p { margin: 0; }
 .filtres { display: flex; gap: 6px; }
 .filtres span { font-size: 13px; font-weight: 500; border-radius: 999px; padding: 6px 12px; border: 1px solid var(--trait-net); background: var(--surface); }
 .filtres span.actif { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+
+/* ── Gestion de stock ──────────────────────────────────────────────── */
+.onglets-tableaux { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.onglets-tableaux span { display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 14px 0 6px; border-radius: 999px;
+  border: 1px solid var(--trait-net); background: var(--surface); font-size: 14px; font-weight: 500; }
+.onglets-tableaux span.actif { border: 2px solid var(--accent); background: var(--accent-doux); font-weight: 600; color: var(--accent-sombre); }
+.onglets-tableaux span.nouveau { padding: 0 14px; border-style: dashed; color: var(--gris); }
+.vignette { flex: none; width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #fff; overflow: hidden; }
+.vignette.grande { width: 40px; height: 40px; border-radius: 10px; }
+.vignette.vide { background: var(--surface-douce); border: 1px dashed var(--trait-net); color: var(--gris); }
+.stock .rang { padding: 9px 16px; }
+.c-qte { flex: none; width: 170px; display: flex; align-items: center; gap: 8px; }
+.c-date { flex: none; width: 150px; }
+.c-lien { flex: none; width: 110px; }
+.pas { width: 26px; height: 26px; border-radius: 8px; border: 1px solid var(--trait-net); display: flex; align-items: center;
+  justify-content: center; font-weight: 700; color: var(--encre-douce); background: var(--surface); }
+.qte { min-width: 26px; text-align: center; font-weight: 700; font-size: 15px; }
+.qte.bas { color: #b45309; }
+.lien-ext { font-size: 13px; font-weight: 600; color: var(--accent); }
+/* Panneau latéral : la fiche d'un article */
+.panneau { position: absolute; top: 60px; right: 0; bottom: 0; width: 440px; background: var(--surface);
+  border-left: 1px solid var(--trait); box-shadow: -12px 0 32px rgba(16,23,21,.12); display: flex; flex-direction: column; }
+.panneau .tete-panneau { display: flex; align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--trait); }
+.panneau .corps-panneau { flex: 1; overflow: hidden; padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; }
+.panneau .pied-panneau { display: flex; gap: 10px; justify-content: flex-end; padding: 14px 20px; border-top: 1px solid var(--trait); }
+.champ { display: flex; flex-direction: column; gap: 6px; }
+.champ label { font-size: 13px; font-weight: 600; color: var(--encre-douce); }
+.saisie { min-height: 40px; border: 1px solid var(--trait-net); border-radius: 10px; background: var(--surface); padding: 9px 12px; font-size: 14px; display: flex; align-items: center; }
+.saisie.vide { color: var(--gris); }
+.segment { display: flex; border: 1px solid var(--trait-net); border-radius: 10px; overflow: hidden; }
+.segment span { flex: 1; text-align: center; font-size: 13px; padding: 8px 0; border-left: 1px solid var(--trait-net); }
+.segment span:first-child { border-left: none; }
+.segment span.actif { background: var(--accent-doux); color: var(--accent-sombre); font-weight: 600; }
+.choix-icones { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; }
+.choix-icones span { height: 38px; border-radius: 10px; border: 1px solid var(--trait); display: flex; align-items: center; justify-content: center; color: var(--encre-douce); }
+.choix-icones span.actif { border: 2px solid var(--accent); background: var(--accent-doux); color: var(--accent-sombre); }
+.option { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+.dialogue { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: 460px; background: var(--surface);
+  border-radius: 18px; box-shadow: 0 24px 60px rgba(16,23,21,.25); padding: 22px 24px; display: flex; flex-direction: column; gap: 14px; }
