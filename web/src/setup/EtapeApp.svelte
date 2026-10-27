@@ -1,4 +1,5 @@
 <script lang="ts">
+  import QrServeur from './QrServeur.svelte';
   import { ApiError, setupApi, type Pairing, type SetupState } from '../lib/api';
 
   let { etat, onsuivant }: { etat: SetupState; onsuivant: () => void } = $props();
@@ -78,11 +79,13 @@
     <section class="carte-choix accent">
       <h3>Oui, reprendre mon foyer</h3>
       <p class="muet">
-        Dans l'app&nbsp;: <strong>Réglages → Connecter un serveur</strong>, puis
-        saisissez ce code.
+        Dans l'app&nbsp;: menu ☰ → <strong>Serveur</strong>, puis
+        <strong>Scanner le QR code du serveur</strong>.
       </p>
 
       {#if appariement}
+        <QrServeur {appariement} />
+        <p class="muet">Ou saisissez ce code&nbsp;:</p>
         <p class="code">{appariement.code}</p>
         <p class="muet">Valable 15 minutes.</p>
         <p class="attente" aria-live="polite">

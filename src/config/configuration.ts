@@ -8,6 +8,19 @@ import { z } from 'zod';
 const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('production'),
   PORT: z.coerce.number().int().positive().default(3000),
+  // L'écoute HTTP : la machine elle-même et un reverse proxy. Avec
+  // docker-compose (réseau de l'hôte), 127.0.0.1 — le réseau local
+  // passe par HTTPS.
+  MH_HTTP_HOST: z.string().default('0.0.0.0'),
+  // L'écoute HTTPS du réseau local, celle que le téléphone joint, avec
+  // le certificat auto-signé du serveur.
+  MH_HTTPS_PORT: z.coerce.number().int().positive().default(3443),
+  // Annonce du serveur sur le Wi-Fi (mDNS), pour que l'app le trouve
+  // seule.
+  MH_MDNS: z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform((v) => v === 'true'),
 
   DATABASE_URL: z.string().min(1),
   REDIS_URL: z.string().min(1),

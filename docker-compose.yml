@@ -8,18 +8,25 @@ services:
     image: myhousehold-server:local
     restart: unless-stopped
     env_file: .env
+    # Le réseau de l'hôte, pas celui de Docker : l'annonce sur le Wi-Fi
+    # (mDNS) ne traverse pas le réseau isolé d'un conteneur, et le
+    # serveur doit connaître l'adresse de la machine pour la mettre dans
+    # son QR code.
+    network_mode: host
     environment:
-      DATABASE_URL: postgresql://myhousehold:${POSTGRES_PASSWORD}@db:5432/myhousehold
-      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgresql://myhousehold:${POSTGRES_PASSWORD}@127.0.0.1:5432/myhousehold
+      REDIS_URL: redis://127.0.0.1:6379
       MH_DATA_DIR: /data
+      # HTTP reste sur la machine (reverse proxy, navigateur local). Le
+      # réseau de la maison passe par HTTPS, port 3443, avec le
+      # certificat du serveur et son empreinte.
+      MH_HTTP_HOST: 127.0.0.1
+      MH_HTTPS_PORT: 3443
     volumes:
-      # Les photos de profil sont des fichiers, à côté de la base : une
-      # sauvegarde doit prendre les deux (voir docs/self-hosting.md).
+      # Les photos de profil et le certificat du serveur sont des
+      # fichiers, à côté de la base : une sauvegarde doit prendre les
+      # deux (voir docs/self-hosting.md).
       - app-data:/data
-    ports:
-      # Exposé seulement sur la machine locale : l'accès depuis
-      # l'extérieur passe par un reverse proxy TLS, jamais en direct.
-      - '127.0.0.1:3000:3000'
     depends_on:
       db:
         condition: service_healthy
@@ -37,6 +44,10 @@ services:
       POSTGRES_USER: myhousehold
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?définissez POSTGRES_PASSWORD dans .env}
       POSTGRES_DB: myhousehold
+    # Publié sur la machine seulement : le serveur, sur le réseau de
+    # l'hôte, le joint par 127.0.0.1.
+    ports:
+      - '127.0.0.1:5432:5432'
     volumes:
       - db-data:/var/lib/postgresql/data
     healthcheck:
@@ -51,6 +62,8 @@ services:
     # Pas de persistance : Redis ne contient que des jobs en attente,
     # tous reconstructibles. Rien à sauvegarder.
     command: ['redis-server', '--save', '', '--appendonly', 'no']
+    ports:
+      - '127.0.0.1:6379:6379'
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 10s

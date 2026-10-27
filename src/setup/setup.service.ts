@@ -8,6 +8,7 @@ import {
   SetupPairingPurpose,
 } from '@prisma/client';
 import { randomBytes } from 'node:crypto';
+import QRCode from 'qrcode';
 import { PasswordService } from '../auth/password.service';
 import { TokensService } from '../auth/tokens.service';
 import { ClockService } from '../common/clock/clock.service';
@@ -15,6 +16,9 @@ import { AppException } from '../common/errors/app.exception';
 import { ErrorCode } from '../common/errors/error-codes';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { generateInviteCode } from '../households/invite-code';
+import { NetworkService } from '../network/network.service';
+import { buildServerLink } from '../network/server-link';
+import { displayFingerprint } from '../network/tls';
 import { HouseholdsService } from '../households/households.service';
 import { StatusesService } from '../households/statuses.service';
 import { TasksService } from '../tasks/tasks.service';
@@ -48,6 +52,7 @@ export class SetupService implements OnModuleInit {
     private readonly tasks: TasksService,
     private readonly households: HouseholdsService,
     private readonly statuses: StatusesService,
+    private readonly network: NetworkService,
   ) {}
 
   /**
@@ -184,10 +189,27 @@ export class SetupService implements OnModuleInit {
       select: { code: true, purpose: true, expiresAt: true },
     });
 
+    // Ce que le QR code encode : l'adresse du serveur sur le réseau de
+    // la maison, l'empreinte de son certificat et le code. Avec lui,
+    // l'app vérifie le serveur sans rien demander.
+    const address = this.network.localAddress();
+    const link = buildServerLink({
+      address,
+      fingerprint: this.network.fingerprint,
+      code,
+    });
+
     return {
       ...pairing,
-      // Ce que le QR code encode : l'adresse du serveur et le code.
       url: `${this.config.getOrThrow<string>('MH_PUBLIC_URL')}/setup/pair/${code}`,
+      link,
+      qrSvg: await QRCode.toString(link, {
+        type: 'svg',
+        margin: 1,
+        errorCorrectionLevel: 'M',
+      }),
+      address,
+      fingerprint: displayFingerprint(this.network.fingerprint),
     };
   }
 
@@ -426,7 +448,11 @@ export class SetupService implements OnModuleInit {
       missing: [
         { id: 'account', label: 'Premier compte, administrateur', required: true },
         { id: 'members', label: 'Les autres membres du foyer', required: false },
-        { id: 'statuses', label: 'Statuts, droits et tour de rôle des tâches', required: false },
+        {
+          id: 'statuses',
+          label: 'Statuts, droits et tour de rôle des tâches',
+          required: false,
+        },
       ],
     };
   }

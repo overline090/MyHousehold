@@ -506,7 +506,7 @@ protections et points durs : [`setup-wizard.md`](setup-wizard.md).
 | `GET` | `/setup/state` | Étapes, laquelle est courante, ce qui est applicable |
 | `POST` | `/setup/network` | Appliquer une configuration réseau *(image Raspberry Pi)* |
 | `GET` | `/setup/network/scan` | Réseaux Wi-Fi détectés *(image Raspberry Pi)* |
-| `POST` | `/setup/pairing` | `{ "purpose": "IMPORT" \| "CLAIM" }` → code, URL, expiration |
+| `POST` | `/setup/pairing` | `{ "purpose": "IMPORT" \| "CLAIM" }` → code, expiration, QR code (`qrSvg`, `link`), adresse locale et empreinte affichée |
 | `GET` | `/setup/pairing/:code` | `PENDING`, `USED` ou `EXPIRED` |
 | `POST` | `/setup/import` | Appelé **par l'app** : pousse sa configuration locale |
 | `POST` | `/setup/skip` | Passe une étape facultative |
@@ -582,6 +582,22 @@ Hors du préfixe `/api/v1`, pour rester triviales à interroger :
 |---|---|---|
 | `GET` | `/health` | Non authentifié. État de la base et de Redis |
 | `GET` | `/version` | Version du serveur et environnement |
+| `GET` | `/identity` | Version et empreinte du certificat ; nom du foyer, au réseau local seulement |
+
+### Joindre le serveur depuis le téléphone
+
+Le serveur écoute en **HTTPS sur le port 3443** (`MH_HTTPS_PORT`), avec un certificat
+auto-signé créé au premier démarrage dans `MH_DATA_DIR` et **jamais régénéré**. L'app
+ne s'appuie pas sur une autorité de certification : elle retient l'**empreinte**
+(SHA-256 du certificat) et refuse tout autre certificat ensuite.
+
+- **QR code** de l'assistant : `myhousehold://serveur?adresse=…&empreinte=…&code=…`.
+  L'empreinte y est entière, la vérification est automatique.
+- **Adresse saisie, ou serveur trouvé sur le Wi-Fi** : l'app affiche les 24 premiers
+  caractères de l'empreinte (`7F3A 91C2 0B5E D4A8 6E17 C93F`), à comparer avec ceux de
+  la page web. Derrière un reverse proxy avec un certificat reconnu, rien à comparer.
+- **Annonce sur le Wi-Fi** (mDNS) : service `_myhousehold._tcp`, port 3443, nommé
+  d'après le foyer. `MH_MDNS=false` la coupe.
 
 ```json
 { "status": "ok", "components": { "database": { "status": "up" }, "redis": { "status": "up" } } }

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import QrServeur from './QrServeur.svelte';
   import { ApiError, setupApi, type Pairing, type SetupState } from '../lib/api';
 
   let { onsuivant }: { etat: SetupState; onsuivant: () => void } = $props();
@@ -61,8 +62,8 @@
         Installez MyHousehold sur votre téléphone — depuis F-Droid, ou l'APK de la
         dernière version.
       </li>
-      <li>Ouvrez l'app, choisissez <strong>Connecter mon serveur</strong>.</li>
-      <li>Saisissez le code ci-contre, puis créez votre compte dans l'app.</li>
+      <li>Ouvrez l'app, choisissez <strong>Scanner le QR code du serveur</strong>.</li>
+      <li>Scannez le code ci-contre, puis créez votre compte dans l'app.</li>
     </ol>
 
     <p class="attente" aria-live="polite">
@@ -78,7 +79,8 @@
 
   <aside class="pile">
     {#if appariement}
-      <p class="muet">Code à saisir dans l'app</p>
+      <QrServeur {appariement} />
+      <p class="muet">Ou code à saisir dans l'app</p>
       <p class="code">{appariement.code}</p>
       <p class="muet">Valable 15 minutes, à usage unique.</p>
     {:else}

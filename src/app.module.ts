@@ -20,6 +20,7 @@ import { AdminModule } from './admin/admin.module';
 import { AgendaModule } from './agenda/agenda.module';
 import { AppointmentsModule } from './appointments/appointments.module';
 import { HouseholdsModule } from './households/households.module';
+import { NetworkModule } from './network/network.module';
 import { ReleasesModule } from './releases/releases.module';
 import { SchedulerModule } from './scheduler/scheduler.module';
 import { SetupModule } from './setup/setup.module';
@@ -51,6 +52,7 @@ function interfaceWeb(): DynamicModule[] {
         '/api/v1{*path}',
         '/health',
         '/version',
+        '/identity',
         '/app-release',
         '/setup/{*path}',
       ],
@@ -108,6 +110,7 @@ function interfaceWeb(): DynamicModule[] {
     AgendaModule,
     ActivityModule,
     SchedulerModule,
+    NetworkModule,
     SetupModule,
     ReleasesModule,
     UsersModule,

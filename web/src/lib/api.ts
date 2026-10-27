@@ -99,6 +99,13 @@ export interface Pairing {
   purpose: 'IMPORT' | 'CLAIM';
   expiresAt: string;
   url: string;
+  /** Ce qu'encode le QR code : adresse, empreinte entière, code. */
+  link: string;
+  qrSvg: string;
+  /** Adresse du serveur sur le réseau de la maison. */
+  address: string;
+  /** Empreinte du certificat, telle que l'app l'affiche. */
+  fingerprint: string;
 }
 
 export const setupApi = {

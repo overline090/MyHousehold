@@ -32,8 +32,21 @@ jusqu'au foyer fonctionnel, sans toucher à un terminal.
 Les migrations sont appliquées au démarrage du conteneur `api` : une mise à jour
 d'image ne demande aucune étape manuelle oubliable.
 
-L'API n'est publiée que sur `127.0.0.1:3000` : l'accès depuis l'extérieur passe par
-un reverse proxy TLS, jamais en direct.
+Deux écoutes :
+
+- **HTTP, `127.0.0.1:3000`** : la machine elle-même et un reverse proxy. L'accès depuis
+  Internet passe par un reverse proxy TLS, jamais en direct.
+- **HTTPS, port 3443, sur le réseau de la maison** : c'est là que le téléphone se
+  connecte. Le certificat est créé au premier démarrage dans le volume `app-data`, et
+  l'app retient son **empreinte** : le perdre oblige chaque téléphone à revérifier le
+  serveur. Il fait partie de la sauvegarde.
+
+Le serveur tourne sur le **réseau de l'hôte** (`network_mode: host`) : c'est ce qui lui
+permet de s'annoncer sur le Wi-Fi (mDNS, `_myhousehold._tcp`) et de connaître
+l'adresse de la machine pour la mettre dans son QR code. PostgreSQL et Redis sont donc
+publiés sur `127.0.0.1` (ports 5432 et 6379) : ils doivent être libres sur la machine.
+Un pare-feu doit laisser passer le port **3443/tcp** et **5353/udp** (mDNS) depuis le
+réseau local.
 
 ## Variables d'environnement
 
@@ -47,6 +60,9 @@ un reverse proxy TLS, jamais en direct.
 | `MH_PUBLIC_URL` | ✅ | URL publique, utilisée pour le callback OAuth |
 | `MH_ALLOW_REGISTRATION` | | `false` après la création des comptes du foyer |
 | `MH_DEFAULT_TIMEZONE` | | `Europe/Paris` par défaut |
+| `MH_HTTP_HOST` | | Adresse d'écoute HTTP. `127.0.0.1` avec docker-compose |
+| `MH_HTTPS_PORT` | | Port HTTPS du réseau local, `3443` par défaut |
+| `MH_MDNS` | | `false` coupe l'annonce sur le Wi-Fi |
 | `MH_UPDATE_CHECK` | | `false` coupe la vérification des mises à jour, donc tout appel sortant |
 | `MH_RELEASES_URL` / `MH_APP_RELEASES_URL` | | Où lire les versions publiées. À changer pour un miroir interne |
 | `MH_GOOGLE_CLIENT_ID` / `_SECRET` | | Seulement pour la synchro Google |

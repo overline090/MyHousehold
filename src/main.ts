@@ -1,3 +1,4 @@
+import type { RequestListener } from 'node:http';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
@@ -5,6 +6,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
+import { NetworkService } from './network/network.service';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
@@ -20,6 +22,7 @@ async function bootstrap(): Promise<void> {
     exclude: [
       'health',
       'version',
+      'identity',
       'calendars/google/callback',
       'setup',
       'setup/*path',
@@ -61,7 +64,13 @@ async function bootstrap(): Promise<void> {
   app.enableShutdownHooks();
 
   const port = config.getOrThrow<number>('PORT');
-  await app.listen(port);
+  await app.listen(port, config.getOrThrow<string>('MH_HTTP_HOST'));
+
+  // La même application, en HTTPS, pour le réseau local : c'est là que
+  // le téléphone se connecte, en vérifiant l'empreinte du certificat.
+  app
+    .get(NetworkService)
+    .listenHttps(app.getHttpAdapter().getInstance() as RequestListener);
 }
 
 void bootstrap();
