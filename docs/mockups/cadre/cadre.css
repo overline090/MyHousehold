@@ -111,3 +111,47 @@ p { margin: 0; }
 .lien { font-size: 13px; color: var(--gris); padding-top: 8px; border-top: 1px solid var(--trait); margin-top: 6px; }
 .photo.mini { width: 22px; height: 22px; font-size: 10px; }
 .entete-page { display: flex; align-items: baseline; gap: 12px; }
+
+/* ── Accueil en tuiles ─────────────────────────────────────────────── */
+.tuiles { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; align-items: start; }
+.tuile { background: var(--surface); border: 1px solid var(--trait); border-radius: 16px; padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 8px; min-width: 0; position: relative; }
+.tuile.t4 { grid-column: span 4; } .tuile.t6 { grid-column: span 6; } .tuile.t8 { grid-column: span 8; } .tuile.t12 { grid-column: span 12; }
+.tuile .tete { display: flex; align-items: center; gap: 8px; }
+.tuile .tete h2 { flex: 1; }
+.tuile .carte { border-radius: 12px; padding: 10px 12px; }
+.tuile .compte { font-size: 12px; font-weight: 700; color: var(--gris); }
+.chiffre { font-size: 30px; font-weight: 700; line-height: 1.1; }
+.personnaliser { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; border-radius: 999px;
+  border: 1px solid var(--trait-net); background: var(--surface); font-size: 13px; font-weight: 600; color: var(--encre-douce); }
+/* Mode personnalisation */
+.edition .tuile { border: 2px dashed var(--accent-trait); }
+.poignee { color: var(--gris); cursor: grab; }
+.tailles { display: flex; border: 1px solid var(--trait-net); border-radius: 8px; overflow: hidden; }
+.tailles span { font-size: 11px; font-weight: 700; padding: 3px 7px; color: var(--gris); border-left: 1px solid var(--trait-net); }
+.tailles span:first-child { border-left: none; }
+.tailles span.actif { background: var(--accent); color: #fff; }
+.retirer { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  color: var(--gris); border: 1px solid var(--trait-net); font-size: 15px; }
+.ajout-tuile { grid-column: span 4; border: 2px dashed var(--trait-net); border-radius: 16px; min-height: 120px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: var(--gris); font-size: 14px; font-weight: 600; }
+.bandeau-edition { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 12px;
+  background: var(--accent-doux); border: 1px solid var(--accent-trait); font-size: 13px; color: #164e45; }
+.bouton { display: inline-flex; align-items: center; justify-content: center; height: 36px; padding: 0 16px; border-radius: 999px;
+  border: 1px solid var(--trait-net); background: var(--surface); font-size: 13px; font-weight: 600; color: var(--encre); }
+.bouton.primaire { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* ── Administration : navigation secondaire ────────────────────────── */
+.admin { display: flex; gap: 24px; min-height: 0; flex: 1; }
+.sous-nav { flex: none; width: 210px; display: flex; flex-direction: column; gap: 2px; }
+.sous-nav a { display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 12px; border-radius: 10px;
+  color: var(--encre-douce); text-decoration: none; font-size: 14px; font-weight: 500; }
+.sous-nav a.actif { background: var(--surface); color: var(--accent-sombre); font-weight: 600; box-shadow: inset 3px 0 0 var(--accent); }
+.sous-nav .pastille { margin-left: auto; font-size: 11px; font-weight: 700; color: #fff; background: var(--accent); border-radius: 999px; padding: 1px 7px; }
+.page-admin { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+.tableau { background: var(--surface); border: 1px solid var(--trait); border-radius: 14px; overflow: hidden; }
+.tableau .rang { display: flex; align-items: center; gap: 14px; padding: 11px 16px; border-top: 1px solid var(--trait); font-size: 14px; }
+.tableau .rang:first-child { border-top: none; }
+.tableau .rang.titres { background: var(--surface-douce); font-size: 11px; font-weight: 700; color: var(--gris); text-transform: uppercase; letter-spacing: .04em; padding: 8px 16px; }
+.c-nom { flex: 2; display: flex; align-items: center; gap: 10px; min-width: 0; }
+.c-1 { flex: 1; min-width: 0; } .c-act { flex: none; width: 110px; text-align: right; }

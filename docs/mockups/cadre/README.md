@@ -16,12 +16,19 @@ node docs/mockups/cadre/rendre.js   # 1280 × 800 pour l'ordinateur, 390 × 844 
 | `5-mobile-volet.html` | Téléphone, menu ouvert |
 | `6-accueil-ordi.html` | **Accueil**, ordinateur : ce que je dois faire à gauche, la semaine à droite |
 | `7-accueil-mobile.html` | **Accueil**, téléphone : le même que dans l'app |
+| `8-accueil-tuiles.html` | **Accueil en tuiles** : chaque section est une tuile, de taille S, M, L ou XL |
+| `9-accueil-personnaliser.html` | Personnaliser l'accueil : déplacer, redimensionner, retirer, ajouter une tuile |
+| `10-administration.html` | **Administration**, page dédiée avec sa navigation secondaire — ici, les membres |
 
 ## Ce que ce cadre décide
 
-- **La même navigation que l'app**, à plat : Accueil, Tâches, Agenda, Foyer, puis
-  l'**Administration**, qui n'apparaît qu'aux comptes qui en ont le droit — absente,
-  pas grisée.
+- **La même navigation que l'app** : Accueil, Tâches, Agenda, Foyer, puis
+  **Administration** — une seule entrée, qui ouvre une page dédiée avec sa propre
+  navigation (Membres, Statuts et droits, Réglages du foyer, Serveur, Activité). Elle
+  n'apparaît qu'aux comptes qui ont au moins un de ces droits, et chaque rubrique
+  seulement à qui en a le droit — absente, pas grisée.
+- **L'accueil est fait de tuiles**, que chacun dispose à sa façon : l'ordre, la
+  taille et les tuiles affichées appartiennent au compte, pas au foyer.
 - **Repliable** sur ordinateur ; le choix est retenu d'une visite à l'autre.
 - **La barre d'outils est au-dessus de tout**, sur toute la largeur : le bouton ☰
   qui replie la navigation, le foyer, puis Ajouter, la mise à jour du serveur quand
