@@ -19,6 +19,7 @@ node docs/mockups/cadre/rendre.js   # 1280 × 800 pour l'ordinateur, 390 × 844 
 | `8-accueil-tuiles.html` | **Accueil en tuiles** : chaque section est une tuile, de taille S, M, L ou XL |
 | `9-accueil-personnaliser.html` | Personnaliser l'accueil : déplacer, redimensionner, retirer, ajouter une tuile |
 | `10-administration.html` | **Administration**, page dédiée avec sa navigation secondaire — ici, les membres |
+| `11-plugins.html` | **Plugins** : les fonctionnalités supplémentaires du foyer, activables une à une |
 
 ## Ce que ce cadre décide
 
@@ -40,3 +41,8 @@ node docs/mockups/cadre/rendre.js   # 1280 × 800 pour l'ordinateur, 390 × 844 
   et la place va au contenu.
 - **Sur téléphone, la page se comporte comme l'app**, pour qu'on n'ait pas deux
   façons de faire la même chose.
+
+- **Les plugins** ajoutent une fonctionnalité au foyer entier, activable ou non par
+  un administrateur. Chacun dit ce qu'il apporte (une page, une tuile d'accueil, un
+  réglage du profil, des entrées d'agenda) ; désactivé, il disparaît des pages et
+  des téléphones, et ce qu'il a enregistré est gardé pour le jour où on le réactive.

@@ -155,3 +155,20 @@ p { margin: 0; }
 .tableau .rang.titres { background: var(--surface-douce); font-size: 11px; font-weight: 700; color: var(--gris); text-transform: uppercase; letter-spacing: .04em; padding: 8px 16px; }
 .c-nom { flex: 2; display: flex; align-items: center; gap: 10px; min-width: 0; }
 .c-1 { flex: 1; min-width: 0; } .c-act { flex: none; width: 110px; text-align: right; }
+
+/* ── Plugins ───────────────────────────────────────────────────────── */
+.plugins { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+.plugin { background: var(--surface); border: 1px solid var(--trait); border-radius: 14px; padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 10px; }
+.plugin.active { border-color: var(--accent-trait); }
+.plugin .icone-plugin { flex: none; width: 40px; height: 40px; border-radius: 11px; display: flex; align-items: center;
+  justify-content: center; color: #fff; }
+.plugin .apporte { display: flex; gap: 6px; flex-wrap: wrap; }
+.plugin .pied { display: flex; align-items: center; gap: 10px; border-top: 1px solid var(--trait); padding-top: 10px; }
+.interrupteur { flex: none; width: 40px; height: 22px; border-radius: 999px; background: var(--trait-net); position: relative; }
+.interrupteur::after { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; }
+.interrupteur.actif { background: var(--accent); }
+.interrupteur.actif::after { left: 21px; }
+.filtres { display: flex; gap: 6px; }
+.filtres span { font-size: 13px; font-weight: 500; border-radius: 999px; padding: 6px 12px; border: 1px solid var(--trait-net); background: var(--surface); }
+.filtres span.actif { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
