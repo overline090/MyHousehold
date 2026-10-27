@@ -32,6 +32,13 @@ node docs/mockups/cadre/rendre.js   # 1280 × 800 pour l'ordinateur, 390 × 844 
 | `21-admin-reglages.html` | Administration › **Réglages du foyer** : nom, fuseau, semaine, invitations, groupes |
 | `22-admin-serveur.html` | Administration › **Serveur** : mise à jour, version d'app, connecter un téléphone, santé |
 | `23-admin-activite.html` | Administration › **Activité** : le journal du foyer, filtrable |
+| `24-admin-statut-modifier.html` | Modifier un statut : nom, couleur, droits, qui le porte |
+| `25-profil.html` | **Mon profil** : photo, identité, mot de passe, agenda personnel, supprimer mon compte |
+| `26-appareils.html` | **Mes appareils** : où mon compte est connecté, et déconnecter un appareil |
+| `27-preferences.html` | **Préférences** : apparence, navigation, accueil, langue — les miennes seulement |
+| `28-admin-membre.html` | Gérer un membre : statut, code de mot de passe oublié, appareils, suppression du compte |
+| `29-connexion.html` | La page de connexion : identifiant et mot de passe |
+| `30-mot-de-passe-oublie.html` | Mot de passe oublié : le code donné par un administrateur, et le nouveau mot de passe |
 
 ## Ce que ce cadre décide
 
@@ -68,3 +75,11 @@ node docs/mockups/cadre/rendre.js   # 1280 × 800 pour l'ordinateur, 390 × 844 
   minimum, il rejoint « À racheter » ; près de sa date, « Bientôt périmé ». Une
   tuile « À racheter » les réunit sur l'accueil. « Déclarer une sortie » retire d'un
   coup ce qui a été consommé, utilisé ou jeté, en un ou plusieurs articles.
+- **Statuts et droits se modifient sur place** : chaque case se coche ou se décoche,
+  et les changements attendent « Enregistrer » dans un bandeau qui les résume ; ✎
+  ouvre un statut (nom, couleur, droits). La colonne Administrateur est verrouillée.
+- **Mise à jour du serveur : l'option prudente.** La page annonce la version et donne
+  la commande à lancer sur la machine ; le serveur ne se met pas à jour lui-même, ce
+  qui demanderait de lui confier toute la machine.
+- **Mot de passe oublié, sans e-mail** : un administrateur génère un code à usage
+  unique, valable une heure, et le donne de vive voix.
