@@ -73,21 +73,26 @@ ci-dessous, parce que chaque écran écrit sur l'ancien modèle serait à rééc
 **Jalon atteint :** le serveur parle le modèle décidé, et une installation en v0.3 se
 migre sans perte. Reste l'app, qui n'a pas encore commencé.
 
-## v0.4 — Application Android, utilisable seule (prochaine étape)
+## v0.4 — Application Android, utilisable seule (en cours)
 
 Voir [MyHousehold-android](https://github.com/overline090/MyHousehold-android).
 
-- [ ] Maquettes validées avant toute ligne d'interface
-- [ ] Écran « Accueil », tâches, tâches de fond, agenda
-- [ ] Persistance locale Room + file de mutations
-- [ ] **Mode sans serveur** : l'app s'installe et s'utilise seule
+- [x] Maquettes dessinées, **en attente de validation**
+- [x] Module `core` en Kotlin pur : sortes de tâches, priorités, cinq formes de
+      répétition, état d'une tâche de fond, tour de rôle — testé sans Android
+- [x] Écrans Accueil, Tâches (avec les tâches de fond), formulaire, Agenda, Foyer,
+      Réglages, Profil
+- [x] Persistance locale Room + file de mutations
+- [x] **Mode sans serveur** : l'app s'installe et s'utilise seule
       ([standalone.md](https://github.com/overline090/MyHousehold-android/blob/main/docs/standalone.md))
-- [ ] Moteur de récurrence en Kotlin, validé par les vecteurs de test partagés du serveur
+- [x] Moteur de récurrence en Kotlin, déroulant les échéances sur le téléphone
+- [x] Intégration continue : l'APK est construit et publié en artefact
 - [ ] Connexion à une instance, et adoption d'un serveur avec reprise des données locales
 - [ ] Synchronisation WorkManager
+- [ ] Tests d'interface du parcours « cocher hors-ligne puis synchroniser »
 
 **Jalon :** premier usage réel par un foyer, **sans qu'un serveur soit nécessaire**.
-C'est ce jalon qui compte : tout ce qui précède est invérifiable sans lui.
+L'app s'installe et s'utilise ; ce qui reste la relie au serveur.
 
 ## v0.5 — Interface web et assistant d'installation (en cours)
 
