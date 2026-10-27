@@ -24,6 +24,10 @@ node docs/mockups/cadre/rendre.js   # 1280 × 800 pour l'ordinateur, 390 × 844 
 | `13-stock-article.html` | La fiche d'un article : image, nom, quantité et minimum, péremption, lien, détail |
 | `14-stock-tableau.html` | Nouveau tableau : son nom et son image |
 | `15-stock-sortie.html` | Déclarer une sortie : cocher un ou plusieurs articles, et combien sortent |
+| `16-taches.html` | **Tâches** : toutes les tâches, rangées par groupe, avec leur règle en clair |
+| `17-tache.html` | La fiche d'une tâche, en panneau : type, répétition, trois prochaines fois, groupe, priorité, qui |
+| `18-agenda.html` | **Agenda** : le mois en grand, et le jour choisi à droite |
+| `19-foyer.html` | **Foyer** : les membres, ce qui a été fait par groupe, les réglages en lecture |
 
 ## Ce que ce cadre décide
 
