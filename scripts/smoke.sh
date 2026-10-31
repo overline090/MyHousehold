@@ -450,6 +450,11 @@ check "ses instances sont déroulées sur la fenêtre" "yes" \
 import json,sys
 mine = [a for a in json.load(sys.stdin) if a['appointmentId'] == '$RDV_ID']
 print('yes' if len(mine) >= 4 and all(a['isRecurring'] for a in mine) else len(mine))")"
+check "la fenêtre peut aussi se donner en instants complets" "yes" \
+  "$(curl -s "$BASE/appointments?from=${TODAY}T00:00:00.000Z&to=${RDV_TO}T00:00:00.000Z" -H "authorization: Bearer $ADMIN" | py "
+import json,sys
+d = json.load(sys.stdin)
+print('yes' if isinstance(d, list) and len([a for a in d if a['appointmentId'] == '$RDV_ID']) >= 4 else d)")"
 check "l'heure locale est conservée d'une semaine à l'autre" "yes" \
   "$(curl -s "$BASE/appointments?from=$TODAY&to=$RDV_TO" -H "authorization: Bearer $ADMIN" | py "
 import json, sys, zoneinfo, datetime

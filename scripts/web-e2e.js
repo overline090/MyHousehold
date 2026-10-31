@@ -199,6 +199,26 @@ const verifier = (l, a, o) => { if (a === o) console.log('  ✓ ' + l); else { c
   verifier('annuler la remet à faire', true, (await page.textContent('aside.panneau .etat-boite')).includes('À faire aujourd’hui'));
   await page.click('aside.panneau button:has-text("Fermer")');
 
+  // Agenda : le mois, le jour choisi, et un rendez-vous qui se répète
+  await page.click('nav >> text=Agenda');
+  await page.waitForSelector('.mois .case');
+  await page.waitForTimeout(500);
+  verifier('le mois montre les rendez-vous', true, (await page.textContent('.mois')).includes('Dentiste'));
+  await page.screenshot({ path: `${S}/13-agenda.png` });
+  await page.click('button:has-text("Nouveau rendez-vous")');
+  await page.waitForSelector('form.panneau');
+  await page.fill('form.panneau label:has-text("Titre") input', 'Vaccin du chat');
+  await page.fill('form.panneau label:has-text("Lieu") input', 'Clinique des Lilas');
+  await page.click('form.panneau button:has-text("Chaque semaine")');
+  await page.click('form.panneau button[type=submit]');
+  await page.waitForSelector('form.panneau', { state: 'detached' });
+  await page.waitForTimeout(500);
+  verifier('le rendez-vous paraît dans le jour choisi', true, (await page.textContent('.jour-choisi')).includes('Vaccin du chat'));
+  await page.click('.segment button:has-text("Liste")');
+  await page.waitForTimeout(500);
+  verifier('il se répète chaque semaine', true, (await page.locator('.liste .element', { hasText: 'Vaccin du chat' }).count()) >= 5);
+  await page.click('.segment button:has-text("Mois")');
+
   // Menu du compte
   await page.click('button[aria-label="Mon compte"]');
   await page.screenshot({ path: `${S}/6-menu.png` });

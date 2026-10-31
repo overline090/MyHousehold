@@ -153,6 +153,12 @@ export class AppointmentsService {
       select: { timezone: true },
     });
 
+    // Un instant complet (2026-10-31T00:00:00Z) est accepté aussi : on en
+    // garde le jour, dans le fuseau du foyer. Le dérouler tel quel ferait
+    // échouer les séries.
+    from = (DateTime.fromISO(from, { zone: household.timezone }).toISODate() ?? from) as LocalDate;
+    to = (DateTime.fromISO(to, { zone: household.timezone }).toISODate() ?? to) as LocalDate;
+
     const windowStart = DateTime.fromISO(from, { zone: household.timezone })
       .startOf('day')
       .toJSDate();
