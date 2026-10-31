@@ -31,6 +31,14 @@ La session du navigateur passe par un cookie `HttpOnly` (voir [api.md](api.md)) 
 jeton d'accès vit en mémoire de la page, et recharger la page reprend la session sans
 redemander le mot de passe.
 
+**L'accueil en tuiles.** En mode Personnaliser, chaque tuile se redimensionne à la
+souris par son coin, son bord droit ou son bord bas. La largeur se cale sur les 12
+colonnes de la grille ; la hauteur s'aimante sur le bas d'une tuile voisine de la même
+ligne, sinon sur une longueur entière (une unité ≈ 1 cm à l'écran, 1,05 → 1). Lâchée
+par sa poignée au milieu d'une autre tuile, une tuile échange sa place avec elle ;
+sur son bord gauche ou droit, elle s'insère à côté. Largeur (`colonnes`) et hauteur
+(`hauteur`, en pixels, absente = celle du contenu) sont enregistrées dans le compte.
+
 Ce qu'elle ne fait **pas** : notifications push, mode hors-ligne, scan de QR code.
 Ce sont des choses de téléphone, et prétendre les faire au navigateur donnerait une
 version dégradée de l'app.

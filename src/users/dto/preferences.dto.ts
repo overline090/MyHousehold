@@ -5,22 +5,45 @@ import {
   IsArray,
   IsBoolean,
   IsIn,
+  IsInt,
   IsOptional,
   IsString,
   Matches,
+  Max,
+  Min,
   ValidateNested,
 } from 'class-validator';
 
-/** Une tuile de l'accueil : laquelle, et sa largeur. */
+/**
+ * Une tuile de l'accueil : laquelle, sa largeur en colonnes (sur 12) et
+ * sa hauteur en pixels — absente, la tuile prend la hauteur de son
+ * contenu. `taille` (S, M, L, XL) est l'ancienne largeur : encore
+ * acceptée, l'interface la convertit en colonnes.
+ */
 export class TuileDto {
   @ApiPropertyOptional({ example: 'en-retard' })
   @IsString()
   @Matches(/^[a-z0-9-]{1,40}$/)
   id!: string;
 
-  @ApiPropertyOptional({ enum: ['S', 'M', 'L', 'XL'] })
+  @ApiPropertyOptional({ minimum: 1, maximum: 12, example: 6 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(12)
+  colonnes?: number;
+
+  @ApiPropertyOptional({ minimum: 40, maximum: 4000, example: 228 })
+  @IsOptional()
+  @IsInt()
+  @Min(40)
+  @Max(4000)
+  hauteur?: number;
+
+  @ApiPropertyOptional({ enum: ['S', 'M', 'L', 'XL'], deprecated: true })
+  @IsOptional()
   @IsIn(['S', 'M', 'L', 'XL'])
-  taille!: 'S' | 'M' | 'L' | 'XL';
+  taille?: 'S' | 'M' | 'L' | 'XL';
 }
 
 /**

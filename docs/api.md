@@ -103,7 +103,8 @@ Limites de débit, par IP et par route :
 ## Mon compte
 
 `GET` et `PUT /users/me/preferences` : les préférences d'affichage du compte — tuiles de
-l'accueil (`accueil`, avec leur taille `S`, `M`, `L` ou `XL`), menu replié
+l'accueil (`accueil` : `colonnes` de 1 à 12, `hauteur` en pixels ou absente pour la hauteur
+du contenu ; l'ancienne `taille` `S`, `M`, `L` ou `XL` reste acceptée), menu replié
 (`navigationRepliee`), page à l'ouverture, thème. Ce qui n'est pas envoyé est gardé.
 
 | Méthode | Route | Droit | Description |

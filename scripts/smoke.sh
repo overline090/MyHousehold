@@ -585,10 +585,10 @@ check "le cookie seul suffit à renouveler la session" "201" \
 check "sans cookie ni jeton, pas de renouvellement" "401" \
   "$(status -X POST "$BASE/auth/refresh" -H 'content-type: application/json' -H 'x-mh-client: web' -d '{}')"
 WEB_TOKEN=$(echo "$WEB" | field "['accessToken']")
-check "les préférences se gardent" "en-retard M" \
+check "les préférences se gardent" "en-retard 9 228" \
   "$(curl -s -X PUT "$BASE/users/me/preferences" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' \
-    -d '{"accueil":[{"id":"en-retard","taille":"M"},{"id":"rendez-vous","taille":"XL"}]}' | py "
-import json,sys; d=json.load(sys.stdin); print(d['accueil'][0]['id'], d['accueil'][0]['taille'])")"
+    -d '{"accueil":[{"id":"en-retard","colonnes":9,"hauteur":228},{"id":"rendez-vous","taille":"XL"}]}' | py "
+import json,sys; d=json.load(sys.stdin); t=d['accueil'][0]; print(t['id'], t['colonnes'], t['hauteur'])")"
 check "ce qui n'est pas envoyé est gardé" "True 2" \
   "$(curl -s -X PUT "$BASE/users/me/preferences" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' \
     -d '{"navigationRepliee":true}' | py "
@@ -596,6 +596,9 @@ import json,sys; d=json.load(sys.stdin); print(d['navigationRepliee'], len(d['ac
 check "une taille de tuile inconnue est refusée" "400" \
   "$(status -X PUT "$BASE/users/me/preferences" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' \
     -d '{"accueil":[{"id":"en-retard","taille":"XXL"}]}')"
+check "une tuile de plus de 12 colonnes est refusée" "400" \
+  "$(status -X PUT "$BASE/users/me/preferences" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' \
+    -d '{"accueil":[{"id":"en-retard","colonnes":13}]}')"
 check "se déconnecter efface le cookie" "204" \
   "$(curl -s -o /dev/null -w '%{http_code}' -b "$POT" -c "$POT" -X POST "$BASE/auth/logout" -H 'content-type: application/json' -H 'x-mh-client: web' -d '{}')"
 check "le cookie n'est plus" "absent" "$(grep -q 'mh_refresh' "$POT" && echo present || echo absent)"

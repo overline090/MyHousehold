@@ -3,6 +3,7 @@
   import { barre } from '../../lib/barre.svelte';
   import Icone from '../../lib/Icone.svelte';
   import { enregistrerPreferences, preferences, type Taille, type Tuile } from '../../lib/preferences.svelte';
+  import { aimanter, colonnesPour, uniteEnClair } from './tuiles';
   import { aller } from '../../lib/route.svelte';
   import { aLeDroit, api, session } from '../../lib/session.svelte';
   import Photo from '../Photo.svelte';
@@ -29,14 +30,20 @@
     autres: 'À faire par les autres',
   };
   const PAR_DEFAUT: Tuile[] = [
-    { id: 'en-retard', taille: 'L' },
-    { id: 'aujourd-hui', taille: 'S' },
-    { id: 'mes-taches', taille: 'M' },
-    { id: 'rendez-vous', taille: 'M' },
-    { id: 'a-surveiller', taille: 'M' },
-    { id: 'autres', taille: 'M' },
+    { id: 'en-retard', colonnes: 8 },
+    { id: 'aujourd-hui', colonnes: 4 },
+    { id: 'mes-taches', colonnes: 6 },
+    { id: 'rendez-vous', colonnes: 6 },
+    { id: 'a-surveiller', colonnes: 6 },
+    { id: 'autres', colonnes: 6 },
   ];
-  const TAILLES: Taille[] = ['S', 'M', 'L', 'XL'];
+  /** Les dispositions enregistrées avant le redimensionnement à la main. */
+  const LARGEURS: Record<Taille, number> = { S: 4, M: 6, L: 8, XL: 12 };
+
+  function normaliser(t: Tuile): Tuile {
+    const colonnes = Math.min(12, Math.max(1, t.colonnes ?? LARGEURS[t.taille ?? 'M'] ?? 6));
+    return t.hauteur ? { id: t.id, colonnes, hauteur: t.hauteur } : { id: t.id, colonnes };
+  }
 
   let donnees = $state<Accueil | null>(null);
   let erreur = $state<string | null>(null);
@@ -44,12 +51,18 @@
   let brouillon = $state<Tuile[]>([]);
   let catalogue = $state(false);
   let glissee = $state<number | null>(null);
+  /** Où la tuile glissée serait lâchée : sur une autre (échange), ou à côté (insertion). */
+  let survol = $state<{ index: number; mode: 'echanger' | 'avant' | 'apres' } | null>(null);
+  let depuisPoignee = false;
+  let grille = $state<HTMLElement>();
+  /** Le redimensionnement en cours : ce que la tuile mesure, et sur quoi elle s'est aimantée. */
+  let redim = $state<{ index: number; aligneSur: string | null; repere: number | null } | null>(null);
 
   const fuseau = $derived(session.foyer?.timezone ?? 'Europe/Paris');
   const disposition = $derived(
     edition
       ? brouillon
-      : (preferences.valeurs.accueil ?? PAR_DEFAUT).filter((t) => t.id in TUILES),
+      : (preferences.valeurs.accueil ?? PAR_DEFAUT).filter((t) => t.id in TUILES).map(normaliser),
   );
   const peutCocher = $derived(aLeDroit('COMPLETE_TASKS'));
 
@@ -77,12 +90,12 @@
   });
 
   function personnaliser() {
-    brouillon = disposition.map((t) => ({ ...t }));
+    brouillon = disposition.map(normaliser);
     edition = true;
   }
 
   async function terminer() {
-    const tuiles = brouillon.map((t) => ({ ...t }));
+    const tuiles = brouillon.map(normaliser);
     edition = false;
     catalogue = false;
     await enregistrerPreferences({ accueil: tuiles }).catch(() => {});
@@ -92,12 +105,82 @@
     brouillon = PAR_DEFAUT.map((t) => ({ ...t }));
   }
 
-  function deplacer(depuis: number, vers: number) {
-    if (depuis === vers) return;
+  /** Lâchée sur une autre tuile : elles échangent leur place, chacune garde sa taille. */
+  function lacher(depuis: number, cible: number, mode: 'echanger' | 'avant' | 'apres') {
+    if (depuis === cible) return;
     const copie = [...brouillon];
-    const [tuile] = copie.splice(depuis, 1);
-    copie.splice(vers, 0, tuile);
+    if (mode === 'echanger') {
+      [copie[depuis], copie[cible]] = [copie[cible], copie[depuis]];
+    } else {
+      const [tuile] = copie.splice(depuis, 1);
+      let vers = cible > depuis ? cible - 1 : cible;
+      if (mode === 'apres') vers += 1;
+      copie.splice(vers, 0, tuile);
+    }
     brouillon = copie;
+  }
+
+  /** Au milieu d'une tuile : échanger ; sur son bord gauche ou droit : s'insérer à côté. */
+  function modeDeLacher(e: DragEvent): 'echanger' | 'avant' | 'apres' {
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const x = (e.clientX - r.left) / r.width;
+    return x < 0.2 ? 'avant' : x > 0.8 ? 'apres' : 'echanger';
+  }
+
+  function survoler(e: DragEvent, index: number) {
+    e.preventDefault();
+    survol = glissee === null || glissee === index ? null : { index, mode: modeDeLacher(e) };
+  }
+
+  /**
+   * Tirer le coin, le bord droit ou le bord bas : la largeur se cale sur
+   * les colonnes, la hauteur s'aimante sur le bas d'une tuile voisine,
+   * sinon sur une longueur entière.
+   */
+  function redimensionner(e: PointerEvent, index: number, sens: 'coin' | 'droite' | 'bas') {
+    if (e.button !== 0 || !grille) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const poignee = e.currentTarget as HTMLElement;
+    const section = poignee.closest('section') as HTMLElement;
+    const depart = { x: e.clientX, y: e.clientY, l: section.offsetWidth, h: section.offsetHeight };
+    const tuile = brouillon[index];
+    poignee.setPointerCapture(e.pointerId);
+    redim = { index, aligneSur: null, repere: null };
+
+    const bouger = (ev: PointerEvent) => {
+      if (!grille) return;
+      if (sens !== 'bas') {
+        tuile.colonnes = colonnesPour(depart.l + ev.clientX - depart.x, grille.clientWidth);
+      }
+      if (sens !== 'droite') {
+        // Mesuré à chaque mouvement : changer la largeur peut faire passer
+        // la tuile à la ligne, et les voisines avec elle.
+        const haut = section.getBoundingClientRect().top;
+        const voisines = [...grille.querySelectorAll<HTMLElement>('section.tuile')]
+          .filter((v) => v !== section)
+          .map((v) => {
+            const r = v.getBoundingClientRect();
+            return { nom: v.getAttribute('aria-label') ?? '', haut: r.top - haut, bas: r.bottom - haut };
+          });
+        const resultat = aimanter(depart.h + ev.clientY - depart.y, voisines);
+        tuile.hauteur = resultat.hauteur;
+        redim = {
+          index,
+          aligneSur: resultat.aligneSur,
+          repere: resultat.aligneSur ? haut - grille.getBoundingClientRect().top + resultat.hauteur : null,
+        };
+      }
+    };
+    const finir = () => {
+      poignee.removeEventListener('pointermove', bouger);
+      poignee.removeEventListener('pointerup', finir);
+      poignee.removeEventListener('pointercancel', finir);
+      redim = null;
+    };
+    poignee.addEventListener('pointermove', bouger);
+    poignee.addEventListener('pointerup', finir);
+    poignee.addEventListener('pointercancel', finir);
   }
 
   async function cocher(o: Occurrence) {
@@ -258,38 +341,77 @@
 
 {#if edition}
   <div class="encadre accent bandeau">
-    Glissez les tuiles pour les déplacer, choisissez leur taille (S, M, L, XL), retirez celles qui ne
-    vous servent pas. Votre accueil n’appartient qu’à vous : chacun a le sien.
+    Tirez le coin ou un bord d’une tuile pour la redimensionner : la taille s’aimante sur des longueurs
+    entières et sur le bord des tuiles voisines. Glissez une tuile par sa poignée sur une autre pour les
+    échanger, ou sur son bord pour l’insérer à côté. Double-cliquez le coin pour revenir à la hauteur
+    automatique. Votre accueil n’appartient qu’à vous : chacun a le sien.
   </div>
 {/if}
 
-<div class="tuiles" class:edition>
+<div class="tuiles" class:edition class:redim={redim !== null} bind:this={grille}>
+  {#if redim}
+    <div class="guides" aria-hidden="true">{#each Array(12) as _, i (i)}<i></i>{/each}</div>
+    {#if redim.repere !== null}
+      <div class="repere" style:top="{redim.repere}px"><span>Aligné sur « {redim.aligneSur} »</span></div>
+    {/if}
+  {/if}
   {#each disposition as tuile, i (tuile.id)}
     {#if edition || contenu(tuile.id) > 0 || !donnees}
       <section
-        class="tuile t{tuile.taille}"
+        class="tuile"
+        class:fixe={!!tuile.hauteur}
+        style:grid-column="span {tuile.colonnes}"
+        style:height={tuile.hauteur ? `${tuile.hauteur}px` : null}
         role="group"
         aria-label={TUILES[tuile.id]}
         class:glissee={glissee === i}
+        class:cible={survol?.index === i && survol.mode === 'echanger'}
+        class:avant={survol?.index === i && survol.mode === 'avant'}
+        class:apres={survol?.index === i && survol.mode === 'apres'}
+        class:saisie={redim?.index === i}
         draggable={edition}
-        ondragstart={() => (glissee = i)}
-        ondragover={(e) => e.preventDefault()}
+        ondragstart={(e) => {
+          // Seule la poignée déplace la tuile : les bords la redimensionnent.
+          if (!depuisPoignee) {
+            e.preventDefault();
+            return;
+          }
+          glissee = i;
+          e.dataTransfer?.setData('text/plain', tuile.id);
+        }}
+        ondragover={(e) => survoler(e, i)}
+        ondragleave={(e) => {
+          // Passer sur un élément de la tuile n'est pas la quitter.
+          const vers = e.relatedTarget as Node | null;
+          if (survol?.index === i && !(vers && (e.currentTarget as HTMLElement).contains(vers))) survol = null;
+        }}
         ondrop={(e) => {
           e.preventDefault();
-          if (glissee !== null) deplacer(glissee, i);
+          if (glissee !== null) lacher(glissee, i, modeDeLacher(e));
           glissee = null;
+          survol = null;
         }}
-        ondragend={() => (glissee = null)}
+        ondragend={() => {
+          glissee = null;
+          survol = null;
+          depuisPoignee = false;
+        }}
       >
         <div class="tete">
-          {#if edition}<span class="poignee" title="Glisser pour déplacer"><Icone nom="poignee" taille={18} /></span>{/if}
+          {#if edition}
+            <span
+              class="poignee"
+              title="Glisser pour déplacer"
+              role="presentation"
+              onpointerdown={() => (depuisPoignee = true)}
+              onpointerup={() => (depuisPoignee = false)}
+            ><Icone nom="poignee" taille={18} /></span>
+          {/if}
           <h2>{TUILES[tuile.id]}</h2>
           {#if edition}
-            <div class="tailles" role="group" aria-label="Taille">
-              {#each TAILLES as t (t)}
-                <button class:actif={tuile.taille === t} onclick={() => (tuile.taille = t)}>{t}</button>
-              {/each}
-            </div>
+            <span class="mesure-texte" title="Largeur en colonnes × hauteur">
+              {tuile.colonnes} × {tuile.hauteur ? uniteEnClair(tuile.hauteur) : 'auto'}
+            </span>
             <button
               class="retirer"
               aria-label={`Retirer ${TUILES[tuile.id]}`}
@@ -299,7 +421,39 @@
             <span class="compte">{contenu(tuile.id)}</span>
           {/if}
         </div>
-        {@render corps(tuile.id)}
+        <div class="corps">
+          {@render corps(tuile.id)}
+        </div>
+        {#if edition}
+          <span
+            class="bord-d"
+            role="presentation"
+            title="Tirer pour changer la largeur"
+            onpointerdown={(e) => redimensionner(e, i, 'droite')}
+          ></span>
+          <span
+            class="bord-b"
+            role="presentation"
+            title="Tirer pour changer la hauteur"
+            onpointerdown={(e) => redimensionner(e, i, 'bas')}
+          ></span>
+          <span
+            class="coin"
+            role="presentation"
+            title="Tirer pour redimensionner — double-clic : hauteur automatique"
+            onpointerdown={(e) => redimensionner(e, i, 'coin')}
+            ondblclick={() => (tuile.hauteur = undefined)}
+          ><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 10 10 20M20 15l-5 5M20 4 4 20" /></svg></span>
+          {#if redim?.index === i}
+            <span class="mesure">
+              {tuile.colonnes} {(tuile.colonnes ?? 1) > 1 ? 'colonnes' : 'colonne'} × {tuile.hauteur ? uniteEnClair(tuile.hauteur) : 'auto'}
+              {#if redim.aligneSur} — alignée{/if}
+            </span>
+          {/if}
+          {#if survol?.index === i && survol.mode === 'echanger' && glissee !== null}
+            <span class="echange">⇄ Échanger avec « {TUILES[disposition[glissee].id]} »</span>
+          {/if}
+        {/if}
       </section>
     {/if}
   {/each}
@@ -308,7 +462,7 @@
     <div class="ajout-tuile">
       {#if catalogue}
         {#each Object.keys(TUILES).filter((id) => !brouillon.some((t) => t.id === id)) as id (id)}
-          <button onclick={() => (brouillon = [...brouillon, { id, taille: 'M' }])}>+ {TUILES[id]}</button>
+          <button onclick={() => (brouillon = [...brouillon, { id, colonnes: 6 }])}>+ {TUILES[id]}</button>
         {:else}
           <p class="muet">Toutes les tuiles sont déjà sur votre accueil.</p>
         {/each}
@@ -326,6 +480,7 @@
   }
 
   .tuiles {
+    position: relative;
     display: grid;
     grid-template-columns: repeat(12, minmax(0, 1fr));
     gap: 16px;
@@ -341,22 +496,23 @@
     flex-direction: column;
     gap: 8px;
     min-width: 0;
+    position: relative;
   }
 
-  .tS {
-    grid-column: span 4;
-  }
-  .tM {
-    grid-column: span 6;
-  }
-  .tL {
-    grid-column: span 8;
-  }
-  .tXL {
-    grid-column: span 12;
+  .corps {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 0;
   }
 
-  /* Sur téléphone, les tuiles s'empilent dans l'ordre choisi. */
+  /* Une hauteur choisie à la main : ce qui dépasse défile dans la tuile. */
+  .fixe .corps {
+    flex: 1;
+    overflow: auto;
+  }
+
+  /* Sur téléphone, les tuiles s'empilent dans l'ordre choisi, avec la hauteur choisie. */
   @media (max-width: 760px) {
     .tuile,
     .ajout-tuile {
@@ -404,14 +560,16 @@
     display: flex;
   }
 
-  .tailles {
-    display: flex;
+  .mesure-texte {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--gris);
     border: 1px solid var(--trait-net);
     border-radius: 8px;
-    overflow: hidden;
+    padding: 3px 7px;
+    white-space: nowrap;
   }
 
-  .tailles button,
   .retirer {
     min-height: 0;
     border: none;
@@ -423,13 +581,158 @@
     background: transparent;
   }
 
-  .tailles button + button {
-    border-left: 1px solid var(--trait-net);
+  .coin {
+    position: absolute;
+    right: 3px;
+    bottom: 3px;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--gris);
+    cursor: nwse-resize;
+    touch-action: none;
   }
 
-  .tailles button.actif {
+  .bord-d,
+  .bord-b {
+    position: absolute;
+    touch-action: none;
+  }
+
+  .bord-d {
+    top: 18px;
+    bottom: 26px;
+    right: -4px;
+    width: 10px;
+    cursor: ew-resize;
+  }
+
+  .bord-b {
+    left: 18px;
+    right: 26px;
+    bottom: -4px;
+    height: 10px;
+    cursor: ns-resize;
+  }
+
+  .bord-d::after,
+  .bord-b::after {
+    content: '';
+    position: absolute;
+    border-radius: 4px;
+    background: var(--trait-net);
+  }
+
+  .bord-d::after {
+    top: 50%;
+    left: 3px;
+    width: 4px;
+    height: 36px;
+    margin-top: -18px;
+  }
+
+  .bord-b::after {
+    left: 50%;
+    top: 3px;
+    height: 4px;
+    width: 36px;
+    margin-left: -18px;
+  }
+
+  .edition .tuile.saisie,
+  .edition .tuile.cible {
+    border: 2px solid var(--accent);
+  }
+
+  .tuile.saisie {
+    box-shadow: 0 8px 28px rgba(15, 118, 110, 0.18);
+    z-index: 2;
+  }
+
+  .tuile.saisie .coin {
+    color: var(--accent);
+  }
+
+  .tuile.cible {
+    background: var(--accent-doux);
+  }
+
+  .tuile.avant {
+    box-shadow: -8px 0 0 -2px var(--accent);
+  }
+
+  .tuile.apres {
+    box-shadow: 8px 0 0 -2px var(--accent);
+  }
+
+  .mesure,
+  .echange {
+    position: absolute;
     background: var(--accent);
     color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 999px;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 3;
+  }
+
+  .mesure {
+    right: 28px;
+    bottom: 8px;
+  }
+
+  .echange {
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 13px;
+    padding: 7px 14px;
+  }
+
+  .guides {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 16px;
+    pointer-events: none;
+  }
+
+  .guides i {
+    background: rgba(15, 118, 110, 0.05);
+    border-left: 1px dashed rgba(15, 118, 110, 0.25);
+    border-right: 1px dashed rgba(15, 118, 110, 0.25);
+  }
+
+  .repere {
+    position: absolute;
+    left: -6px;
+    right: -6px;
+    height: 0;
+    border-top: 2px dashed var(--accent);
+    pointer-events: none;
+    z-index: 3;
+  }
+
+  .repere span {
+    position: absolute;
+    right: 8px;
+    top: -26px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 2px 9px;
+    border-radius: 999px;
+  }
+
+  .redim {
+    user-select: none;
   }
 
   .retirer {

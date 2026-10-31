@@ -3,7 +3,12 @@ import { api } from './session.svelte';
 export type Taille = 'S' | 'M' | 'L' | 'XL';
 export interface Tuile {
   id: string;
-  taille: Taille;
+  /** Largeur, sur les 12 colonnes de l'accueil. */
+  colonnes?: number;
+  /** Hauteur en pixels ; absente, la tuile prend la hauteur de son contenu. */
+  hauteur?: number;
+  /** L'ancienne largeur, avant le redimensionnement à la main. */
+  taille?: Taille;
 }
 
 export interface Preferences {

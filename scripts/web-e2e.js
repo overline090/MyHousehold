@@ -56,7 +56,37 @@ const verifier = (l, a, o) => { if (a === o) console.log('  ✓ ' + l); else { c
   // Personnaliser
   await page.click('text=Personnaliser');
   await page.waitForSelector('.tuiles.edition');
-  await page.locator('section[aria-label="En retard"] .tailles button', { hasText: 'XL' }).click();
+  // Échanger « Mes tâches du jour » et « Rendez-vous de la semaine » par la poignée
+  const ordre = () => page.locator('.tuiles section').evaluateAll((s) => s.map((e) => e.getAttribute('aria-label')));
+  const ordreAvant = await ordre();
+  await page.locator('section[aria-label="Mes tâches du jour"] .poignee').dragTo(page.locator('section[aria-label="Rendez-vous de la semaine"]'));
+  await page.waitForTimeout(200);
+  const ordreApres = await ordre();
+  verifier('deux tuiles s’échangent', true,
+    ordreApres.indexOf('Mes tâches du jour') === ordreAvant.indexOf('Rendez-vous de la semaine') &&
+    ordreApres.indexOf('Rendez-vous de la semaine') === ordreAvant.indexOf('Mes tâches du jour'));
+  if (!echecs.length) {} else console.log('    ', ordreAvant, '→', ordreApres);
+  // Tirer le bas d'« En retard » près du bas d'« Aujourd'hui » : elle s'y aligne
+  const voisine = await page.locator('section[aria-label="Aujourd’hui"]').boundingBox();
+  const bas = await page.locator('section[aria-label="En retard"] .bord-b').boundingBox();
+  await page.mouse.move(bas.x + bas.width / 2, bas.y + bas.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(bas.x + bas.width / 2, voisine.y + voisine.height + 6, { steps: 6 });
+  verifier('le repère d’alignement apparaît', true, await page.isVisible('.repere'));
+  await page.mouse.up();
+  const alignee = await page.locator('section[aria-label="En retard"]').boundingBox();
+  verifier('elle a la hauteur de sa voisine', Math.round(voisine.height), Math.round(alignee.height));
+  // Redimensionner « En retard » par son coin : plus large, et une hauteur choisie
+  const coin = await page.locator('section[aria-label="En retard"] .coin').boundingBox();
+  await page.mouse.move(coin.x + coin.width / 2, coin.y + coin.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(coin.x + 120, coin.y + 90, { steps: 8 });
+  await page.screenshot({ path: `${S}/4a-redimensionner.png` });
+  verifier('la taille s’affiche pendant qu’on tire', true, await page.isVisible('section[aria-label="En retard"] .mesure'));
+  await page.mouse.up();
+  const tailleChoisie = await page.locator('section[aria-label="En retard"]').evaluate((e) => ({ col: e.style.gridColumn, h: e.style.height }));
+  verifier('la tuile s’est élargie', true, tailleChoisie.col !== 'span 8' && tailleChoisie.col.startsWith('span'));
+  verifier('sa hauteur est une longueur entière', 0, parseInt(tailleChoisie.h) % 38);
   await page.locator('button[aria-label="Retirer À faire par les autres"]').click();
   await page.screenshot({ path: `${S}/4-personnaliser.png` });
   await page.click('button.primaire:has-text("Terminé")');
@@ -67,7 +97,8 @@ const verifier = (l, a, o) => { if (a === o) console.log('  ✓ ' + l); else { c
   await page.waitForSelector('.tuiles section');
   await page.waitForTimeout(500);
   verifier('la session reprend après rechargement', true, await page.isVisible('text=Personnaliser'));
-  verifier('la taille choisie est gardée', true, await page.locator('section[aria-label="En retard"]').evaluate((e) => e.classList.contains('tXL')));
+  const apres = await page.locator('section[aria-label="En retard"]').evaluate((e) => ({ col: e.style.gridColumn, h: e.style.height }));
+  verifier('la taille choisie est gardée', JSON.stringify(tailleChoisie), JSON.stringify(apres));
   verifier('la tuile retirée reste retirée', false, await page.isVisible('section[aria-label="À faire par les autres"]'));
 
   // Ajout rapide
