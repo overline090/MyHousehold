@@ -285,3 +285,20 @@ p { margin: 0; }
 .couleurs { display: flex; gap: 8px; }
 .couleurs i { width: 26px; height: 26px; border-radius: 50%; display: block; }
 .couleurs i.actif { box-shadow: 0 0 0 3px #fff, 0 0 0 5px var(--encre); }
+
+/* Redimensionner une tuile à la main (maquette 31). */
+.tuiles.libres { grid-auto-rows: 64px; position: relative; }
+.tuiles.libres .tuile { position: relative; overflow: hidden; }
+.coin { position: absolute; right: 4px; bottom: 4px; width: 18px; height: 18px; cursor: nwse-resize; color: var(--gris); }
+.bord-d { position: absolute; top: 18px; bottom: 26px; right: -2px; width: 8px; cursor: ew-resize; }
+.bord-d::after { content: ""; position: absolute; top: 50%; left: 2px; width: 4px; height: 36px; margin-top: -18px; border-radius: 4px; background: var(--trait-net); }
+.bord-b { position: absolute; left: 18px; right: 26px; bottom: -2px; height: 8px; cursor: ns-resize; }
+.bord-b::after { content: ""; position: absolute; left: 50%; top: 2px; height: 4px; width: 36px; margin-left: -18px; border-radius: 4px; background: var(--trait-net); }
+.tuile.saisie-en-cours { border: 2px solid var(--accent) !important; box-shadow: 0 8px 28px rgba(15,118,110,.18); }
+.tuile.saisie-en-cours .coin { color: var(--accent); }
+.fantome { border: 2px dashed var(--accent); border-radius: 16px; background: rgba(15,118,110,.06); pointer-events: none; }
+.guides { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; pointer-events: none; }
+.guides i { background: rgba(15,118,110,.05); border-left: 1px dashed rgba(15,118,110,.25); border-right: 1px dashed rgba(15,118,110,.25); }
+.mesure { position: absolute; right: 26px; bottom: 8px; background: var(--accent); color: #fff; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 999px; }
+.taille-texte { font-size: 11px; font-weight: 700; color: var(--gris); border: 1px solid var(--trait-net); border-radius: 8px; padding: 3px 7px; }
+.mini-saisie { display: inline-flex; align-items: center; justify-content: center; min-width: 52px; height: 36px; border: 1px solid var(--accent); border-radius: 10px; font-weight: 700; background: var(--surface); }
