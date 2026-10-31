@@ -117,6 +117,7 @@ enum ActivityVerb {
   MEMBER_ACCOUNT_DELETED
   MEMBER_STATUS_CHANGED
   ADMIN_RIGHTS_TRANSFERRED
+  STOCK_OUT
 }
 
 // ──────────────────────── Identité et foyer ─────────────────────────────
@@ -213,6 +214,8 @@ model Household {
   registrationOpen Boolean @default(false)
   /// Durée de validité d'un code d'invitation, en heures.
   inviteTtlHours   Int     @default(168)
+  /// Les plugins activés, par identifiant : { "stock": true }.
+  plugins          Json    @default("{}")
 
   createdAt DateTime  @default(now()) @db.Timestamptz
   updatedAt DateTime  @updatedAt @db.Timestamptz
@@ -224,6 +227,7 @@ model Household {
   occurrences  TaskOccurrence[]
   appointments Appointment[]
   activities   ActivityLog[]
+  stockBoards  StockBoard[]
 
   @@map("household")
 }
@@ -704,4 +708,54 @@ model PasswordReset {
 
   @@index([userId])
   @@map("password_reset")
+}
+
+// ──────────────────────── Plugin : gestion de stock ────────────────────
+
+/// Un tableau d'articles : le garde-manger, la salle de bain, la cave…
+model StockBoard {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  householdId String    @db.Uuid
+  name        String
+  /// Une icône de la liste, ou une image importée (imagePath) ; ni l'une
+  /// ni l'autre : rien.
+  icon        String?
+  imagePath   String?
+  color       String?
+  position    Int       @default(0)
+  createdAt   DateTime  @default(now()) @db.Timestamptz
+  updatedAt   DateTime  @updatedAt @db.Timestamptz
+  deletedAt   DateTime? @db.Timestamptz
+
+  household Household   @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  items     StockItem[]
+
+  @@index([householdId])
+  @@map("stock_board")
+}
+
+/// Un article : ce qu'il en reste, sous quel minimum il faut en racheter,
+/// quand il périme, où le racheter.
+model StockItem {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  boardId   String    @db.Uuid
+  name      String
+  icon      String?
+  imagePath String?
+  color     String?
+  quantity  Int       @default(0)
+  /// Absent : pas de minimum, l'article n'est jamais « à racheter ».
+  minimum   Int?
+  expiresOn DateTime? @db.Date
+  link      String?
+  detail    String?
+  position  Int       @default(0)
+  createdAt DateTime  @default(now()) @db.Timestamptz
+  updatedAt DateTime  @updatedAt @db.Timestamptz
+  deletedAt DateTime? @db.Timestamptz
+
+  board StockBoard @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  @@index([boardId])
+  @@map("stock_item")
 }

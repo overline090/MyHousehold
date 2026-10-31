@@ -633,6 +633,29 @@ check "inscriptions ouvertes : on s'inscrit sans code" "201" \
 curl -s -o /dev/null -X PATCH "$BASE/household" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' -d '{"registrationOpen":false}'
 check "refermées : il faut de nouveau un code" "403" \
   "$(status -X POST "$BASE/auth/register" -H 'content-type: application/json' -d '{"username":"ferme-'$SUFFIX'","password":"un mot de passe assez long","firstName":"Ferme","lastName":"Dupont"}')"
+echo
+echo "Plugin Gestion de stock"
+check "désactivé, le stock répond 403" "403" "$(status "$BASE/stock/boards" -H "authorization: Bearer $WEB_TOKEN")"
+check "on l'active" "True" \
+  "$(curl -s -X PATCH "$BASE/plugins/stock" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' -d '{"enabled":true}' | py "
+import json,sys; print([p['enabled'] for p in json.load(sys.stdin) if p['id'] == 'stock'][0])")"
+check "un plugin pas encore disponible ne s'active pas" "400" \
+  "$(status -X PATCH "$BASE/plugins/menus" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' -d '{"enabled":true}')"
+TABLEAU=$(curl -s -X POST "$BASE/stock/boards" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' -d '{"name":"Garde-manger","icon":"bocal"}' | field "['id']")
+CAFE=$(curl -s -X POST "$BASE/stock/items" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' \
+  -d '{"boardId":"'$TABLEAU'","name":"Café en grains","icon":"tasse","quantity":3,"minimum":2,"link":"https://exemple.fr/cafe"}' | field "['id']")
+TOMATES=$(curl -s -X POST "$BASE/stock/items" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' \
+  -d '{"boardId":"'$TABLEAU'","name":"Tomates pelées","quantity":6,"minimum":4}' | field "['id']")
+check "une de plus" "4" "$(curl -s -X POST "$BASE/stock/items/$CAFE/adjust" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' -d '{"delta":1}' | field "['quantity']")"
+check "une sortie fait baisser plusieurs articles d'un coup" "1 3" \
+  "$(curl -s -X POST "$BASE/stock/out" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' \
+    -d '{"items":[{"id":"'$CAFE'","quantity":3},{"id":"'$TOMATES'","quantity":3}]}' | py "
+import json,sys; d={i['name']: i['quantity'] for i in json.load(sys.stdin)}; print(d['Café en grains'], d['Tomates pelées'])")"
+check "sous le minimum, ils sont à racheter" "2" "$(curl -s "$BASE/stock/to-buy" -H "authorization: Bearer $WEB_TOKEN" | py "import json,sys; print(len([i for i in json.load(sys.stdin) if i['toBuy']]))")"
+check "la sortie est dans le journal" "yes" "$(curl -s "$BASE/activity" -H "authorization: Bearer $WEB_TOKEN" | py "
+import json,sys; print('yes' if any(e['verb'] == 'STOCK_OUT' for e in json.load(sys.stdin)['data']) else 'no')")"
+check "la quantité ne descend pas sous zéro" "0" "$(curl -s -X POST "$BASE/stock/items/$CAFE/adjust" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' -d '{"delta":-10}' | field "['quantity']")"
+echo
 check "une règle de copie automatique s'enregistre sur le foyer" "Code du portail True" \
   "$(curl -s -X PATCH "$BASE/household" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' \
     -d '{"detection":{"regles":[{"id":"portail","nom":"Code du portail","type":"MOT_CLE","motif":"Code du portail","active":true}]}}' | py "

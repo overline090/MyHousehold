@@ -7,6 +7,7 @@
   import Reglages from './Reglages.svelte';
   import Serveur from './Serveur.svelte';
   import Activite from './Activite.svelte';
+  import Plugins from './Plugins.svelte';
 
   /**
    * L'administration : une page dédiée, avec sa navigation. Chaque
@@ -55,6 +56,8 @@
       <Serveur />
     {:else if active.chemin === 'activite'}
       <Activite />
+    {:else if active.chemin === 'plugins'}
+      <Plugins />
     {:else}
       <AVenir nom={active.libelle} />
     {/if}

@@ -4,6 +4,7 @@
   import { barre } from '../lib/barre.svelte';
   import { enregistrerPreferences, preferences } from '../lib/preferences.svelte';
   import { aller, route } from '../lib/route.svelte';
+  import { pluginActif } from '../lib/plugins.svelte';
   import { aLeDroit, api, seDeconnecter, session } from '../lib/session.svelte';
   import AjoutRapide from './AjoutRapide.svelte';
   import Photo from './Photo.svelte';
@@ -16,12 +17,17 @@
     icone: NomIcone;
   }
 
-  const PRINCIPALES: Entree[] = [
+  const BASE: Entree[] = [
     { chemin: '/', libelle: 'Accueil', icone: 'accueil' },
     { chemin: '/taches', libelle: 'Tâches', icone: 'taches' },
     { chemin: '/agenda', libelle: 'Agenda', icone: 'agenda' },
     { chemin: '/foyer', libelle: 'Foyer', icone: 'foyer' },
   ];
+  /** Les pages des plugins activés s'ajoutent après celles de base. */
+  const PRINCIPALES = $derived<Entree[]>([
+    ...BASE,
+    ...(pluginActif('stock') ? [{ chemin: '/stock', libelle: 'Stock', icone: 'stock' as const }] : []),
+  ]);
   const BAS: Entree[] = [
     { chemin: '/preferences', libelle: 'Préférences', icone: 'preferences' },
     { chemin: '/a-propos', libelle: 'À propos', icone: 'apropos' },

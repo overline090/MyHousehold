@@ -16,6 +16,8 @@ import { RedisModule } from './common/redis/redis.module';
 import { validateConfig } from './config/configuration';
 import { HealthModule } from './health/health.module';
 import { ActivityModule } from './activity/activity.module';
+import { PluginsModule } from './plugins/plugins.module';
+import { StockModule } from './stock/stock.module';
 import { AdminModule } from './admin/admin.module';
 import { AgendaModule } from './agenda/agenda.module';
 import { AppointmentsModule } from './appointments/appointments.module';
@@ -116,6 +118,8 @@ function interfaceWeb(): DynamicModule[] {
     UsersModule,
     AdminModule,
     HealthModule,
+    PluginsModule,
+    StockModule,
   ],
   providers: [
     // Route protégée par défaut : c'est l'ouverture qui est explicite.

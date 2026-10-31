@@ -506,6 +506,37 @@ Détails du protocole, résolution des conflits et format des lots :
 | `GET` | `/users/me/notification-prefs` | |
 | `PATCH` | `/users/me/notification-prefs` | Heures de silence, canaux |
 
+## Plugins
+
+Les plugins sont livrés avec MyHousehold : rien ne s'installe depuis ailleurs. Un
+plugin s'active pour tout le foyer ; le désactiver ne supprime rien, ses données
+reviennent à la réactivation. Les routes d'un plugin désactivé répondent `403
+PLUGIN_DISABLED`.
+
+| Méthode | Route | Droit | Description |
+|---|---|---|---|
+| `GET` | `/plugins` | `VIEW` | Le catalogue : `id`, `nom`, `description`, `apporte`, `disponible`, `enabled` |
+| `PATCH` | `/plugins/:id` | `MANAGE_SERVER` | `{ enabled }` — un plugin `disponible: false` ne s'active pas |
+
+### Gestion de stock (`stock`)
+
+| Méthode | Route | Droit | Description |
+|---|---|---|---|
+| `GET` | `/stock/boards` | `VIEW` | Les tableaux, avec `itemCount` et `hasImage` |
+| `POST` | `/stock/boards` | `MANAGE_TASKS` | `{ name, icon?, color?, position? }` |
+| `PATCH`/`DELETE` | `/stock/boards/:id` | `MANAGE_TASKS` | Supprimer un tableau supprime ses articles |
+| `PUT`/`DELETE`/`GET` | `/stock/boards/:id/image` | `MANAGE_TASKS` / `VIEW` | Image importée (champ `file`), à la place de l'icône |
+| `GET` | `/stock/items` | `VIEW` | `?boardId=` facultatif |
+| `GET` | `/stock/to-buy` | `VIEW` | Sous le minimum ou périmés dans les 15 jours, avec `boardName` |
+| `POST` | `/stock/items` | `MANAGE_TASKS` | `{ boardId, name, icon?, color?, quantity?, minimum?, expiresOn?, link?, detail? }` |
+| `PATCH`/`DELETE` | `/stock/items/:id` | `MANAGE_TASKS` | |
+| `POST` | `/stock/items/:id/adjust` | `COMPLETE_TASKS` | `{ delta }` — jamais sous zéro |
+| `PUT`/`DELETE`/`GET` | `/stock/items/:id/image` | `MANAGE_TASKS` / `VIEW` | |
+| `POST` | `/stock/out` | `COMPLETE_TASKS` | Déclarer une sortie : `{ items: [{ id, quantity }] }`, en une fois, inscrite au fil d'activité |
+
+Chaque article porte aussi `toBuy` (quantité sous le minimum), `expired` et
+`expiresSoon` (péremption dans les 15 jours, au fuseau du foyer).
+
 ## Activité et contributions
 
 | Méthode | Route | Droit | Description |

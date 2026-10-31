@@ -300,6 +300,50 @@ const verifier = (l, a, o) => { if (a === o) console.log('  ✓ ' + l); else { c
   await page.goBack();
   await page.waitForTimeout(300);
 
+  // Plugins : Marie active la Gestion de stock, crée un tableau et un article, puis déclare une sortie
+  await page.goto(BASE + '/administration/plugins', { waitUntil: 'networkidle' });
+  await page.waitForSelector('section.carte[aria-label="Gestion de stock"]');
+  verifier('les plugins pas encore écrits sont « En préparation »', true, await page.isVisible('section[aria-label="Notifications"] >> text=En préparation'));
+  verifier('pas d’entrée Stock avant activation', false, await page.isVisible('nav >> text=Stock'));
+  await page.click('input[aria-label="Activer Gestion de stock"]');
+  await page.waitForSelector('nav.nav >> text=Stock');
+  await page.screenshot({ path: `${S}/20-plugins.png` });
+  verifier('l’entrée Stock apparaît une fois le plugin activé', true, await page.isVisible('nav.nav >> text=Stock'));
+  await page.click('nav.nav >> text=Stock');
+  await page.click('button:has-text("+ Nouveau tableau")');
+  await page.fill('form.panneau label:has-text("Nom") input', 'Garde-manger');
+  await page.click('form.panneau button:has-text("Créer le tableau")');
+  await page.waitForSelector('.tableau-puce:has-text("Garde-manger")');
+  await page.click('button:has-text("+ Nouvel article")');
+  await page.fill('form.panneau label:has-text("Nom") input', 'Café en grains');
+  await page.fill('form.panneau input[aria-label="Quantité"]', '3');
+  await page.check('form.panneau label:has-text("Minimum") input');
+  await page.fill('form.panneau input[aria-label="Minimum"]', '2');
+  await page.click('form.panneau button:has-text("Enregistrer")');
+  await page.waitForSelector('.rang:has-text("Café en grains")');
+  await page.click('button[aria-label="Une de plus : Café en grains"]');
+  await page.waitForTimeout(300);
+  verifier('+ ajoute une unité', '4', (await page.textContent('.rang:has-text("Café en grains") .nombre')).trim());
+  await page.click('button:has-text("Déclarer une sortie")');
+  await page.check('.panneau .ligne:has-text("Café en grains") input');
+  await page.click('button[aria-label="Une de plus : Café en grains"] >> nth=-1');
+  await page.click('button[aria-label="Une de plus : Café en grains"] >> nth=-1');
+  verifier('la sortie prévient du passage sous le minimum', true, await page.isVisible('.avertissement:has-text("Café en grains")'));
+  await page.screenshot({ path: `${S}/21-sortie.png` });
+  await page.click('button:has-text("Valider la sortie")');
+  await page.waitForTimeout(500);
+  verifier('la sortie retire les unités', '1', (await page.textContent('.rang:has-text("Café en grains") .nombre')).trim());
+  await page.click('.filtres button:has-text("À racheter")');
+  verifier('l’article sous le minimum est à racheter', true, await page.isVisible('.rang:has-text("Café en grains")'));
+  await page.screenshot({ path: `${S}/22-stock.png` });
+  await page.click('nav.nav >> text=Accueil');
+  await page.click('button:has-text("Personnaliser")');
+  await page.click('button:has-text("Ajouter une tuile")');
+  await page.click('button:has-text("+ À racheter")');
+  await page.click('button:has-text("Terminé")');
+  await page.waitForSelector('section[aria-label="À racheter"]:has-text("Café en grains")');
+  verifier('la tuile À racheter montre le café', true, await page.isVisible('section[aria-label="À racheter"]:has-text("Café en grains")'));
+
   // Téléphone
   const mobile = await nav.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, storageState: await ctx.storageState() });
   const m = await mobile.newPage();

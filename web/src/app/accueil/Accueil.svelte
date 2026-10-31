@@ -6,7 +6,10 @@
   import { aimanter, colonnesPour, uniteEnClair } from './tuiles';
   import { aller } from '../../lib/route.svelte';
   import { aLeDroit, api, session } from '../../lib/session.svelte';
+  import { pluginActif } from '../../lib/plugins.svelte';
   import Photo from '../Photo.svelte';
+  import { imageDeLArticle, type Article } from '../stock/donnees';
+  import Vignette from '../stock/Vignette.svelte';
   import FicheLecture from '../taches/FicheLecture.svelte';
   import {
     chargerAccueil,
@@ -22,7 +25,7 @@
   } from './donnees';
 
   /** Les tuiles que l'accueil sait afficher, et la disposition de départ. */
-  const TUILES: Record<string, string> = {
+  const BASE: Record<string, string> = {
     'en-retard': 'En retard',
     'aujourd-hui': 'Aujourd’hui',
     'mes-taches': 'Mes tâches du jour',
@@ -30,6 +33,11 @@
     'a-surveiller': 'À surveiller',
     autres: 'À faire par les autres',
   };
+  /** Les tuiles des plugins n'existent que si le plugin est activé. */
+  const TUILES = $derived<Record<string, string>>({
+    ...BASE,
+    ...(pluginActif('stock') ? { 'a-racheter': 'À racheter' } : {}),
+  });
   const PAR_DEFAUT: Tuile[] = [
     { id: 'en-retard', colonnes: 8 },
     { id: 'aujourd-hui', colonnes: 4 },
@@ -69,10 +77,17 @@
   );
   const peutCocher = $derived(aLeDroit('COMPLETE_TASKS'));
 
+  /** Les articles à racheter ou bientôt périmés, quand le plugin Gestion de stock est activé. */
+  let aRacheter = $state<Article[]>([]);
+
   async function charger() {
     if (!session.utilisateur) return;
     try {
-      donnees = await chargerAccueil(fuseau, session.utilisateur.id);
+      const stock = pluginActif('stock') && aLeDroit('VIEW');
+      [donnees, aRacheter] = await Promise.all([
+        chargerAccueil(fuseau, session.utilisateur.id),
+        stock ? api<Article[]>('/stock/to-buy').catch(() => []) : Promise.resolve([]),
+      ]);
       erreur = null;
     } catch (e) {
       erreur = e instanceof ApiError ? e.message : 'Le serveur ne répond pas.';
@@ -215,6 +230,8 @@
         return donnees.aSurveiller.length;
       case 'autres':
         return donnees.autres.length;
+      case 'a-racheter':
+        return aRacheter.length;
       default:
         return 1;
     }
@@ -335,6 +352,21 @@
       </div>
     {/each}
     {#if contenu(id) === 0}<p class="muet">Personne d’autre n’a de tâche aujourd’hui.</p>{/if}
+  {:else if id === 'a-racheter'}
+    {#each aRacheter as a (a.id)}
+      <div class="carte-tache">
+        <Vignette icon={a.icon} color={a.color} image={imageDeLArticle(a)} taille={28} />
+        <div class="texte">
+          <h3>{a.name}</h3>
+          <p class="muet" class:alerte={a.expired}>
+            {a.boardName ? `${a.boardName} · ` : ''}{a.toBuy ? `reste ${a.quantity}${a.minimum !== null ? ` (min ${a.minimum})` : ''}` : ''}{a.toBuy && a.expiresSoon ? ' · ' : ''}{a.expired ? 'périmé' : a.expiresSoon ? 'bientôt périmé' : ''}
+          </p>
+        </div>
+        {#if a.link}<a class="lien" href={a.link} target="_blank" rel="noopener noreferrer">Racheter ↗</a>{/if}
+      </div>
+    {/each}
+    {#if contenu(id) === 0}<p class="muet">Rien à racheter.</p>{/if}
+    <button class="lien voir" onclick={() => aller('/stock')}>Voir le stock ›</button>
   {/if}
 {/snippet}
 

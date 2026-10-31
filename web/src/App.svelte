@@ -11,10 +11,12 @@
   import Preferences from './app/compte/Preferences.svelte';
   import Administration from './app/admin/Administration.svelte';
   import AVenir from './app/AVenir.svelte';
+  import Stock from './app/stock/Stock.svelte';
   import APropos from './app/APropos.svelte';
   import { ApiError, setupApi } from './lib/api';
   import { appliquerApparence, chargerPreferences, preferences } from './lib/preferences.svelte';
   import { aller, route } from './lib/route.svelte';
+  import { chargerPlugins, pluginActif } from './lib/plugins.svelte';
   import { restaurer, session } from './lib/session.svelte';
 
   /** Les pages dont la maquette est validée mais pas encore écrite. */
@@ -51,6 +53,11 @@
   });
 
   $effect(() => {
+    if (!session.utilisateur) return;
+    void chargerPlugins().catch(() => {});
+  });
+
+  $effect(() => {
     appliquerApparence(preferences.valeurs.apparence);
   });
 
@@ -83,6 +90,8 @@
       <Appareils />
     {:else if route.chemin.startsWith('/preferences')}
       <Preferences />
+    {:else if route.chemin.startsWith('/stock') && pluginActif('stock')}
+      <Stock />
     {:else if route.chemin.startsWith('/administration')}
       <Administration />
     {:else if page}

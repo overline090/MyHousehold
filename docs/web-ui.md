@@ -65,6 +65,16 @@ surligneur de la palette, listes, cases à cocher). À la lecture, les télépho
 repèrent les règles de **copie automatique** (Administration › Réglages du foyer)
 deviennent utilisables d'un appui.
 
+**Les plugins.** Administration › Plugins liste ceux livrés avec MyHousehold ; un
+administrateur du serveur (`MANAGE_SERVER`) les active pour tout le foyer. Ceux qui ne
+sont pas encore écrits sont marqués « En préparation ». **Gestion de stock** ajoute la
+page Stock et la tuile « À racheter » : des tableaux (garde-manger, salle de bain…)
+avec une icône ou une image, et des articles avec quantité, minimum, péremption, lien
+pour racheter et détail. Sous le minimum, l'article passe « À racheter » ; à 15 jours
+de sa péremption, « Bientôt périmé ». « Déclarer une sortie » retire d'un coup ce
+qu'on a pris, dans un ou plusieurs tableaux, et prévient de ce qui passera sous le
+minimum.
+
 Ce qu'elle ne fait **pas** : notifications push, mode hors-ligne, scan de QR code.
 Ce sont des choses de téléphone, et prétendre les faire au navigateur donnerait une
 version dégradée de l'app.
