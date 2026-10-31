@@ -219,6 +219,14 @@ const verifier = (l, a, o) => { if (a === o) console.log('  ✓ ' + l); else { c
   verifier('il se répète chaque semaine', true, (await page.locator('.liste .element', { hasText: 'Vaccin du chat' }).count()) >= 5);
   await page.click('.segment button:has-text("Mois")');
 
+  // Foyer : les membres, et ce qui a été fait ce mois-ci
+  await page.click('nav >> text=Foyer');
+  await page.waitForSelector('.membres .membre');
+  await page.waitForTimeout(400);
+  verifier('le foyer montre ses membres', 3, await page.locator('.membres .membre').count());
+  verifier('et ce que chacun a fait ce mois', true, (await page.textContent('.membres')).includes('ce mois'));
+  await page.screenshot({ path: `${S}/14-foyer.png` });
+
   // Menu du compte
   await page.click('button[aria-label="Mon compte"]');
   await page.screenshot({ path: `${S}/6-menu.png` });

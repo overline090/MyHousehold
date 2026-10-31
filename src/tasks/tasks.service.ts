@@ -1,3 +1,4 @@
+import { DateTime } from 'luxon';
 import { Injectable, Logger } from '@nestjs/common';
 import {
   ActivityVerb,
@@ -179,6 +180,53 @@ export class TasksService {
 
     const etats = await this.etatsDeFond(tasks);
     return tasks.map((task) => shapeTask(task, etats.get(task.id)));
+  }
+
+  /**
+   * Ce qui a été fait dans le mois : par personne et par groupe, toutes
+   * sortes de tâches confondues. Des faits, pas un classement — l'écran
+   * Foyer les montre sans points ni palmarès.
+   */
+  async contributions(householdId: string, month?: string) {
+    const household = await this.prisma.household.findFirstOrThrow({
+      where: { id: householdId },
+      select: { timezone: true },
+    });
+    const mois = month ?? todayIn(household.timezone, this.clock.now()).slice(0, 7);
+    const debut = DateTime.fromISO(`${mois}-01`, { zone: household.timezone }).startOf('month');
+    const fin = debut.endOf('month');
+
+    const faites = await this.prisma.taskOccurrence.findMany({
+      where: {
+        householdId,
+        deletedAt: null,
+        status: OccurrenceStatus.DONE,
+        completedAt: { gte: debut.toJSDate(), lte: fin.toJSDate() },
+        task: { deletedAt: null },
+      },
+      select: {
+        completedById: true,
+        task: { select: { group: { select: { id: true, name: true, color: true } } } },
+      },
+    });
+
+    const parMembre = new Map<string, number>();
+    const parGroupe = new Map<string, { id: string | null; name: string | null; color: string | null; count: number }>();
+    for (const f of faites) {
+      if (f.completedById) parMembre.set(f.completedById, (parMembre.get(f.completedById) ?? 0) + 1);
+      const g = f.task.group;
+      const cle = g?.id ?? 'aucun';
+      const courant = parGroupe.get(cle) ?? { id: g?.id ?? null, name: g?.name ?? null, color: g?.color ?? null, count: 0 };
+      courant.count += 1;
+      parGroupe.set(cle, courant);
+    }
+
+    return {
+      month: mois,
+      total: faites.length,
+      byMember: [...parMembre].map(([userId, count]) => ({ userId, count })),
+      byGroup: [...parGroupe.values()].sort((a, b) => b.count - a.count),
+    };
   }
 
   async findOne(householdId: string, taskId: string) {

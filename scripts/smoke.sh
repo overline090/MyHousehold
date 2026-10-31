@@ -604,6 +604,11 @@ check "une taille de tuile inconnue est refusée" "400" \
 check "une tuile de plus de 12 colonnes est refusée" "400" \
   "$(status -X PUT "$BASE/users/me/preferences" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' \
     -d '{"accueil":[{"id":"en-retard","colonnes":13}]}')"
+check "le foyer voit ce qui a été fait ce mois-ci, par personne et par groupe" "yes" \
+  "$(curl -s "$BASE/contributions" -H "authorization: Bearer $WEB_TOKEN" | py "
+import json,sys; d=json.load(sys.stdin)
+print('yes' if d['total'] >= 1 and sum(m['count'] for m in d['byMember']) <= d['total'] and sum(g['count'] for g in d['byGroup']) == d['total'] else d)")"
+check "un mois mal écrit est refusé" "400" "$(status "$BASE/contributions?month=2026-13" -H "authorization: Bearer $WEB_TOKEN")"
 check "une règle de copie automatique s'enregistre sur le foyer" "Code du portail True" \
   "$(curl -s -X PATCH "$BASE/household" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' \
     -d '{"detection":{"regles":[{"id":"portail","nom":"Code du portail","type":"MOT_CLE","motif":"Code du portail","active":true}]}}' | py "

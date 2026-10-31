@@ -5,6 +5,7 @@
   import Accueil from './app/accueil/Accueil.svelte';
   import Taches from './app/taches/Taches.svelte';
   import Agenda from './app/agenda/Agenda.svelte';
+  import Foyer from './app/foyer/Foyer.svelte';
   import Administration from './app/admin/Administration.svelte';
   import AVenir from './app/AVenir.svelte';
   import APropos from './app/APropos.svelte';
@@ -15,7 +16,6 @@
 
   /** Les pages dont la maquette est validée mais pas encore écrite. */
   const A_VENIR: Record<string, string> = {
-    '/foyer': 'Foyer',
     '/preferences': 'Préférences',
     '/profil': 'Mon profil',
     '/appareils': 'Mes appareils',
@@ -64,6 +64,8 @@
       <Taches />
     {:else if route.chemin.startsWith('/agenda')}
       <Agenda />
+    {:else if route.chemin.startsWith('/foyer')}
+      <Foyer />
     {:else if route.chemin.startsWith('/administration')}
       <Administration />
     {:else if page}

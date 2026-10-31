@@ -17,6 +17,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequireRight } from '../households/decorators/require-right.decorator';
 import { HouseholdsService } from '../households/households.service';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
+import { ContributionsDto } from './dto/contributions.dto';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { CreateTaskGroupDto, UpdateTaskGroupDto } from './dto/task-group.dto';
 import { ListOccurrencesDto } from './dto/list-occurrences.dto';
@@ -63,6 +64,13 @@ export class TasksController {
   ) {
     return this.tasks.create(
       await this.households.currentId(), user.id, dto);
+  }
+
+  @Get('contributions')
+  @RequireRight(Right.VIEW)
+  @ApiOperation({ summary: 'Ce qui a été fait dans le mois, par personne et par groupe' })
+  async contributions(@Query() query: ContributionsDto) {
+    return this.tasks.contributions(await this.households.currentId(), query.month);
   }
 
   @Get('tasks/:taskId')

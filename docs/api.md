@@ -205,6 +205,7 @@ de choses à faire.
 |---|---|---|---|
 | `GET` | `/tasks` | `VIEW` | `?kind=&groupId=&isActive=` |
 | `POST` | `/tasks` | `MANAGE_TASKS` | Création |
+| `GET` | `/contributions?month=AAAA-MM` | `VIEW` | Ce qui a été fait dans le mois (par défaut le mois en cours) : `total`, `byMember`, `byGroup` — toutes sortes de tâches confondues |
 | `GET` | `/tasks/:id` | `VIEW` | Définition + dix prochaines échéances et dix dernières fois (`history` : faite, manquée ou passée, par qui, `late`) ; pour une tâche de fond, vingt dernières fois |
 | `PATCH` | `/tasks/:id` | `MANAGE_TASKS` | Regénère les échéances futures en attente |
 | `DELETE` | `/tasks/:id` | `MANAGE_TASKS` | Suppression logique ; conserve l'historique |
