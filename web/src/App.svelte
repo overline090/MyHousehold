@@ -3,6 +3,7 @@
   import Cadre from './app/Cadre.svelte';
   import Connexion from './app/Connexion.svelte';
   import Accueil from './app/accueil/Accueil.svelte';
+  import Taches from './app/taches/Taches.svelte';
   import AVenir from './app/AVenir.svelte';
   import APropos from './app/APropos.svelte';
   import { ApiError, setupApi } from './lib/api';
@@ -12,7 +13,6 @@
 
   /** Les pages dont la maquette est validée mais pas encore écrite. */
   const A_VENIR: Record<string, string> = {
-    '/taches': 'Tâches',
     '/agenda': 'Agenda',
     '/foyer': 'Foyer',
     '/administration': 'Administration',
@@ -60,6 +60,8 @@
   <Cadre>
     {#if route.chemin === '/a-propos'}
       <APropos />
+    {:else if route.chemin.startsWith('/taches')}
+      <Taches />
     {:else if page}
       <AVenir nom={page} />
     {:else}

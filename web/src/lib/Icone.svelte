@@ -24,6 +24,7 @@
       '<circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/>',
     fermer: '<path d="M6 6l12 12M18 6 6 18"/>',
     coche: '<path d="m5 12 5 5 9-10"/>',
+    chercher: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
   } as const;
   export type NomIcone = keyof typeof ICONES;
 </script>

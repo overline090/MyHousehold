@@ -17,7 +17,7 @@ const echecs = [];
 const verifier = (l, a, o) => { if (a === o) console.log('  ✓ ' + l); else { console.log(`  ✗ ${l} — attendu ${a}, obtenu ${o}`); echecs.push(l); } };
 (async () => {
   const nav = await chromium.launch();
-  const ctx = await nav.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1.5 });
+  const ctx = await nav.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1.5, locale: 'fr-FR' });
   const page = await ctx.newPage();
   const erreurs = [];
   page.on('pageerror', (e) => erreurs.push(String(e)));
@@ -110,6 +110,34 @@ const verifier = (l, a, o) => { if (a === o) console.log('  ✓ ' + l); else { c
   await page.waitForSelector('form.feuille', { state: 'detached' });
   await page.waitForTimeout(600);
   verifier('l’ajout rapide crée la tâche', true, (await page.textContent('.tuiles')).includes('Remplacer l’ampoule'));
+
+  // Tâches : la liste, puis une tâche « tous les 3 jours » qui commence plus tard
+  await page.click('nav >> text=Tâches');
+  await page.waitForSelector('.tableau .rang:not(.titres)');
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${S}/7-taches.png` });
+  verifier('la liste des tâches montre la règle en clair', true, (await page.textContent('.tableau')).includes('Chaque jour, 11 h'));
+  await page.click('button.ajouter');
+  await page.waitForSelector('form.panneau');
+  await page.fill('form.panneau label:has-text("Titre") input', 'Arroser le potager');
+  await page.click('form.panneau button:has-text("Jours")');
+  await page.fill('form.panneau input[aria-label="Nombre de jours"]', '3');
+  const premierJour = await page.evaluate(() => { const d = new Date(Date.now() + 3 * 86400000); return d.toISOString().slice(0, 10); });
+  await page.fill('form.panneau label:has-text("Premier jour") input', premierJour);
+  await page.waitForTimeout(200);
+  const apercu = await page.locator('.apercu span').allTextContents();
+  await page.screenshot({ path: `${S}/8-tache-tous-les-3-jours.png` });
+  verifier('l’aperçu montre trois fois, à 3 jours d’écart, dès le premier jour', 3, apercu.length);
+  await page.click('form.panneau button[type=submit]');
+  await page.waitForSelector('form.panneau', { state: 'detached' });
+  await page.waitForTimeout(500);
+  const rangee = page.locator('.rang', { hasText: 'Arroser le potager' });
+  verifier('la tâche apparaît avec « Tous les 3 jours »', true, (await rangee.textContent()).includes('Tous les 3 jours'));
+  await rangee.locator('button.titre').click();
+  await page.waitForSelector('form.panneau');
+  verifier('rouverte, elle garde son rythme et son premier jour', `3 ${premierJour}`,
+    `${await page.inputValue('form.panneau input[aria-label="Nombre de jours"]')} ${await page.inputValue('form.panneau label:has-text("Premier jour") input')}`);
+  await page.click('form.panneau button:has-text("Annuler")');
 
   // Menu du compte
   await page.click('button[aria-label="Mon compte"]');

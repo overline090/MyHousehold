@@ -105,7 +105,7 @@ export class TasksService {
     assertRotationApplicable(kind, mode);
     assertAssignmentIsCoherent(mode, assignees);
     await this.assertAssigneesPeuventCompleter(assignees);
-    assertDateOrder(dto.startsOn, dto.endsOn);
+    assertDateOrder(dto.startsOn ?? undefined, dto.endsOn ?? undefined);
     await this.assertGroupeDuFoyer(householdId, dto.groupId ?? null);
 
     if (dto.id) {
@@ -370,11 +370,12 @@ export class TasksService {
           graceHours: dto.graceHours,
           maxIntervalSeconds: dto.maxIntervalSeconds,
           warnRatio: dto.warnRatio,
-          dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
+          // null retire la date : « sans date limite » est un choix normal.
+          dueDate: dateOuRien(dto.dueDate),
           assignmentMode: dto.assignmentMode,
           isActive: dto.isActive,
-          startsOn: dto.startsOn ? new Date(dto.startsOn) : undefined,
-          endsOn: dto.endsOn ? new Date(dto.endsOn) : undefined,
+          startsOn: dateOuRien(dto.startsOn),
+          endsOn: dateOuRien(dto.endsOn),
         },
       });
 
@@ -726,6 +727,12 @@ export class TasksService {
       );
     }
   }
+}
+
+/** Absent : on ne touche à rien. null : on retire la date. */
+function dateOuRien(valeur: string | null | undefined): Date | null | undefined {
+  if (valeur === undefined) return undefined;
+  return valeur ? new Date(valeur) : null;
 }
 
 function shapeTask(

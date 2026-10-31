@@ -1,8 +1,8 @@
 # Interface web du serveur
 
 > **État** : l'**assistant d'installation**, la **connexion**, le **cadre** (barre
-> d'outils, navigation repliable, disposition téléphone) et l'**accueil en tuiles
-> personnalisables** sont écrits, et joués dans un vrai navigateur contre un vrai
+> d'outils, navigation repliable, disposition téléphone), l'**accueil en tuiles
+> personnalisables** et la page **Tâches** (liste par groupe, fiche complète) sont écrits, et joués dans un vrai navigateur contre un vrai
 > serveur (`scripts/wizard-e2e.js`, `scripts/web-e2e.js`). Les autres pages ont leur
 > maquette validée et le disent en attendant.
 
@@ -38,6 +38,14 @@ ligne, sinon sur une longueur entière (une unité ≈ 1 cm à l'écran, 1,05 �
 par sa poignée au milieu d'une autre tuile, une tuile échange sa place avec elle ;
 sur son bord gauche ou droit, elle s'insère à côté. Largeur (`colonnes`) et hauteur
 (`hauteur`, en pixels, absente = celle du contenu) sont enregistrées dans le compte.
+
+**La page Tâches.** Toutes les tâches, rangées par groupe, avec leur règle en clair et
+la prochaine fois. La fiche, en panneau, crée ou modifie une tâche : récurrente (tous
+les N jours, jours de la semaine, dates du mois ou de l'année, toutes les N semaines ou
+N mois — avec une heure ou toute la journée, et un **premier jour** qui peut être dans
+le futur), de fond (à refaire dans les N jours) ou ponctuelle (avec ou sans date
+limite). L'aperçu des trois prochaines fois, avec qui s'en charge à tour de rôle, suit
+la saisie. Sur cette page, « Ajouter » ouvre la fiche complète.
 
 Ce qu'elle ne fait **pas** : notifications push, mode hors-ligne, scan de QR code.
 Ce sont des choses de téléphone, et prétendre les faire au navigateur donnerait une

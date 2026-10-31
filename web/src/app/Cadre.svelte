@@ -151,7 +151,7 @@
       <div class="actions">{@render barre.actions()}</div>
     {/if}
     {#if peutAjouter && !telephone}
-      <button class="primaire ajouter" onclick={() => (ajout = true)}>
+      <button class="primaire ajouter" onclick={() => (barre.ajouter ? barre.ajouter() : (ajout = true))}>
         <Icone nom="plus" taille={18} />Ajouter
       </button>
     {/if}
@@ -179,7 +179,7 @@
 
   {#if telephone}
     {#if peutAjouter}
-      <button class="fab" aria-label="Ajouter" onclick={() => (ajout = true)}><Icone nom="plus" taille={28} /></button>
+      <button class="fab" aria-label="Ajouter" onclick={() => (barre.ajouter ? barre.ajouter() : (ajout = true))}><Icone nom="plus" taille={28} /></button>
     {/if}
     <nav class="onglets" aria-label="Onglets">
       {#each PRINCIPALES.slice(0, 3) as entree (entree.chemin)}

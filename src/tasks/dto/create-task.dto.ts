@@ -142,7 +142,7 @@ export class CreateTaskDto {
   })
   @IsOptional()
   @IsDateString({ strict: true })
-  dueDate?: string;
+  dueDate?: string | null;
 
   // ── Commun ─────────────────────────────────────────────────────────
 
@@ -165,12 +165,12 @@ export class CreateTaskDto {
   @ApiPropertyOptional({ description: 'Premier jour possible, YYYY-MM-DD' })
   @IsOptional()
   @IsDateString({ strict: true })
-  startsOn?: string;
+  startsOn?: string | null;
 
   @ApiPropertyOptional({ description: 'Dernier jour possible, YYYY-MM-DD' })
   @IsOptional()
   @IsDateString({ strict: true })
-  endsOn?: string;
+  endsOn?: string | null;
 
   @ApiPropertyOptional({ default: true })
   @IsOptional()
