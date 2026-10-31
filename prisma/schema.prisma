@@ -140,6 +140,10 @@ model User {
   avatarPath   String?
   avatarColor  String    @default("#6750A4")
   locale       String    @default("fr-FR")
+  /// Ses préférences d'affichage, qui ne regardent que lui : la disposition
+  /// de son accueil, le menu replié ou non, son thème. Jamais lues par le
+  /// reste du serveur.
+  preferences  Json      @default("{}")
   /// Fuseau personnel. Null = celui du foyer, qui reste la référence
   /// pour calculer les échéances.
   timezone     String?

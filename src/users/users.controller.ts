@@ -26,6 +26,7 @@ import { RequireRight } from '../households/decorators/require-right.decorator';
 import { AvatarsService } from './avatars.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { DeleteAccountDto } from './dto/delete-account.dto';
+import { PreferencesDto } from './dto/preferences.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UsersService } from './users.service';
 
@@ -52,6 +53,23 @@ export class UsersController {
     return this.users.updateProfile(user.id, dto);
   }
 
+  @Get('me/preferences')
+  @ApiOperation({ summary: 'Mes préférences d’affichage' })
+  preferences(@CurrentUser() user: AuthenticatedUser) {
+    return this.users.preferences(user.id);
+  }
+
+  @Put('me/preferences')
+  @ApiOperation({
+    summary: 'Changer mes préférences d’affichage (ce qui manque est gardé)',
+  })
+  changerPreferences(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: PreferencesDto,
+  ) {
+    return this.users.changerPreferences(user.id, dto);
+  }
+
   @Post('me/password')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Changer mon mot de passe' })
@@ -66,7 +84,10 @@ export class UsersController {
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: TAILLE_MAX } }))
   @ApiConsumes('multipart/form-data')
   @ApiBody({
-    schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } },
+    schema: {
+      type: 'object',
+      properties: { file: { type: 'string', format: 'binary' } },
+    },
   })
   @ApiOperation({ summary: 'Envoyer ma photo de profil' })
   async setAvatar(

@@ -85,8 +85,11 @@ donc rien à choisir et aucune route ne porte d'identifiant de foyer.
 Access token : 15 min, porté par `Authorization: Bearer`. Refresh : 60 jours, rotatif
 — sa réutilisation après rotation révoque toute la chaîne (détection de vol).
 
-L'interface web utilise les mêmes routes, mais pose le refresh token dans un cookie
-`httpOnly` : un jeton dans `localStorage` est lisible par n'importe quel script.
+L'interface web utilise les mêmes routes, en s'annonçant par l'en-tête
+`X-MH-Client: web` : le jeton de renouvellement ne figure alors pas dans la réponse, il
+est posé dans un cookie `mh_refresh` (`HttpOnly`, `SameSite=Strict`, limité à
+`/api/v1/auth`, `Secure` en HTTPS). `refresh` et `logout` le lisent quand le corps n'en
+porte pas. Un jeton dans `localStorage` serait lisible par n'importe quel script.
 
 Limites de débit, par IP et par route :
 
@@ -98,6 +101,10 @@ Limites de débit, par IP et par route :
 | tout le reste | 300 / min | Garde-fou général |
 
 ## Mon compte
+
+`GET` et `PUT /users/me/preferences` : les préférences d'affichage du compte — tuiles de
+l'accueil (`accueil`, avec leur taille `S`, `M`, `L` ou `XL`), menu replié
+(`navigationRepliee`), page à l'ouverture, thème. Ce qui n'est pas envoyé est gardé.
 
 | Méthode | Route | Droit | Description |
 |---|---|---|---|

@@ -7,6 +7,7 @@ import { ClockService } from '../common/clock/clock.service';
 import { AppException } from '../common/errors/app.exception';
 import { ErrorCode } from '../common/errors/error-codes';
 import { PrismaService } from '../common/prisma/prisma.service';
+import { PreferencesDto } from './dto/preferences.dto';
 import { HouseholdsService } from '../households/households.service';
 import { StatusesService } from '../households/statuses.service';
 import { DROITS_D_ADMINISTRATION } from '../households/rights';
@@ -226,7 +227,12 @@ export class UsersService {
       });
 
       if (statutAdministrateur) {
-        await this.transmettreAdministration(tx, target.id, statutAdministrateur, household?.id);
+        await this.transmettreAdministration(
+          tx,
+          target.id,
+          statutAdministrateur,
+          household?.id,
+        );
       }
     });
 
@@ -274,7 +280,10 @@ export class UsersService {
     });
 
     const successeur = pickAdminSuccessor(
-      candidats.map((candidat) => ({ userId: candidat.id, createdAt: candidat.createdAt })),
+      candidats.map((candidat) => ({
+        userId: candidat.id,
+        createdAt: candidat.createdAt,
+      })),
     );
 
     if (!successeur) {
@@ -367,5 +376,30 @@ export class UsersService {
       rights: user.status.rights,
       joinedAt: user.createdAt,
     };
+  }
+
+  async preferences(userId: string): Promise<Record<string, unknown>> {
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { preferences: true },
+    });
+    return (user.preferences as Record<string, unknown> | null) ?? {};
+  }
+
+  /** Ce qui est envoyé remplace, ce qui manque est gardé. */
+  async changerPreferences(
+    userId: string,
+    dto: PreferencesDto,
+  ): Promise<Record<string, unknown>> {
+    const actuelles = await this.preferences(userId);
+    const envoyees = Object.fromEntries(
+      Object.entries(dto).filter(([, valeur]) => valeur !== undefined),
+    );
+    const fusion = { ...actuelles, ...envoyees };
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { preferences: fusion },
+    });
+    return fusion;
   }
 }

@@ -1,7 +1,8 @@
 import { pickAdminSuccessor } from './admin-successor';
 
 describe('pickAdminSuccessor', () => {
-  const le = (jour: number) => new Date(`2026-03-${String(jour).padStart(2, '0')}T10:00:00Z`);
+  const le = (jour: number) =>
+    new Date(`2026-03-${String(jour).padStart(2, '0')}T10:00:00Z`);
 
   it('désigne le compte actif le plus ancien', () => {
     const successeur = pickAdminSuccessor([
@@ -24,7 +25,7 @@ describe('pickAdminSuccessor', () => {
     expect(candidats.map((c) => c.userId)).toEqual(['paul', 'lou']);
   });
 
-  it("rend null quand il ne reste personne — le foyer part avec le dernier compte", () => {
+  it('rend null quand il ne reste personne — le foyer part avec le dernier compte', () => {
     expect(pickAdminSuccessor([])).toBeNull();
   });
 });

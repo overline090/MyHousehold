@@ -1,4 +1,17 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Req,
+  Res,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import type { Request, Response } from 'express';
+import { AppException } from '../common/errors/app.exception';
+import { ErrorCode } from '../common/errors/error-codes';
 import { Throttle } from '@nestjs/throttler';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
@@ -8,6 +21,7 @@ import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { RegisterDto } from './dto/register.dto';
 import { AuthenticatedUser } from './jwt.strategy';
+import { effacerCookie, estNavigateur, lireCookie, poserCookie } from './web-session';
 
 /**
  * Limites par route et par IP. La connexion est la seule porte exposée à
@@ -21,7 +35,38 @@ import { AuthenticatedUser } from './jwt.strategy';
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly config: ConfigService,
+  ) {}
+
+  /** Pour le navigateur : le jeton de renouvellement part dans le cookie, pas dans la réponse. */
+  private livrer<T extends { refreshToken: string }>(
+    request: Request,
+    response: Response,
+    session: T,
+  ) {
+    if (!estNavigateur(request)) return session;
+    poserCookie(
+      request,
+      response,
+      session.refreshToken,
+      this.config.getOrThrow<number>('MH_REFRESH_TOKEN_TTL'),
+    );
+    const { refreshToken: _, ...sansJeton } = session;
+    return sansJeton;
+  }
+
+  private jeton(request: Request, dto: RefreshDto): string {
+    const jeton = dto.refreshToken ?? lireCookie(request);
+    if (!jeton) {
+      throw AppException.unauthorized(
+        ErrorCode.REFRESH_TOKEN_INVALID,
+        'Session expirée : reconnectez-vous.',
+      );
+    }
+    return jeton;
+  }
 
   @Public()
   @Throttle({ default: { limit: 20, ttl: 3_600_000 } })
@@ -35,24 +80,42 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 900_000 } })
   @Post('login')
   @ApiOperation({ summary: 'Ouvrir une session' })
-  login(@Body() dto: LoginDto) {
-    return this.auth.login(dto);
+  async login(
+    @Body() dto: LoginDto,
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    return this.livrer(request, response, await this.auth.login(dto));
   }
 
   @Public()
   @Throttle({ default: { limit: 30, ttl: 900_000 } })
   @Post('refresh')
   @ApiOperation({ summary: 'Échanger et faire tourner le jeton de rafraîchissement' })
-  refresh(@Body() dto: RefreshDto) {
-    return this.auth.refresh(dto.refreshToken);
+  async refresh(
+    @Body() dto: RefreshDto,
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    return this.livrer(
+      request,
+      response,
+      await this.auth.refresh(this.jeton(request, dto)),
+    );
   }
 
   @Public()
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Révoquer le jeton de cet appareil' })
-  async logout(@Body() dto: RefreshDto): Promise<void> {
-    await this.auth.logout(dto.refreshToken);
+  async logout(
+    @Body() dto: RefreshDto,
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<void> {
+    const jeton = dto.refreshToken ?? lireCookie(request);
+    effacerCookie(response);
+    if (jeton) await this.auth.logout(jeton);
   }
 
   @Get('me')

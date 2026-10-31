@@ -571,6 +571,37 @@ check "l'administrateur supprime le compte d'un autre" "204" \
     -H 'content-type: application/json' -d '{"password":"un mot de passe assez long"}')"
 
 echo
+echo "Session du navigateur et préférences"
+POT=/tmp/mh-cookies-$SUFFIX
+WEB=$(curl -s -c "$POT" -X POST "$BASE/auth/login" -H 'content-type: application/json' -H 'x-mh-client: web' \
+  -d "{\"username\":\"admin-$SUFFIX\",\"password\":\"un mot de passe assez long\"}")
+check "le navigateur ne reçoit pas le jeton de renouvellement dans la réponse" "absent" \
+  "$(echo "$WEB" | py "import json,sys; d=json.load(sys.stdin); print('absent' if 'refreshToken' not in d and d['accessToken'] else d)")"
+check "il le reçoit dans un cookie HttpOnly limité à l'authentification" "yes" \
+  "$(grep -q '#HttpOnly_.*/api/v1/auth.*mh_refresh' "$POT" && echo yes)"
+cp "$POT" "$POT.ancien"
+check "le cookie seul suffit à renouveler la session" "201" \
+  "$(curl -s -o /dev/null -w '%{http_code}' -b "$POT" -c "$POT" -X POST "$BASE/auth/refresh" -H 'content-type: application/json' -H 'x-mh-client: web' -d '{}')"
+check "sans cookie ni jeton, pas de renouvellement" "401" \
+  "$(status -X POST "$BASE/auth/refresh" -H 'content-type: application/json' -H 'x-mh-client: web' -d '{}')"
+WEB_TOKEN=$(echo "$WEB" | field "['accessToken']")
+check "les préférences se gardent" "en-retard M" \
+  "$(curl -s -X PUT "$BASE/users/me/preferences" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' \
+    -d '{"accueil":[{"id":"en-retard","taille":"M"},{"id":"rendez-vous","taille":"XL"}]}' | py "
+import json,sys; d=json.load(sys.stdin); print(d['accueil'][0]['id'], d['accueil'][0]['taille'])")"
+check "ce qui n'est pas envoyé est gardé" "True 2" \
+  "$(curl -s -X PUT "$BASE/users/me/preferences" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' \
+    -d '{"navigationRepliee":true}' | py "
+import json,sys; d=json.load(sys.stdin); print(d['navigationRepliee'], len(d['accueil']))")"
+check "une taille de tuile inconnue est refusée" "400" \
+  "$(status -X PUT "$BASE/users/me/preferences" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' \
+    -d '{"accueil":[{"id":"en-retard","taille":"XXL"}]}')"
+check "se déconnecter efface le cookie" "204" \
+  "$(curl -s -o /dev/null -w '%{http_code}' -b "$POT" -c "$POT" -X POST "$BASE/auth/logout" -H 'content-type: application/json' -H 'x-mh-client: web' -d '{}')"
+check "le cookie n'est plus" "absent" "$(grep -q 'mh_refresh' "$POT" && echo present || echo absent)"
+rm -f "$POT" "$POT.ancien"
+
+echo
 echo "Transmission de l'administration"
 check "le dernier administrateur peut toujours supprimer son compte" "204" \
   "$(status -X DELETE "$BASE/users/me" -H "authorization: Bearer $ADMIN" \
