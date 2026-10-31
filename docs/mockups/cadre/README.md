@@ -45,6 +45,7 @@ node docs/mockups/cadre/rendre.js   # 1280 × 800 pour l'ordinateur, 390 × 844 
 | `34-tache-details.html` | Les détails d’une tâche : texte mis en forme (gras, italique, souligné, barré, couleur, surligneur, listes, cases) |
 | `35-tache-details-lire.html` | Les lire : un appui sur un numéro (appeler, copier), une adresse (carte, copier), un code (copié) |
 | `36-admin-copie-automatique.html` | Administration › Réglages du foyer › **Copie automatique** : les règles du foyer, et les essayer |
+| `37-tache-valider.html` | Une tâche ouverte : son état, « C’est fait » ou « Passer cette fois », les dernières fois et par qui |
 
 ## Ce que ce cadre décide
 
