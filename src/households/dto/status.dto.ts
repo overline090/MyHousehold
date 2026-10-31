@@ -12,6 +12,7 @@ import {
   Length,
   Max,
   Min,
+  IsHexColor,
 } from 'class-validator';
 
 export class CreateStatusDto {
@@ -42,6 +43,11 @@ export class CreateStatusDto {
   @Min(0)
   @Max(999)
   position?: number;
+
+  @ApiPropertyOptional({ example: '#7C3AED' })
+  @IsOptional()
+  @IsHexColor()
+  color?: string;
 }
 
 export class UpdateStatusDto {
@@ -69,6 +75,11 @@ export class UpdateStatusDto {
   @Min(0)
   @Max(999)
   position?: number;
+
+  @ApiPropertyOptional({ example: '#7C3AED' })
+  @IsOptional()
+  @IsHexColor()
+  color?: string;
 }
 
 export class DeleteStatusDto {

@@ -4,6 +4,7 @@
   import AVenir from '../AVenir.svelte';
   import CopieAutomatique from './CopieAutomatique.svelte';
   import Membres from './Membres.svelte';
+  import Statuts from './Statuts.svelte';
 
   /**
    * L'administration : une page dédiée, avec sa navigation. Chaque
@@ -44,6 +45,8 @@
       <p class="muet">Aucune rubrique d’administration pour ce compte.</p>
     {:else if active.chemin === 'membres'}
       <Membres />
+    {:else if active.chemin === 'statuts'}
+      <Statuts />
     {:else if active.chemin === 'reglages'}
       <CopieAutomatique />
     {:else}

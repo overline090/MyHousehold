@@ -182,6 +182,8 @@ model Status {
   id        String  @id @default(uuid(7)) @db.Uuid
   name      String
   rights    Right[]
+  /// Repère de lecture dans les listes : une couleur de la palette.
+  color     String?
   /// Statut donné aux nouveaux membres.
   isDefault Boolean @default(false)
   position  Int     @default(0)

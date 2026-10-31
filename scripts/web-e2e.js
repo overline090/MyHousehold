@@ -154,6 +154,19 @@ const verifier = (l, a, o) => { if (a === o) console.log('  ✓ ' + l); else { c
   verifier('un code de mot de passe oublié est généré', true, /^[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(codeDePaul));
   await page.screenshot({ path: `${S}/18-gerer-membre.png` });
   await page.click('aside.panneau button[aria-label="Fermer"]');
+  // Statuts et droits : Enfant pourra gérer les rendez-vous
+  await page.click('nav[aria-label="Administration"] >> text=Statuts et droits');
+  await page.waitForSelector('.matrice input');
+  await page.check('input[aria-label="Enfant — Gérer les rendez-vous"]');
+  verifier('le changement est dit en clair', true, (await page.textContent('.bandeau')).includes('Enfant pourra gérer les rendez-vous'));
+  await page.screenshot({ path: `${S}/20-statuts.png` });
+  await page.click('.bandeau button:has-text("Enregistrer")');
+  await page.waitForSelector('.bandeau', { state: 'detached' });
+  verifier('le droit est enregistré', true, await page.isChecked('input[aria-label="Enfant — Gérer les rendez-vous"]'));
+  verifier('la colonne qui a tous les droits est verrouillée', true, await page.isDisabled('input[aria-label^="Administrateur — "]'));
+  await page.uncheck('input[aria-label="Enfant — Gérer les rendez-vous"]');
+  await page.click('.bandeau button:has-text("Enregistrer")');
+  await page.waitForSelector('.bandeau', { state: 'detached' });
   await page.click('nav[aria-label="Administration"] >> text=Réglages du foyer');
   await page.waitForSelector('text=Copie automatique');
   await page.click('button:has-text("Nouvelle règle")');

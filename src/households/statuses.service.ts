@@ -12,6 +12,7 @@ const SELECTION = {
   id: true,
   name: true,
   rights: true,
+  color: true,
   isDefault: true,
   position: true,
   _count: { select: { users: { where: { deletedAt: null } } } },
@@ -54,6 +55,7 @@ export class StatusesService {
           rights: this.normaliser(dto.rights),
           isDefault: dto.isDefault ?? false,
           position: dto.position ?? 0,
+          color: dto.color ?? null,
         },
         select: SELECTION,
       });
@@ -100,6 +102,7 @@ export class StatusesService {
           rights: dto.rights ? this.normaliser(dto.rights) : undefined,
           isDefault: dto.isDefault,
           position: dto.position,
+          color: dto.color,
         },
         select: SELECTION,
       });
