@@ -1,8 +1,10 @@
 # Interface web du serveur
 
-> **État** : l'**assistant d'installation** est écrit et servi par le serveur, et son
-> parcours complet est joué dans un vrai navigateur contre un vrai serveur. Le reste
-> — administration, foyer au quotidien — reste à écrire.
+> **État** : l'**assistant d'installation**, la **connexion**, le **cadre** (barre
+> d'outils, navigation repliable, disposition téléphone) et l'**accueil en tuiles
+> personnalisables** sont écrits, et joués dans un vrai navigateur contre un vrai
+> serveur (`scripts/wizard-e2e.js`, `scripts/web-e2e.js`). Les autres pages ont leur
+> maquette validée et le disent en attendant.
 
 Le serveur expose une interface web, en plus de son API. Elle n'est pas une
 deuxième application : c'est le même foyer, vu depuis un navigateur.
@@ -21,8 +23,13 @@ du foyer, ne se fait **que** là : un réglage qui engage la sécurité du foyer
 assis, sur un vrai écran, pas au pouce entre deux portes. L'app Android affiche les
 statuts, elle ne les modifie pas.
 
-Les maquettes de cette partie authentifiée sont dans
-[`mockups/`](mockups/README.md), à valider avant la première ligne d'interface.
+Les maquettes validées de la partie connectée sont dans
+[`mockups/cadre/`](mockups/cadre/README.md) ; celles de [`mockups/`](mockups/README.md)
+les ont précédées.
+
+La session du navigateur passe par un cookie `HttpOnly` (voir [api.md](api.md)) : le
+jeton d'accès vit en mémoire de la page, et recharger la page reprend la session sans
+redemander le mot de passe.
 
 Ce qu'elle ne fait **pas** : notifications push, mode hors-ligne, scan de QR code.
 Ce sont des choses de téléphone, et prétendre les faire au navigateur donnerait une
