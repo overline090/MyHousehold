@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, OmitType, PartialType } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
@@ -23,6 +23,11 @@ import {
 export const ICONES = ['boite', 'bocal', 'flacon', 'medicament', 'ampoule', 'panier', 'outil', 'tasse', 'pomme', 'bouteille', 'savon', 'linge'] as const;
 
 export class CreateBoardDto {
+  @ApiPropertyOptional({ description: 'Identifiant choisi par le téléphone, pour une création faite hors ligne.' })
+  @IsOptional()
+  @IsUUID()
+  id?: string;
+
   @ApiProperty({ example: 'Garde-manger' })
   @IsString()
   @Length(1, 60)
@@ -47,9 +52,14 @@ export class CreateBoardDto {
   position?: number;
 }
 
-export class UpdateBoardDto extends PartialType(CreateBoardDto) {}
+export class UpdateBoardDto extends PartialType(OmitType(CreateBoardDto, ['id'] as const)) {}
 
 export class CreateItemDto {
+  @ApiPropertyOptional({ description: 'Identifiant choisi par le téléphone, pour une création faite hors ligne.' })
+  @IsOptional()
+  @IsUUID()
+  id?: string;
+
   @ApiProperty()
   @IsUUID()
   boardId!: string;
@@ -105,7 +115,7 @@ export class CreateItemDto {
   detail?: string | null;
 }
 
-export class UpdateItemDto extends PartialType(CreateItemDto) {}
+export class UpdateItemDto extends PartialType(OmitType(CreateItemDto, ['id'] as const)) {}
 
 export class AdjustDto {
   @ApiProperty({ example: -1, description: 'Ce qui entre (+) ou sort (−).' })

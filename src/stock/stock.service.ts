@@ -90,8 +90,16 @@ export class StockService {
 
   async createBoard(dto: CreateBoardDto) {
     const foyer = await this.foyer();
+    // Création idempotente : un envoi rejoué par le téléphone ne crée pas un second tableau.
+    if (dto.id) {
+      const existant = await this.prisma.stockBoard.findUnique({ where: { id: dto.id }, select: { ...BOARD, householdId: true } });
+      if (existant) {
+        if (existant.householdId !== foyer.id) throw AppException.notFound("Ce tableau n'existe pas.");
+        return this.vueTableau(existant);
+      }
+    }
     const b = await this.prisma.stockBoard.create({
-      data: { householdId: foyer.id, name: dto.name.trim(), icon: dto.icon ?? null, color: dto.color ?? null, position: dto.position ?? 0 },
+      data: { id: dto.id, householdId: foyer.id, name: dto.name.trim(), icon: dto.icon ?? null, color: dto.color ?? null, position: dto.position ?? 0 },
       select: BOARD,
     });
     return this.vueTableau(b);
@@ -153,8 +161,17 @@ export class StockService {
   async createItem(dto: CreateItemDto) {
     await this.requireBoard(dto.boardId);
     const foyer = await this.foyer();
+    if (dto.id) {
+      const existant = await this.prisma.stockItem.findUnique({ where: { id: dto.id }, select: { ...ITEM, board: { select: { householdId: true } } } });
+      if (existant) {
+        if (existant.board.householdId !== foyer.id) throw AppException.notFound("Cet article n'existe pas.");
+        const { board: _board, ...article } = existant;
+        return this.vueArticle(article, todayIn(foyer.timezone, this.clock.now()));
+      }
+    }
     const i = await this.prisma.stockItem.create({
       data: {
+        id: dto.id,
         boardId: dto.boardId,
         name: dto.name.trim(),
         icon: dto.icon ?? null,

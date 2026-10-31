@@ -654,6 +654,11 @@ import json,sys; d={i['name']: i['quantity'] for i in json.load(sys.stdin)}; pri
 check "sous le minimum, ils sont à racheter" "2" "$(curl -s "$BASE/stock/to-buy" -H "authorization: Bearer $WEB_TOKEN" | py "import json,sys; print(len([i for i in json.load(sys.stdin) if i['toBuy']]))")"
 check "la sortie est dans le journal" "yes" "$(curl -s "$BASE/activity" -H "authorization: Bearer $WEB_TOKEN" | py "
 import json,sys; print('yes' if any(e['verb'] == 'STOCK_OUT' for e in json.load(sys.stdin)['data']) else 'no')")"
+SEL='01a19500-0000-7000-8000-00000000c0de'
+for i in 1 2; do curl -s -o /dev/null -X POST "$BASE/stock/items" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' \
+  -d '{"id":"'$SEL'","boardId":"'$TABLEAU'","name":"Sel fin","quantity":1}'; done
+check "un article créé hors ligne, envoyé deux fois, n'existe qu'une fois" "1" \
+  "$(curl -s "$BASE/stock/items" -H "authorization: Bearer $WEB_TOKEN" | py "import json,sys; print(len([i for i in json.load(sys.stdin) if i['id'] == '$SEL']))")"
 check "la quantité ne descend pas sous zéro" "0" "$(curl -s -X POST "$BASE/stock/items/$CAFE/adjust" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' -d '{"delta":-10}' | field "['quantity']")"
 echo
 check "une règle de copie automatique s'enregistre sur le foyer" "Code du portail True" \
