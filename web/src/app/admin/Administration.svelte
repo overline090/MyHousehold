@@ -2,9 +2,11 @@
   import { aller, route } from '../../lib/route.svelte';
   import { aLeDroit } from '../../lib/session.svelte';
   import AVenir from '../AVenir.svelte';
-  import CopieAutomatique from './CopieAutomatique.svelte';
   import Membres from './Membres.svelte';
   import Statuts from './Statuts.svelte';
+  import Reglages from './Reglages.svelte';
+  import Serveur from './Serveur.svelte';
+  import Activite from './Activite.svelte';
 
   /**
    * L'administration : une page dédiée, avec sa navigation. Chaque
@@ -48,7 +50,11 @@
     {:else if active.chemin === 'statuts'}
       <Statuts />
     {:else if active.chemin === 'reglages'}
-      <CopieAutomatique />
+      <Reglages />
+    {:else if active.chemin === 'serveur'}
+      <Serveur />
+    {:else if active.chemin === 'activite'}
+      <Activite />
     {:else}
       <AVenir nom={active.libelle} />
     {/if}

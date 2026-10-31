@@ -23,4 +23,10 @@ export class LoginDto {
   @IsString()
   @MaxLength(80)
   deviceName?: string;
+
+  @ApiPropertyOptional({ example: '0.5.0', description: "Version de l'app : l'administration voit quels téléphones sont à jour." })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  appVersion?: string;
 }

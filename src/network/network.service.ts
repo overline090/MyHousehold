@@ -52,6 +52,11 @@ export class NetworkService
     return this.tls.fingerprint;
   }
 
+  /** L'annonce sur le Wi-Fi (mDNS) est-elle publiée ? */
+  get annonceActive(): boolean {
+    return this.annonce !== undefined && this.annonce !== null;
+  }
+
   get httpsPort(): number {
     return this.config.getOrThrow<number>('MH_HTTPS_PORT');
   }

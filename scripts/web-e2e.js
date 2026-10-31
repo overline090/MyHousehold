@@ -178,6 +178,24 @@ const verifier = (l, a, o) => { if (a === o) console.log('  ✓ ' + l); else { c
   await page.waitForSelector('form.formulaire', { state: 'detached' });
   verifier('la règle est enregistrée', true, await page.isVisible('.rang:has-text("Après « Code du portail »")'));
   await page.screenshot({ path: `${S}/9-copie-automatique.png` });
+  await page.fill('label:has-text("Nom du foyer") input', 'Maison des Dupont-Martin');
+  await page.click('.pied button:has-text("Enregistrer")');
+  await page.waitForSelector('text=Enregistré.');
+  verifier('le nouveau nom du foyer se voit dans la barre', true, (await page.textContent('header')).includes('Dupont-Martin'));
+  await page.screenshot({ path: `${S}/21-reglages.png` });
+
+  // Serveur : de quoi connecter un téléphone, et la santé
+  await page.click('nav[aria-label="Administration"] >> text=Serveur');
+  await page.waitForSelector('.qr svg');
+  verifier('le serveur donne son adresse et son QR code', true, (await page.textContent('.connexion')).includes('https://'));
+  verifier('la base de données est en marche', true, (await page.textContent('.cartes')).includes('En marche'));
+  await page.screenshot({ path: `${S}/22-serveur.png` });
+
+  // Activité : le journal du foyer
+  await page.click('nav[aria-label="Administration"] >> text=Activité');
+  await page.waitForSelector('.journal .entree');
+  verifier('le journal raconte ce qui s’est passé', true, (await page.locator('.journal .entree').count()) > 0);
+  await page.screenshot({ path: `${S}/23-activite.png` });
 
   // Détails mis en forme : écrits dans la fiche, puis lus avec ce qu'ils reconnaissent
   await page.click('nav >> text=Tâches');

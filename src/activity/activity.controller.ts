@@ -22,6 +22,11 @@ export class ListActivityDto {
   @IsOptional()
   @IsUUID()
   cursor?: string;
+
+  @ApiPropertyOptional({ description: 'Ce qu’a fait un membre' })
+  @IsOptional()
+  @IsUUID()
+  actorId?: string;
 }
 
 @ApiTags('activity')
@@ -40,6 +45,7 @@ export class ActivityController {
       await this.households.currentId(),
       query.limit ?? 50,
       query.cursor,
+      query.actorId,
     );
   }
 }

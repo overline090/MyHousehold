@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsInt, IsOptional, IsString, Length, Max, Min, ValidateNested } from 'class-validator';
+import { IsBoolean, IsInt, IsOptional, IsString, Length, Max, Min, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { DetectionDto } from './detection.dto';
 
@@ -21,6 +21,18 @@ export class UpdateHouseholdDto {
   @Min(1)
   @Max(7)
   weekStartsOn?: number;
+
+  @ApiPropertyOptional({ description: 'Inscriptions libres, sans code d’invitation.' })
+  @IsOptional()
+  @IsBoolean()
+  registrationOpen?: boolean;
+
+  @ApiPropertyOptional({ minimum: 1, maximum: 720, description: 'Durée d’un code d’invitation, en heures.' })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(720)
+  inviteTtlHours?: number;
 
   @ApiPropertyOptional({
     type: DetectionDto,

@@ -47,6 +47,8 @@ export class HouseholdsService {
         timezone: true,
         weekStartsOn: true,
         detection: true,
+        registrationOpen: true,
+        inviteTtlHours: true,
         createdAt: true,
       },
     });
@@ -107,6 +109,8 @@ export class HouseholdsService {
         name: dto.name?.trim(),
         timezone: dto.timezone,
         weekStartsOn: dto.weekStartsOn,
+        registrationOpen: dto.registrationOpen,
+        inviteTtlHours: dto.inviteTtlHours,
         // Ce qui est envoyé remplace, ce qui manque est gardé : changer
         // une règle ne réinitialise pas les interrupteurs.
         detection: dto.detection

@@ -42,7 +42,7 @@ export class InvitesService {
         code: generateInviteCode(),
         statusId: statut.id,
         maxUses: dto.maxUses ?? 1,
-        expiresAt: this.clock.in((dto.ttlHours ?? DEFAULT_TTL_HOURS) * 3600),
+        expiresAt: this.clock.in((dto.ttlHours ?? (await this.dureeDuFoyer())) * 3600),
       },
       select: {
         id: true,
@@ -139,5 +139,14 @@ export class InvitesService {
     }
 
     return { statusId: invite.statusId };
+  }
+
+  /** La durée choisie par le foyer pour ses invitations. */
+  private async dureeDuFoyer(): Promise<number> {
+    const foyer = await this.prisma.household.findFirst({
+      where: { deletedAt: null },
+      select: { inviteTtlHours: true },
+    });
+    return foyer?.inviteTtlHours ?? DEFAULT_TTL_HOURS;
   }
 }

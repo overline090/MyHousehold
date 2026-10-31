@@ -22,6 +22,14 @@ import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { Right } from '@prisma/client';
 import { RequireRight } from '../households/decorators/require-right.decorator';
 import { DeleteAccountDto } from '../users/dto/delete-account.dto';
+import { statfs } from 'node:fs/promises';
+import QRCode from 'qrcode';
+import { ConfigService } from '@nestjs/config';
+import { PrismaService } from '../common/prisma/prisma.service';
+import { RedisService } from '../common/redis/redis.service';
+import { NetworkService } from '../network/network.service';
+import { buildServerLink } from '../network/server-link';
+import { displayFingerprint } from '../network/tls';
 import { UsersService } from '../users/users.service';
 
 /**
@@ -38,7 +46,64 @@ export class AdminController {
     private readonly users: UsersService,
     private readonly scheduler: SchedulerService,
     private readonly releases: ReleasesService,
+    private readonly network: NetworkService,
+    private readonly prisma: PrismaService,
+    private readonly redis: RedisService,
+    private readonly config: ConfigService,
   ) {}
+
+  /**
+   * Ce que montre Administration › Serveur : de quoi connecter un
+   * téléphone (adresse, empreinte, QR code sans code d'appariement), la
+   * santé de la machine, et où en sont les téléphones.
+   */
+  @Get('server')
+  @ApiOperation({ summary: 'Le serveur : connexion des téléphones, santé, versions des apps' })
+  async server() {
+    const address = this.network.localAddress();
+    const link = buildServerLink({ address, fingerprint: this.network.fingerprint });
+    const essai = async (sonde: () => Promise<boolean>) => {
+      try {
+        return (await sonde()) ? 'up' : 'down';
+      } catch {
+        return 'down';
+      }
+    };
+    let disk: { free: number; total: number } | null = null;
+    try {
+      const stats = await statfs(this.config.getOrThrow<string>('MH_DATA_DIR'));
+      disk = { free: stats.bavail * stats.bsize, total: stats.blocks * stats.bsize };
+    } catch {
+      disk = null;
+    }
+    const attendue = (await this.releases.appRelease()).version;
+    const appareils = await this.prisma.device.findMany({
+      where: { appVersion: { not: null }, user: { deletedAt: null } },
+      select: { appVersion: true, platform: true, user: { select: { firstName: true } } },
+    });
+    const enRetard = attendue
+      ? appareils.filter((a) => a.appVersion && a.appVersion.replace(/^v/, '') !== attendue.replace(/^v/, ''))
+      : [];
+    return {
+      address,
+      fingerprint: this.network.fingerprint,
+      fingerprintDisplay: displayFingerprint(this.network.fingerprint),
+      link,
+      qrSvg: await QRCode.toString(link, { type: 'svg', margin: 1, errorCorrectionLevel: 'M' }),
+      health: {
+        database: await essai(() => this.prisma.ping()),
+        redis: await essai(() => this.redis.ping()),
+        mdns: this.network.annonceActive,
+        disk,
+      },
+      phones: {
+        expectedVersion: attendue,
+        total: appareils.length,
+        upToDate: appareils.length - enRetard.length,
+        behind: enRetard.map((a) => ({ name: a.platform ?? a.user.firstName, version: a.appVersion })),
+      },
+    };
+  }
 
   @Get('users')
   @ApiOperation({ summary: 'Comptes du serveur' })

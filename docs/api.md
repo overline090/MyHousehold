@@ -102,6 +102,10 @@ Limites de débit, par IP et par route :
 
 ## Mon compte
 
+`GET /admin/server` (`MANAGE_SERVER`) : adresse et empreinte du serveur, QR code pour connecter
+un téléphone, santé (base, file, annonce Wi-Fi, disque) et téléphones à jour. `GET /activity`
+accepte `actorId`. La connexion accepte `appVersion`, pour savoir quels téléphones sont à jour.
+
 **Mot de passe oublié** — pas d'adresse e-mail : un membre qui a `MANAGE_MEMBERS` génère
 un code (`POST /users/:id/password-reset` → `{ code, expiresAt }`, valable une heure, un
 nouveau annule le précédent) et le donne de vive voix ; la personne choisit un nouveau mot
@@ -148,7 +152,7 @@ prendre les deux (voir [`self-hosting.md`](self-hosting.md)).
 | Méthode | Route | Droit |
 |---|---|---|
 | `GET` | `/household` | `VIEW` |
-| `PATCH` | `/household` | `MANAGE_SERVER` (nom, fuseau, premier jour de semaine, `detection`) |
+| `PATCH` | `/household` | `MANAGE_SERVER` (nom, fuseau, premier jour de semaine, `registrationOpen`, `inviteTtlHours`, `detection`) |
 | `GET` | `/members` | `VIEW` |
 | `PATCH` | `/members/:id` | `MANAGE_MEMBERS` (statut) |
 | `POST` | `/invites` | `MANAGE_MEMBERS` |

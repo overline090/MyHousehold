@@ -624,6 +624,15 @@ check "le foyer voit ce qui a été fait ce mois-ci, par personne et par groupe"
 import json,sys; d=json.load(sys.stdin)
 print('yes' if d['total'] >= 1 and sum(m['count'] for m in d['byMember']) <= d['total'] and sum(g['count'] for g in d['byGroup']) == d['total'] else d)")"
 check "un mois mal écrit est refusé" "400" "$(status "$BASE/contributions?month=2026-13" -H "authorization: Bearer $WEB_TOKEN")"
+check "le serveur dit comment le joindre et comment il va" "yes" \
+  "$(curl -s "$BASE/admin/server" -H "authorization: Bearer $WEB_TOKEN" | py "
+import json,sys; d=json.load(sys.stdin); print('yes' if d['address'].startswith('https://') and '<svg' in d['qrSvg'] and d['health']['database'] == 'up' else d)")"
+curl -s -o /dev/null -X PATCH "$BASE/household" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' -d '{"registrationOpen":true}'
+check "inscriptions ouvertes : on s'inscrit sans code" "201" \
+  "$(status -X POST "$BASE/auth/register" -H 'content-type: application/json' -d '{"username":"libre-'$SUFFIX'","password":"un mot de passe assez long","firstName":"Libre","lastName":"Dupont"}')"
+curl -s -o /dev/null -X PATCH "$BASE/household" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' -d '{"registrationOpen":false}'
+check "refermées : il faut de nouveau un code" "403" \
+  "$(status -X POST "$BASE/auth/register" -H 'content-type: application/json' -d '{"username":"ferme-'$SUFFIX'","password":"un mot de passe assez long","firstName":"Ferme","lastName":"Dupont"}')"
 check "une règle de copie automatique s'enregistre sur le foyer" "Code du portail True" \
   "$(curl -s -X PATCH "$BASE/household" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' \
     -d '{"detection":{"regles":[{"id":"portail","nom":"Code du portail","type":"MOT_CLE","motif":"Code du portail","active":true}]}}' | py "

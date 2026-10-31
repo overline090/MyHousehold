@@ -11,9 +11,9 @@ import { PrismaService } from '../common/prisma/prisma.service';
 export class ActivityService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async list(householdId: string, limit: number, cursor?: string) {
+  async list(householdId: string, limit: number, cursor?: string, actorId?: string) {
     const rows = await this.prisma.activityLog.findMany({
-      where: { householdId },
+      where: { householdId, ...(actorId ? { actorId } : {}) },
       select: {
         id: true,
         verb: true,

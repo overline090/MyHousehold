@@ -208,6 +208,11 @@ model Household {
   /// Ce que les détails des tâches reconnaissent : téléphones, adresses,
   /// liens, et les règles de copie automatique du foyer.
   detection    Json   @default("{}")
+  /// Inscriptions libres : sans code d'invitation, au statut des nouveaux
+  /// membres. Fermées par défaut — on rejoint le foyer par un code.
+  registrationOpen Boolean @default(false)
+  /// Durée de validité d'un code d'invitation, en heures.
+  inviteTtlHours   Int     @default(168)
 
   createdAt DateTime  @default(now()) @db.Timestamptz
   updatedAt DateTime  @updatedAt @db.Timestamptz

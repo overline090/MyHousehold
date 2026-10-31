@@ -85,9 +85,15 @@ export class AuthService {
       where: { id: 1 },
       select: { completedAt: true },
     });
+    const foyer = await this.prisma.household.findFirst({
+      where: { deletedAt: null },
+      select: { registrationOpen: true },
+    });
+    // Pendant l'installation si la configuration le permet, ou ensuite si
+    // le foyer a ouvert ses inscriptions (Administration › Réglages).
     const libre =
-      this.config.getOrThrow<boolean>('MH_ALLOW_REGISTRATION') &&
-      setup?.completedAt == null;
+      (this.config.getOrThrow<boolean>('MH_ALLOW_REGISTRATION') && setup?.completedAt == null) ||
+      foyer?.registrationOpen === true;
 
     if (!libre && !dto.inviteCode) {
       throw AppException.forbidden(
@@ -158,7 +164,7 @@ export class AuthService {
     }
 
     const deviceId = dto.deviceId
-      ? await this.upsertDevice(user.id, dto.deviceId, dto.deviceName)
+      ? await this.upsertDevice(user.id, dto.deviceId, dto.deviceName, dto.appVersion)
       : null;
 
     return this.buildSession(
@@ -199,6 +205,7 @@ export class AuthService {
     userId: string,
     deviceId: string,
     deviceName?: string,
+    appVersion?: string,
   ): Promise<string | null> {
     const existant = await this.prisma.device.findUnique({
       where: { id: deviceId },
@@ -213,9 +220,10 @@ export class AuthService {
         id: deviceId,
         userId,
         platform: deviceName ?? null,
+        appVersion: appVersion ?? null,
         lastSeenAt: this.clock.now(),
       },
-      update: { lastSeenAt: this.clock.now(), platform: deviceName ?? undefined },
+      update: { lastSeenAt: this.clock.now(), platform: deviceName ?? undefined, appVersion: appVersion ?? undefined },
       select: { id: true },
     });
     return device.id;
