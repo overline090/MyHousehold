@@ -9,7 +9,7 @@
   let { onFermer }: { onFermer: () => void } = $props();
 
   type Type = 'tache' | 'rendez-vous' | 'fond';
-  type Quand = 'une-fois' | 'avant' | 'chaque-semaine';
+  type Quand = 'une-fois' | 'avant' | 'repeter';
 
   const types = $derived(
     (
@@ -26,7 +26,6 @@
     ['1 mois', 30],
     ['3 mois', 91],
   ];
-  const JOURS = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
 
   const fuseau = session.foyer?.timezone ?? 'Europe/Paris';
   let type = $state<Type>(aLeDroit('MANAGE_TASKS') ? 'tache' : 'rendez-vous');
@@ -35,6 +34,11 @@
   let jour = $state(jourDans(fuseau));
   let heure = $state(`${String(Math.min(new Date().getHours() + 1, 22)).padStart(2, '0')}:00`);
   let delai = $state(14);
+  // « Tous les 7 jours à partir d'aujourd'hui » : ce que « chaque semaine »
+  // veut dire le plus souvent, et il suffit de changer le chiffre.
+  let tousLes = $state(7);
+  let premier = $state(jourDans(fuseau));
+  const tousLesValide = $derived(Number.isInteger(tousLes) && tousLes >= 1 && tousLes <= 365);
   let erreur = $state<string | null>(null);
   let envoi = $state(false);
 
@@ -60,9 +64,8 @@
         });
       } else {
         const corps =
-          quand === 'chaque-semaine'
-            ? // « Chaque semaine » se dit le plus souvent le jour où l'on y pense.
-              { kind: 'SCHEDULED', rrule: `FREQ=WEEKLY;BYDAY=${JOURS[new Date(`${jour}T12:00:00`).getDay()]}` }
+          quand === 'repeter'
+            ? { kind: 'SCHEDULED', recurrence: { form: 'DAILY', interval: tousLes }, startsOn: premier }
             : { kind: 'ONE_OFF', ...(quand === 'avant' ? { dueDate: jour } : {}) };
         await api('/tasks', { method: 'POST', body: JSON.stringify({ title: titre.trim(), ...corps }) });
       }
@@ -97,10 +100,19 @@
       <div class="puces">
         <button type="button" class:actif={quand === 'une-fois'} onclick={() => (quand = 'une-fois')}>Une fois</button>
         <button type="button" class:actif={quand === 'avant'} onclick={() => (quand = 'avant')}>Avant une date</button>
-        <button type="button" class:actif={quand === 'chaque-semaine'} onclick={() => (quand = 'chaque-semaine')}>Chaque semaine</button>
+        <button type="button" class:actif={quand === 'repeter'} onclick={() => (quand = 'repeter')}>Répéter</button>
       </div>
     </div>
     {#if quand === 'avant'}<label>Date limite<input type="date" bind:value={jour} required /></label>{/if}
+    {#if quand === 'repeter'}
+      <div class="deux">
+        <label class="tous-les">
+          Tous les … jours
+          <input type="number" min="1" max="365" step="1" bind:value={tousLes} aria-label="Nombre de jours" />
+        </label>
+        <label>Premier jour<input type="date" bind:value={premier} required /></label>
+      </div>
+    {/if}
   {:else if type === 'rendez-vous'}
     <div class="deux">
       <label>Jour<input type="date" bind:value={jour} required /></label>
@@ -120,7 +132,7 @@
   {#if erreur}<div class="encadre alerte">{erreur}</div>{/if}
 
   <div class="boutons">
-    <button type="submit" class="primaire" disabled={envoi || !titre.trim()}>Ajouter</button>
+    <button type="submit" class="primaire" disabled={envoi || !titre.trim() || (type === 'tache' && quand === 'repeter' && !tousLesValide)}>Ajouter</button>
   </div>
 </form>
 
