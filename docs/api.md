@@ -497,6 +497,11 @@ pour le propriétaire.
 Détails du protocole, résolution des conflits et format des lots :
 [`sync.md`](sync.md).
 
+En attendant ces deux routes, l'app synchronise par l'API ci-dessus : elle envoie sa
+file de gestes dans l'ordre (créations avec l'identifiant du téléphone, idempotentes :
+tâches, groupes, rendez-vous, tableaux et articles du stock), puis relit le foyer,
+les membres, les tâches, les échéances, les rendez-vous, les plugins et le stock.
+
 ## Notifications *(à venir — v0.8)*
 
 | Méthode | Route | Description |
