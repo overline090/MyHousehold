@@ -39,8 +39,9 @@ node docs/mockups/cadre/rendre.js   # 1280 × 800 pour l'ordinateur, 390 × 844 
 | `28-admin-membre.html` | Gérer un membre : statut, code de mot de passe oublié, appareils, suppression du compte |
 | `29-connexion.html` | La page de connexion : identifiant et mot de passe |
 | `30-mot-de-passe-oublie.html` | Mot de passe oublié : le code donné par un administrateur, et le nouveau mot de passe |
-| `31-accueil-redimensionner.html` | Redimensionner une tuile à la main : coin, bord droit, bord bas — calée sur 12 colonnes et des rangées |
+| `31-accueil-redimensionner.html` | Redimensionner une tuile à la main : aimantée sur des longueurs entières et sur le bord des tuiles voisines |
 | `32-tache-tous-les-n-jours.html` | Une tâche « tous les N jours », et le premier jour de la série |
+| `33-accueil-echanger.html` | Échanger deux tuiles : lâchée sur une autre, elles échangent leur place |
 
 ## Ce que ce cadre décide
 
