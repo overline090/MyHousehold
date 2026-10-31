@@ -42,6 +42,9 @@ node docs/mockups/cadre/rendre.js   # 1280 × 800 pour l'ordinateur, 390 × 844 
 | `31-accueil-redimensionner.html` | Redimensionner une tuile à la main : aimantée sur des longueurs entières et sur le bord des tuiles voisines |
 | `32-tache-tous-les-n-jours.html` | Une tâche « tous les N jours », et le premier jour de la série |
 | `33-accueil-echanger.html` | Échanger deux tuiles : lâchée sur une autre, elles échangent leur place |
+| `34-tache-details.html` | Les détails d’une tâche : texte mis en forme (gras, italique, souligné, barré, couleur, surligneur, listes, cases) |
+| `35-tache-details-lire.html` | Les lire : un appui sur un numéro (appeler, copier), une adresse (carte, copier), un code (copié) |
+| `36-admin-copie-automatique.html` | Administration › Réglages du foyer › **Copie automatique** : les règles du foyer, et les essayer |
 
 ## Ce que ce cadre décide
 
