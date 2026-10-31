@@ -3,6 +3,7 @@
   import { aLeDroit } from '../../lib/session.svelte';
   import AVenir from '../AVenir.svelte';
   import CopieAutomatique from './CopieAutomatique.svelte';
+  import Membres from './Membres.svelte';
 
   /**
    * L'administration : une page dédiée, avec sa navigation. Chaque
@@ -18,8 +19,7 @@
   ];
 
   const permises = $derived(RUBRIQUES.filter((r) => aLeDroit(r.droit)));
-  // Réglages du foyer d'abord quand on y a droit : c'est la rubrique déjà écrite.
-  const parDefaut = $derived(permises.find((r) => r.chemin === 'reglages') ?? permises[0]);
+  const parDefaut = $derived(permises[0]);
   const active = $derived(
     permises.find((r) => route.chemin.startsWith(`/administration/${r.chemin}`)) ?? parDefaut,
   );
@@ -42,6 +42,8 @@
   <div class="page">
     {#if !active}
       <p class="muet">Aucune rubrique d’administration pour ce compte.</p>
+    {:else if active.chemin === 'membres'}
+      <Membres />
     {:else if active.chemin === 'reglages'}
       <CopieAutomatique />
     {:else}

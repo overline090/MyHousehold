@@ -609,6 +609,16 @@ check "mes appareils listent cette session" "yes" \
 import json,sys; d=json.load(sys.stdin); print('yes' if isinstance(d, list) and len(d) >= 1 and 'lastSeenAt' in d[0] else d)")"
 check "un identifiant déjà pris est refusé" "409" \
   "$(status -X PATCH "$BASE/users/me" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' -d "{\"username\":\"premier-$SUFFIX\"}")"
+PREMIER_ID=$(curl -s "$BASE/members" -H "authorization: Bearer $WEB_TOKEN" | py "
+import json,sys; print([m['id'] for m in json.load(sys.stdin) if m['username'] == 'premier-$SUFFIX'][0])")
+CODE_OUBLI=$(curl -s -X POST "$BASE/users/$PREMIER_ID/password-reset" -H "authorization: Bearer $WEB_TOKEN" | field "['code']")
+check "un code de mot de passe oublié est donné" "ok" "$([[ "$CODE_OUBLI" =~ ^[A-Z0-9]{4}-[A-Z0-9]{4}$ ]] && echo ok)"
+check "un mauvais code est refusé" "400" \
+  "$(status -X POST "$BASE/users/password-reset" -H 'content-type: application/json' -d '{"username":"premier-'$SUFFIX'","code":"AAAA-BBBB","newPassword":"un nouveau mot de passe"}')"
+check "le bon code fait choisir un nouveau mot de passe" "204" \
+  "$(status -X POST "$BASE/users/password-reset" -H 'content-type: application/json' -d '{"username":"premier-'$SUFFIX'","code":"'$CODE_OUBLI'","newPassword":"un nouveau mot de passe"}')"
+check "et il ne sert qu'une fois" "400" \
+  "$(status -X POST "$BASE/users/password-reset" -H 'content-type: application/json' -d '{"username":"premier-'$SUFFIX'","code":"'$CODE_OUBLI'","newPassword":"un autre mot de passe"}')"
 check "le foyer voit ce qui a été fait ce mois-ci, par personne et par groupe" "yes" \
   "$(curl -s "$BASE/contributions" -H "authorization: Bearer $WEB_TOKEN" | py "
 import json,sys; d=json.load(sys.stdin)

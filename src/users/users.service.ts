@@ -3,6 +3,8 @@ import { ActivityVerb, Prisma, Right } from '@prisma/client';
 import { randomBytes } from 'node:crypto';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { PasswordService } from '../auth/password.service';
+import { createHash } from 'node:crypto';
+import { generateInviteCode, normalizeInviteCode } from '../households/invite-code';
 import { ClockService } from '../common/clock/clock.service';
 import { AppException } from '../common/errors/app.exception';
 import { ErrorCode } from '../common/errors/error-codes';
@@ -132,6 +134,91 @@ export class UsersService {
   async disconnectOthers(userId: string, keepDeviceId: string): Promise<void> {
     await this.prisma.refreshToken.updateMany({
       where: { userId, revokedAt: null, OR: [{ deviceId: null }, { deviceId: { not: keepDeviceId } }] },
+      data: { revokedAt: this.clock.now() },
+    });
+  }
+
+  /**
+   * Un code de mot de passe oublié pour un membre : à usage unique,
+   * valable une heure. Un nouveau code annule le précédent.
+   */
+  async creerCodeDeReinitialisation(userId: string, actorId: string) {
+    const cible = await this.prisma.user.findFirst({ where: { id: userId, deletedAt: null }, select: { id: true } });
+    if (!cible) throw AppException.notFound("Ce membre n'existe pas.");
+    const code = generateInviteCode();
+    const expiresAt = this.clock.in(3600);
+    await this.prisma.$transaction([
+      this.prisma.passwordReset.updateMany({
+        where: { userId, usedAt: null },
+        data: { usedAt: this.clock.now() },
+      }),
+      this.prisma.passwordReset.create({
+        data: { userId, codeHash: empreinteDuCode(code), createdById: actorId, expiresAt },
+      }),
+    ]);
+    return { code: `${code.slice(0, 4)}-${code.slice(4)}`, expiresAt };
+  }
+
+  /**
+   * Choisir un nouveau mot de passe avec le code reçu. Toutes les
+   * sessions du compte sont fermées : qui que ce soit qui avait l'ancien
+   * mot de passe ne garde rien.
+   */
+  async reinitialiserMotDePasse(username: string, code: string, newPassword: string): Promise<void> {
+    const refus = () =>
+      AppException.badRequest(
+        ErrorCode.PASSWORD_RESET_INVALID,
+        'Identifiant ou code incorrect, ou code expiré. Demandez-en un nouveau.',
+      );
+    const user = await this.prisma.user.findFirst({
+      where: { username: username.trim().toLowerCase(), deletedAt: null },
+      select: { id: true },
+    });
+    if (!user) throw refus();
+    const demande = await this.prisma.passwordReset.findFirst({
+      where: {
+        userId: user.id,
+        usedAt: null,
+        expiresAt: { gt: this.clock.now() },
+        codeHash: empreinteDuCode(normalizeInviteCode(code)),
+      },
+      select: { id: true },
+    });
+    if (!demande) throw refus();
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: user.id },
+        data: { passwordHash: await this.passwords.hash(newPassword) },
+      }),
+      this.prisma.passwordReset.update({ where: { id: demande.id }, data: { usedAt: this.clock.now() } }),
+      this.prisma.refreshToken.updateMany({
+        where: { userId: user.id, revokedAt: null },
+        data: { revokedAt: this.clock.now() },
+      }),
+    ]);
+  }
+
+  /** Pour l'administration des membres : quand chacun a servi pour la dernière fois, et sur combien d'appareils. */
+  async activiteDesMembres() {
+    const sessions = await this.prisma.refreshToken.findMany({
+      where: { revokedAt: null, expiresAt: { gt: this.clock.now() }, user: { deletedAt: null } },
+      select: { userId: true, deviceId: true, createdAt: true, device: { select: { lastSeenAt: true } } },
+    });
+    const parMembre = new Map<string, { userId: string; lastSeenAt: Date; appareils: Set<string> }>();
+    for (const s of sessions) {
+      const vu = s.device?.lastSeenAt && s.device.lastSeenAt > s.createdAt ? s.device.lastSeenAt : s.createdAt;
+      const m = parMembre.get(s.userId) ?? { userId: s.userId, lastSeenAt: vu, appareils: new Set<string>() };
+      if (vu > m.lastSeenAt) m.lastSeenAt = vu;
+      m.appareils.add(s.deviceId ?? 'inconnu');
+      parMembre.set(s.userId, m);
+    }
+    return [...parMembre.values()].map((m) => ({ userId: m.userId, lastSeenAt: m.lastSeenAt, devices: m.appareils.size }));
+  }
+
+  /** Déconnecter tous les appareils d'un membre. */
+  async deconnecterUnMembre(userId: string): Promise<void> {
+    await this.prisma.refreshToken.updateMany({
+      where: { userId, revokedAt: null },
       data: { revokedAt: this.clock.now() },
     });
   }
@@ -460,4 +547,8 @@ export class UsersService {
     });
     return fusion;
   }
+}
+
+function empreinteDuCode(code: string): string {
+  return createHash('sha256').update(code).digest('hex');
 }

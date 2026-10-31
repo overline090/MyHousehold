@@ -96,11 +96,13 @@ export async function imageProtegee(chemin: string): Promise<string | null> {
  * permet de le reconnaître dans « Mes appareils » et de déconnecter les
  * autres sans lui.
  */
-export function monAppareil(): string {
-  let id = localStorage.getItem('mh-appareil');
+export function monAppareil(identifiant = session.utilisateur?.username ?? ''): string {
+  // Un par compte : un ordinateur partagé est un appareil pour chacun.
+  const cle = `mh-appareil:${identifiant}`;
+  let id = localStorage.getItem(cle);
   if (!id) {
     id = crypto.randomUUID();
-    localStorage.setItem('mh-appareil', id);
+    localStorage.setItem(cle, id);
   }
   return id;
 }
@@ -115,7 +117,7 @@ export async function seConnecter(identifiant: string, motDePasse: string): Prom
         username: identifiant.trim().toLowerCase(),
         password: motDePasse,
         deviceName: navigateurEnClair(),
-        deviceId: monAppareil(),
+        deviceId: monAppareil(identifiant.trim().toLowerCase()),
       }),
     },
   );

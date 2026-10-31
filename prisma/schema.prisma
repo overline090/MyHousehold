@@ -158,6 +158,7 @@ model User {
   status               Status                  @relation(fields: [statusId], references: [id])
   devices              Device[]
   refreshTokens        RefreshToken[]
+  passwordResets       PasswordReset[]
   calendarAccounts     CalendarAccount[]
   notificationPref     NotificationPreference?
   assignedTasks        TaskAssignee[]
@@ -677,4 +678,23 @@ model ProcessedMutation {
 
   @@index([processedAt])
   @@map("processed_mutation")
+}
+
+/// Un code de mot de passe oublié, donné de vive voix par un membre qui
+/// gère les membres. Pas d'adresse e-mail dans le projet : c'est le
+/// foyer qui atteste qu'il s'agit bien de la bonne personne.
+model PasswordReset {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  userId      String    @db.Uuid
+  /// SHA-256 du code : le code en clair n'est jamais stocké.
+  codeHash    String
+  createdById String?   @db.Uuid
+  expiresAt   DateTime  @db.Timestamptz
+  usedAt      DateTime? @db.Timestamptz
+  createdAt   DateTime  @default(now()) @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset")
 }

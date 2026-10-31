@@ -144,6 +144,17 @@ const verifier = (l, a, o) => { if (a === o) console.log('  ✓ ' + l); else { c
 
   // Copie automatique : une règle « après un mot-clé », essayée avant d'être enregistrée
   await page.click('nav >> text=Administration');
+  // Membres : les membres du foyer, et un code de mot de passe oublié pour Paul
+  await page.waitForSelector('.tableau .rang:not(.titres)');
+  verifier('l’administration ouvre sur les membres', true, (await page.textContent('.tableau')).includes('Paul'));
+  await page.locator('.rang', { hasText: 'Paul' }).locator('button:has-text("Gérer")').click();
+  await page.click('aside.panneau button:has-text("Générer un code")');
+  await page.waitForSelector('aside.panneau .grand-code');
+  const codeDePaul = (await page.textContent('aside.panneau .grand-code')).trim();
+  verifier('un code de mot de passe oublié est généré', true, /^[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(codeDePaul));
+  await page.screenshot({ path: `${S}/18-gerer-membre.png` });
+  await page.click('aside.panneau button[aria-label="Fermer"]');
+  await page.click('nav[aria-label="Administration"] >> text=Réglages du foyer');
   await page.waitForSelector('text=Copie automatique');
   await page.click('button:has-text("Nouvelle règle")');
   await page.fill('form.formulaire label:has-text("Nom") input', 'Code du portail');
@@ -275,6 +286,18 @@ const verifier = (l, a, o) => { if (a === o) console.log('  ✓ ' + l); else { c
   await page.waitForSelector('text=Se connecter');
   await page.reload({ waitUntil: 'networkidle' });
   verifier('après déconnexion, le rechargement ne reconnecte pas', true, await page.isVisible('text=Se connecter'));
+
+  // Paul a oublié son mot de passe : le code donné par Marie lui en fait choisir un autre
+  await page.click('button:has-text("Mot de passe oublié")');
+  await page.fill('input[autocomplete=username]', 'paul');
+  await page.fill('input.code', codeDePaul);
+  await page.fill('input[autocomplete=new-password]', 'un tout nouveau mot de passe');
+  await page.screenshot({ path: `${S}/19-mot-de-passe-oublie.png` });
+  await page.click('button:has-text("Changer le mot de passe")');
+  await page.waitForSelector('button[aria-label="Mon compte"], [role=alert]');
+  if (await page.isVisible('[role=alert]')) console.log('    ', await page.textContent('[role=alert]'));
+  verifier('Paul est connecté avec son nouveau mot de passe', true, await page.isVisible('button[aria-label="Mon compte"]'));
+  verifier('le code ne sert qu’une fois', 400, await page.evaluate(async (c) => (await fetch('/api/v1/users/password-reset', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: 'paul', code: c, newPassword: 'encore un autre mot de passe' }) })).status, codeDePaul));
 
   verifier('aucune erreur dans la console', 0, erreurs.filter((e) => !/Failed to load resource/.test(e)).length);
   if (erreurs.length) console.log(erreurs.slice(0, 5));

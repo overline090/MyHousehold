@@ -102,6 +102,13 @@ Limites de débit, par IP et par route :
 
 ## Mon compte
 
+**Mot de passe oublié** — pas d'adresse e-mail : un membre qui a `MANAGE_MEMBERS` génère
+un code (`POST /users/:id/password-reset` → `{ code, expiresAt }`, valable une heure, un
+nouveau annule le précédent) et le donne de vive voix ; la personne choisit un nouveau mot
+de passe avec `POST /users/password-reset` `{ username, code, newPassword }` (public,
+5 essais par quart d'heure). Toutes ses sessions sont fermées. `GET /users/activity` et
+`POST /users/:id/disconnect` servent à l'administration des membres.
+
 `GET /users/me/devices` : les appareils où le compte a une session valable (nom, version de
 l'app, dernière activité) ; `DELETE /users/me/devices/:id` en déconnecte un ;
 `POST /users/me/devices/disconnect-others` `{ deviceId }` déconnecte tous les autres.

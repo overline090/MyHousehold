@@ -189,11 +189,24 @@ export class AuthService {
     };
   }
 
+  /**
+   * Rattache la session à l'appareil qui se connecte. Un identifiant déjà
+   * pris par un autre compte — un ordinateur partagé, par exemple — ne
+   * rattache rien : la session s'ouvre sans appareil plutôt que de
+   * toucher à celui de quelqu'un d'autre.
+   */
   private async upsertDevice(
     userId: string,
     deviceId: string,
     deviceName?: string,
-  ): Promise<string> {
+  ): Promise<string | null> {
+    const existant = await this.prisma.device.findUnique({
+      where: { id: deviceId },
+      select: { userId: true },
+    });
+    if (existant && existant.userId !== userId) {
+      return null;
+    }
     const device = await this.prisma.device.upsert({
       where: { id: deviceId },
       create: {
@@ -202,18 +215,9 @@ export class AuthService {
         platform: deviceName ?? null,
         lastSeenAt: this.clock.now(),
       },
-      update: { lastSeenAt: this.clock.now() },
-      select: { id: true, userId: true },
+      update: { lastSeenAt: this.clock.now(), platform: deviceName ?? undefined },
+      select: { id: true },
     });
-
-    // Un identifiant d'appareil déjà pris par quelqu'un d'autre ne doit
-    // pas rattacher la session au mauvais compte.
-    if (device.userId !== userId) {
-      throw AppException.badRequest(
-        ErrorCode.VALIDATION_FAILED,
-        "Cet identifiant d'appareil est déjà utilisé.",
-      );
-    }
     return device.id;
   }
 

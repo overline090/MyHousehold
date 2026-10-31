@@ -28,6 +28,9 @@ import { ChangePasswordDto } from './dto/change-password.dto';
 import { DeleteAccountDto } from './dto/delete-account.dto';
 import { PreferencesDto } from './dto/preferences.dto';
 import { KeepDeviceDto } from './dto/keep-device.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { Public } from '../auth/decorators/public.decorator';
+import { Throttle } from '@nestjs/throttler';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UsersService } from './users.service';
 
@@ -69,6 +72,40 @@ export class UsersController {
     @Body() dto: PreferencesDto,
   ) {
     return this.users.changerPreferences(user.id, dto);
+  }
+
+  @Get('activity')
+  @RequireRight(Right.MANAGE_MEMBERS)
+  @ApiOperation({ summary: 'Dernière activité et appareils connectés de chaque membre' })
+  activity() {
+    return this.users.activiteDesMembres();
+  }
+
+  @Post(':userId/password-reset')
+  @RequireRight(Right.MANAGE_MEMBERS)
+  @ApiOperation({ summary: 'Un code de mot de passe oublié pour un membre, à lui donner de vive voix' })
+  passwordReset(
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.users.creerCodeDeReinitialisation(userId, user.id);
+  }
+
+  @Post(':userId/disconnect')
+  @RequireRight(Right.MANAGE_MEMBERS)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Déconnecter tous les appareils d’un membre' })
+  async disconnectMember(@Param('userId', ParseUUIDPipe) userId: string): Promise<void> {
+    await this.users.deconnecterUnMembre(userId);
+  }
+
+  @Public()
+  @Post('password-reset')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Throttle({ default: { limit: 5, ttl: 900_000 } })
+  @ApiOperation({ summary: 'Choisir un nouveau mot de passe avec le code reçu' })
+  async resetPassword(@Body() dto: ResetPasswordDto): Promise<void> {
+    await this.users.reinitialiserMotDePasse(dto.username, dto.code, dto.newPassword);
   }
 
   @Get('me/devices')
