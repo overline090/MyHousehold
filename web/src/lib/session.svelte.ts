@@ -25,6 +25,8 @@ export interface Foyer {
   name: string;
   timezone: string;
   weekStartsOn?: number;
+  /** Ce que les détails des tâches reconnaissent. */
+  detection?: import('./detection').Reglages;
 }
 
 export const session = $state<{ utilisateur: Utilisateur | null; foyer: Foyer | null; prete: boolean }>({

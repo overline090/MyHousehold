@@ -136,7 +136,7 @@ prendre les deux (voir [`self-hosting.md`](self-hosting.md)).
 | Méthode | Route | Droit |
 |---|---|---|
 | `GET` | `/household` | `VIEW` |
-| `PATCH` | `/household` | `MANAGE_SERVER` (nom, fuseau, premier jour de semaine) |
+| `PATCH` | `/household` | `MANAGE_SERVER` (nom, fuseau, premier jour de semaine, `detection`) |
 | `GET` | `/members` | `VIEW` |
 | `PATCH` | `/members/:id` | `MANAGE_MEMBERS` (statut) |
 | `POST` | `/invites` | `MANAGE_MEMBERS` |
@@ -205,7 +205,7 @@ de choses à faire.
 |---|---|---|---|
 | `GET` | `/tasks` | `VIEW` | `?kind=&groupId=&isActive=` |
 | `POST` | `/tasks` | `MANAGE_TASKS` | Création |
-| `GET` | `/tasks/:id` | `VIEW` | Définition + dix prochaines échéances, ou vingt dernières fois |
+| `GET` | `/tasks/:id` | `VIEW` | Définition + dix prochaines échéances et dix dernières fois (`history` : faite, manquée ou passée, par qui, `late`) ; pour une tâche de fond, vingt dernières fois |
 | `PATCH` | `/tasks/:id` | `MANAGE_TASKS` | Regénère les échéances futures en attente |
 | `DELETE` | `/tasks/:id` | `MANAGE_TASKS` | Suppression logique ; conserve l'historique |
 | `GET` | `/occurrences` | `VIEW` | **L'endpoint principal de l'app** |
@@ -214,6 +214,18 @@ de choses à faire.
 | `POST` | `/occurrences/:id/skip` | `COMPLETE_TASKS` | Passe son tour avec un motif. `200` |
 | `PATCH` | `/occurrences/:id` | `MANAGE_TASKS` | Réassigner, reporter, annoter |
 | `POST` | `/tasks/:id/done` | `COMPLETE_TASKS` | **Tâche de fond faite**, voir plus bas. `201` |
+
+**Les détails** d'une tâche (`description`) sont du HTML restreint, nettoyé par le
+serveur : `b`, `i`, `u`, `s`, `span` avec une couleur de la palette, `mark` avec une
+couleur de surligneur, `ul`/`ol`/`li` (une case : `li data-case="oui|non"`), `a`
+(http, https, tel, mailto), `p`, `br`. Le reste est retiré ; un texte vide devient
+`null`.
+
+**Ce que les détails reconnaissent** se règle dans `detection`, sur le foyer :
+`telephones`, `adresses`, `liens` (vrai par défaut) et `regles`, les règles de copie
+automatique — `{ id, nom, type: "MOT_CLE" | "FORMAT", motif, active }`. Un format se
+lit `#` = un chiffre, `A` = une lettre, `*` = l'un ou l'autre. La détection se fait à
+l'affichage, chez le client : le serveur garde le texte tel quel.
 
 Les trois actions sur une occurrence renvoient **`200`, pas `201`** : elles ne créent
 pas de ressource, elles changent un état. Le rejeu renvoie donc le même code que le

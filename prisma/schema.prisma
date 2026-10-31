@@ -202,6 +202,9 @@ model Household {
   /// « chaque lundi 19h » doit rester 19h locales après un changement d'heure.
   timezone     String @default("Europe/Paris")
   weekStartsOn Int    @default(1) @db.SmallInt
+  /// Ce que les détails des tâches reconnaissent : téléphones, adresses,
+  /// liens, et les règles de copie automatique du foyer.
+  detection    Json   @default("{}")
 
   createdAt DateTime  @default(now()) @db.Timestamptz
   updatedAt DateTime  @updatedAt @db.Timestamptz

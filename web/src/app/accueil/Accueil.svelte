@@ -7,6 +7,7 @@
   import { aller } from '../../lib/route.svelte';
   import { aLeDroit, api, session } from '../../lib/session.svelte';
   import Photo from '../Photo.svelte';
+  import FicheLecture from '../taches/FicheLecture.svelte';
   import {
     chargerAccueil,
     heureEnClair,
@@ -51,6 +52,8 @@
   let brouillon = $state<Tuile[]>([]);
   let catalogue = $state(false);
   let glissee = $state<number | null>(null);
+  /** La tâche ouverte pour la lire et la valider. */
+  let ouverte = $state<string | null>(null);
   /** Où la tuile glissée serait lâchée : sur une autre (échange), ou à côté (insertion). */
   let survol = $state<{ index: number; mode: 'echanger' | 'avant' | 'apres' } | null>(null);
   let depuisPoignee = false;
@@ -245,7 +248,7 @@
       {#if o.status === 'DONE'}<Icone nom="coche" taille={15} />{/if}
     </button>
     <div class="texte">
-      <h3>{o.title}</h3>
+      <h3><button class="ouvrir" onclick={() => (ouverte = o.taskId)}>{o.title}</button></h3>
       <p class="muet" class:alerte={enRetard}>
         {#if o.group}<span class="groupe"><i style:background={o.group.color}></i>{o.group.name}</span> ·{/if}
         {#if enRetard && o.scheduledFor}
@@ -269,7 +272,7 @@
       <button class="case" disabled={!peutCocher} aria-label={`C’est fait : ${t.title}`} onclick={() => faireDeFond(t)}></button>
     {/if}
     <div class="texte">
-      <h3>{t.title}</h3>
+      <h3><button class="ouvrir" onclick={() => (ouverte = t.id)}>{t.title}</button></h3>
       <p class="muet" class:alerte={enRetard}>
         {t.lastDoneAt ? `Il y a ${joursEnClair(ecoule)}` : 'Jamais faite'}
         {#if delai} — à refaire dans les {joursEnClair(delai)}{/if}
@@ -326,7 +329,7 @@
       <div class="carte-tache">
         {#if qui}<Photo membre={qui} taille={28} />{/if}
         <div class="texte">
-          <h3>{o.title}</h3>
+          <h3><button class="ouvrir" onclick={() => (ouverte = o.taskId)}>{o.title}</button></h3>
           <p class="muet">{o.assignee?.firstName} · {o.dueAt ? (heureEnClair(o.dueAt, fuseau) ?? 'Aujourd’hui') : 'Aujourd’hui'}</p>
         </div>
       </div>
@@ -473,7 +476,25 @@
   {/if}
 </div>
 
+{#if ouverte && donnees}
+  <FicheLecture tacheId={ouverte} membres={donnees.membres} onFermer={() => (ouverte = null)} />
+{/if}
+
 <style>
+  button.ouvrir {
+    all: unset;
+    cursor: pointer;
+  }
+
+  button.ouvrir:hover {
+    color: var(--accent);
+  }
+
+  button.ouvrir:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
   .bandeau {
     margin-bottom: 14px;
     font-size: 13px;

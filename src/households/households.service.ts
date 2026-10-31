@@ -46,6 +46,7 @@ export class HouseholdsService {
         name: true,
         timezone: true,
         weekStartsOn: true,
+        detection: true,
         createdAt: true,
       },
     });
@@ -92,6 +93,7 @@ export class HouseholdsService {
         name: true,
         timezone: true,
         weekStartsOn: true,
+        detection: true,
         createdAt: true,
       },
     });
@@ -105,6 +107,14 @@ export class HouseholdsService {
         name: dto.name?.trim(),
         timezone: dto.timezone,
         weekStartsOn: dto.weekStartsOn,
+        // Ce qui est envoyé remplace, ce qui manque est gardé : changer
+        // une règle ne réinitialise pas les interrupteurs.
+        detection: dto.detection
+          ? ({
+              ...(household.detection as object),
+              ...dto.detection,
+            } as Prisma.InputJsonValue)
+          : undefined,
       },
     });
     return this.describe();

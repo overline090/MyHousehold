@@ -43,6 +43,7 @@ export interface Echeance {
   scheduledFor: string | null;
   dueAt: string | null;
   status: 'PENDING' | 'DONE' | 'SKIPPED' | 'MISSED';
+  completedAt?: string | null;
 }
 
 export interface PageTaches {
@@ -51,6 +52,8 @@ export interface PageTaches {
   membres: Map<string, Membre>;
   /** La prochaine échéance en attente de chaque tâche datée. */
   prochaines: Map<string, Echeance>;
+  /** L'échéance d'aujourd'hui déjà faite, s'il y en a une. */
+  faitesAujourdHui: Map<string, Echeance>;
 }
 
 export async function chargerTaches(aujourdHui: string, decaler: (j: string, n: number) => string): Promise<PageTaches> {
@@ -59,12 +62,14 @@ export async function chargerTaches(aujourdHui: string, decaler: (j: string, n: 
     api<Groupe[]>('/task-groups'),
     api<Membre[]>('/members'),
     api<{ data: Echeance[] }>(
-      `/occurrences?from=${decaler(aujourdHui, -30)}&to=${decaler(aujourdHui, 120)}&status=PENDING&limit=500`,
+      `/occurrences?from=${decaler(aujourdHui, -30)}&to=${decaler(aujourdHui, 120)}&limit=500`,
     ),
   ]);
   const prochaines = new Map<string, Echeance>();
+  const faitesAujourdHui = new Map<string, Echeance>();
   for (const e of [...echeances.data].sort((a, b) => (a.scheduledFor ?? '').localeCompare(b.scheduledFor ?? ''))) {
-    if (!prochaines.has(e.taskId)) prochaines.set(e.taskId, e);
+    if (e.status === 'PENDING' && !prochaines.has(e.taskId)) prochaines.set(e.taskId, e);
+    if (e.status === 'DONE' && e.scheduledFor === aujourdHui) faitesAujourdHui.set(e.taskId, e);
   }
-  return { taches, groupes, membres: new Map(membres.map((m) => [m.id, m])), prochaines };
+  return { taches, groupes, membres: new Map(membres.map((m) => [m.id, m])), prochaines, faitesAujourdHui };
 }

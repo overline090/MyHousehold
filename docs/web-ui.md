@@ -2,7 +2,8 @@
 
 > **État** : l'**assistant d'installation**, la **connexion**, le **cadre** (barre
 > d'outils, navigation repliable, disposition téléphone), l'**accueil en tuiles
-> personnalisables** et la page **Tâches** (liste par groupe, fiche complète) sont écrits, et joués dans un vrai navigateur contre un vrai
+> personnalisables** la page **Tâches** (liste par groupe, fiche complète, validation, détails mis en forme)
+> et, dans l'Administration, la **copie automatique** sont écrits, et joués dans un vrai navigateur contre un vrai
 > serveur (`scripts/wizard-e2e.js`, `scripts/web-e2e.js`). Les autres pages ont leur
 > maquette validée et le disent en attendant.
 
@@ -46,6 +47,18 @@ N mois — avec une heure ou toute la journée, et un **premier jour** qui peut 
 le futur), de fond (à refaire dans les N jours) ou ponctuelle (avec ou sans date
 limite). L'aperçu des trois prochaines fois, avec qui s'en charge à tour de rôle, suit
 la saisie. Sur cette page, « Ajouter » ouvre la fiche complète.
+
+**Valider une tâche.** Ouvrir une tâche, depuis Tâches ou l'Accueil, montre d'abord
+où elle en est — à faire aujourd'hui et pour qui, en retard, faite (à quelle heure et
+par qui), ou quand elle commence — avec « C'est fait », « Passer cette fois » et
+« Annuler : pas encore faite » ; puis ses détails, les dernières fois (faite, manquée
+ou passée, par qui, en retard ou non) et les prochaines. « Modifier » ouvre la fiche.
+
+**Les détails** se mettent en forme (gras, italique, souligné, barré, couleur et
+surligneur de la palette, listes, cases à cocher). À la lecture, les téléphones
+(appeler, copier), les adresses (ouvrir dans la carte, copier), les liens et ce que
+repèrent les règles de **copie automatique** (Administration › Réglages du foyer)
+deviennent utilisables d'un appui.
 
 Ce qu'elle ne fait **pas** : notifications push, mode hors-ligne, scan de QR code.
 Ce sont des choses de téléphone, et prétendre les faire au navigateur donnerait une

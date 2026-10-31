@@ -599,6 +599,14 @@ check "une taille de tuile inconnue est refusée" "400" \
 check "une tuile de plus de 12 colonnes est refusée" "400" \
   "$(status -X PUT "$BASE/users/me/preferences" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' \
     -d '{"accueil":[{"id":"en-retard","colonnes":13}]}')"
+check "une règle de copie automatique s'enregistre sur le foyer" "Code du portail True" \
+  "$(curl -s -X PATCH "$BASE/household" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' \
+    -d '{"detection":{"regles":[{"id":"portail","nom":"Code du portail","type":"MOT_CLE","motif":"Code du portail","active":true}]}}' | py "
+import json,sys; d=json.load(sys.stdin)['detection']; print(d['regles'][0]['nom'], d.get('telephones', True))")"
+check "les détails d'une tâche gardent la mise en forme, pas le reste" "<p><b>Appeler</b> 06 12 34 56 78</p>" \
+  "$(curl -s -X POST "$BASE/tasks" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' \
+    -d '{"title":"Détails","kind":"ONE_OFF","description":"<p onclick=\"x()\"><strong>Appeler</strong> 06 12 34 56 78</p><script>alert(1)</script>"}' | py "
+import json,sys; print(json.load(sys.stdin)['description'])")"
 check "se déconnecter efface le cookie" "204" \
   "$(curl -s -o /dev/null -w '%{http_code}' -b "$POT" -c "$POT" -X POST "$BASE/auth/logout" -H 'content-type: application/json' -H 'x-mh-client: web' -d '{}')"
 check "le cookie n'est plus" "absent" "$(grep -q 'mh_refresh' "$POT" && echo present || echo absent)"

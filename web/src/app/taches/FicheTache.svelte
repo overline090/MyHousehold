@@ -4,6 +4,7 @@
   import { api } from '../../lib/session.svelte';
   import type { Membre } from '../accueil/donnees';
   import Photo from '../Photo.svelte';
+  import EditeurDetails from './EditeurDetails.svelte';
   import type { Groupe, ModeQui, Sorte, Tache } from './donnees';
   import { dateEnClair, heureCourte, JOURS, JOURS_COURTS, prochainesFois, type Jour, type Repetition } from './regles';
 
@@ -161,7 +162,7 @@
     erreur = null;
     const corps: Record<string, unknown> = {
       title: titre.trim(),
-      description: detail.trim(),
+      description: detail,
       groupId: groupe || null,
       priority: prio,
       assignmentMode: mode,
@@ -384,7 +385,14 @@
       {/if}
     </div>
 
-    <label class="champ">Détail<textarea bind:value={detail} rows="2" maxlength="2000" placeholder="Facultatif"></textarea></label>
+    <div class="champ">
+      <span>Détails</span>
+      <EditeurDetails bind:valeur={detail} desactive={lectureSeule} />
+      <span class="muet aide">
+        Ce qui est reconnu devient utilisable d’un appui : téléphones, adresses, liens, et ce que le foyer a
+        défini dans Administration › Copie automatique.
+      </span>
+    </div>
 
     {#if erreur}<div class="encadre alerte">{erreur}</div>{/if}
   </fieldset>
@@ -690,10 +698,5 @@
     font-size: 11px;
     min-width: 18px;
     text-align: center;
-  }
-
-  textarea {
-    font: inherit;
-    font-weight: 400;
   }
 </style>

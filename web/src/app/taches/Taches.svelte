@@ -3,9 +3,10 @@
   import { barre, signalerUnChangement } from '../../lib/barre.svelte';
   import Icone from '../../lib/Icone.svelte';
   import { aLeDroit, api, session } from '../../lib/session.svelte';
-  import { jourDans, joursEnClair, priorite } from '../accueil/donnees';
+  import { heureEnClair, jourDans, joursEnClair, priorite } from '../accueil/donnees';
   import Photo from '../Photo.svelte';
   import { chargerTaches, type PageTaches, type Sorte, type Tache } from './donnees';
+  import FicheLecture from './FicheLecture.svelte';
   import FicheTache from './FicheTache.svelte';
   import NouveauGroupe from './NouveauGroupe.svelte';
   import { decaler, ecartEnJours, prochaineFoisEnClair, prochainesFois, repetitionEnClair } from './regles';
@@ -23,6 +24,8 @@
   let groupeChoisi = $state<string>('');
   /** La fiche ouverte : une tâche existante, ou `null` pour en créer une. */
   let fiche = $state<{ tache: Tache | null } | null>(null);
+  /** La tâche ouverte pour la lire et la valider. */
+  let ouverte = $state<string | null>(null);
   let nouveauGroupe = $state(false);
 
   async function charger() {
@@ -93,7 +96,7 @@
   }
 
   /** La prochaine fois, et si elle est déjà passée. */
-  function prochaine(t: Tache): { texte: string; retard: boolean } {
+  function prochaine(t: Tache): { texte: string; retard: boolean; faite?: boolean } {
     if (!t.isActive) return { texte: 'En pause', retard: false };
     if (t.kind === 'BACKGROUND') {
       if (!t.lastDoneAt) return { texte: 'Jamais faite', retard: false };
@@ -101,7 +104,11 @@
       const jour = jourDans(fuseau, new Date(t.nextDueAt));
       return { texte: prochaineFoisEnClair(jour, aujourdHui), retard: jour < aujourdHui };
     }
+    const faite = donnees?.faitesAujourdHui.get(t.id);
     const e = donnees?.prochaines.get(t.id);
+    if (faite && !(e?.scheduledFor && e.scheduledFor <= aujourdHui)) {
+      return { texte: faite.completedAt ? `Faite à ${heureEnClair(faite.completedAt, fuseau)}` : 'Faite aujourd’hui', retard: false, faite: true };
+    }
     if (e?.scheduledFor) {
       return { texte: prochaineFoisEnClair(e.scheduledFor, aujourdHui, t.dueTime), retard: e.scheduledFor < aujourdHui };
     }
@@ -117,6 +124,7 @@
   function cochable(t: Tache): boolean {
     if (!peutCocher || !t.isActive) return false;
     if (t.kind === 'BACKGROUND') return true;
+    if (donnees?.faitesAujourdHui.has(t.id)) return true;
     const e = donnees?.prochaines.get(t.id);
     return !!e?.scheduledFor && ecartEnJours(aujourdHui, e.scheduledFor) <= 0;
   }
@@ -127,8 +135,13 @@
         await api(`/tasks/${t.id}/done`, { method: 'POST', body: '{}' });
       } else {
         const e = donnees?.prochaines.get(t.id);
-        if (!e) return;
-        await api(`/occurrences/${e.id}/complete`, { method: 'POST', body: '{}' });
+        const faite = donnees?.faitesAujourdHui.get(t.id);
+        if (e?.scheduledFor && e.scheduledFor <= aujourdHui) {
+          await api(`/occurrences/${e.id}/complete`, { method: 'POST', body: '{}' });
+        } else if (faite) {
+          // Cochée par erreur : un nouvel appui la remet à faire.
+          await api(`/occurrences/${faite.id}/uncomplete`, { method: 'POST', body: '{}' });
+        }
       }
       signalerUnChangement();
     } catch (e) {
@@ -184,19 +197,20 @@
         <div class="c-nom" role="cell">
           <button
             class="case"
+            class:cochee={suite.faite}
             disabled={!cochable(t)}
-            aria-label={`C’est fait : ${t.title}`}
-            title={cochable(t) ? 'C’est fait' : 'Rien à cocher pour l’instant'}
+            aria-label={suite.faite ? `Pas encore faite : ${t.title}` : `C’est fait : ${t.title}`}
+            title={!cochable(t) ? 'Rien à cocher pour l’instant' : suite.faite ? 'Annuler : pas encore faite' : 'C’est fait'}
             onclick={() => cocher(t)}
-          ></button>
-          <button class="titre" onclick={() => (fiche = { tache: t })}>
+          >{#if suite.faite}<Icone nom="coche" taille={14} />{/if}</button>
+          <button class="titre" onclick={() => (ouverte = t.id)}>
             <b>{t.title}</b>
             {#if t.kind === 'BACKGROUND'}<span class="etiquette fond">De fond</span>{/if}
             {#if t.kind === 'ONE_OFF'}<span class="etiquette neutre">Ponctuelle</span>{/if}
           </button>
         </div>
         <div class="c-quand" role="cell">{quand(t)}</div>
-        <div class="c-prochaine" role="cell" class:alerte={suite.retard}>{suite.texte}</div>
+        <div class="c-prochaine" role="cell" class:alerte={suite.retard} class:faite={suite.faite}>{suite.texte}</div>
         <div class="c-qui" role="cell">
           {#if t.assignmentMode === 'ANYONE' || t.assignees.length === 0}
             <span class="muet">Quiconque</span>
@@ -213,6 +227,18 @@
     {/each}
   {/each}
 </div>
+
+{#if ouverte && donnees}
+  <FicheLecture
+    tacheId={ouverte}
+    membres={donnees.membres}
+    onFermer={() => (ouverte = null)}
+    onModifier={(t) => {
+      ouverte = null;
+      fiche = { tache: t };
+    }}
+  />
+{/if}
 
 {#if fiche && donnees}
   <FicheTache
@@ -419,6 +445,20 @@
 
   .case:disabled {
     opacity: 0.45;
+  }
+
+  .case.cochee {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .faite {
+    color: #15803d;
+    font-weight: 600;
   }
 
   .etiquette {

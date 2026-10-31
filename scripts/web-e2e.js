@@ -17,7 +17,7 @@ const echecs = [];
 const verifier = (l, a, o) => { if (a === o) console.log('  ✓ ' + l); else { console.log(`  ✗ ${l} — attendu ${a}, obtenu ${o}`); echecs.push(l); } };
 (async () => {
   const nav = await chromium.launch();
-  const ctx = await nav.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1.5, locale: 'fr-FR' });
+  const ctx = await nav.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1.5, locale: 'fr-FR', permissions: ['clipboard-read', 'clipboard-write'] });
   const page = await ctx.newPage();
   const erreurs = [];
   page.on('pageerror', (e) => erreurs.push(String(e)));
@@ -134,10 +134,70 @@ const verifier = (l, a, o) => { if (a === o) console.log('  ✓ ' + l); else { c
   const rangee = page.locator('.rang', { hasText: 'Arroser le potager' });
   verifier('la tâche apparaît avec « Tous les 3 jours »', true, (await rangee.textContent()).includes('Tous les 3 jours'));
   await rangee.locator('button.titre').click();
+  await page.waitForSelector('aside.panneau');
+  verifier('ouverte, elle dit quand elle commence', true, (await page.textContent('aside.panneau .etat-boite')).includes('Commence'));
+  await page.click('aside.panneau button:has-text("Modifier")');
   await page.waitForSelector('form.panneau');
   verifier('rouverte, elle garde son rythme et son premier jour', `3 ${premierJour}`,
     `${await page.inputValue('form.panneau input[aria-label="Nombre de jours"]')} ${await page.inputValue('form.panneau label:has-text("Premier jour") input')}`);
   await page.click('form.panneau button:has-text("Annuler")');
+
+  // Copie automatique : une règle « après un mot-clé », essayée avant d'être enregistrée
+  await page.click('nav >> text=Administration');
+  await page.waitForSelector('text=Copie automatique');
+  await page.click('button:has-text("Nouvelle règle")');
+  await page.fill('form.formulaire label:has-text("Nom") input', 'Code du portail');
+  await page.fill('form.formulaire label:has-text("Mot-clé") input', 'Code du portail');
+  await page.fill('form.formulaire textarea', 'Code du portail : 4821B, merci.');
+  verifier('l’essai trouve le code', true, (await page.textContent('form.formulaire')).includes('1 trouvé : 4821B'));
+  await page.click('form.formulaire button[type=submit]');
+  await page.waitForSelector('form.formulaire', { state: 'detached' });
+  verifier('la règle est enregistrée', true, await page.isVisible('.rang:has-text("Après « Code du portail »")'));
+  await page.screenshot({ path: `${S}/9-copie-automatique.png` });
+
+  // Détails mis en forme : écrits dans la fiche, puis lus avec ce qu'ils reconnaissent
+  await page.click('nav >> text=Tâches');
+  await page.waitForSelector('.tableau .rang:not(.titres)');
+  await page.locator('.rang', { hasText: 'Arroser le potager' }).locator('button.titre').click();
+  await page.waitForSelector('aside.panneau');
+  await page.click('aside.panneau button:has-text("Modifier")');
+  await page.waitForSelector('form.panneau .zone');
+  await page.click('form.panneau .zone');
+  await page.keyboard.press('Control+b');
+  await page.keyboard.type('Appeler Paul');
+  await page.keyboard.press('Control+b');
+  await page.keyboard.type(' au 06 12 34 56 78');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Code du portail : 4821B');
+  await page.waitForTimeout(200);
+  await page.screenshot({ path: `${S}/10-details-ecrire.png` });
+  verifier('l’éditeur résume ce qu’il reconnaît', true, (await page.textContent('.detections')).includes('1 téléphone'));
+  await page.click('form.panneau button[type=submit]');
+  await page.waitForSelector('form.panneau', { state: 'detached' });
+  await page.locator('.rang', { hasText: 'Arroser le potager' }).locator('button.titre').click();
+  await page.waitForSelector('aside.panneau .texte-riche button.detecte');
+  verifier('le gras est gardé', 'Appeler Paul', await page.textContent('aside.panneau .texte-riche b'));
+  verifier('le téléphone est reconnu', true, await page.isVisible('aside.panneau button.detecte.telephone'));
+  await page.click('aside.panneau button.detecte.telephone');
+  verifier('un appui propose d’appeler', 'tel:0612345678', await page.getAttribute('.bulle a', 'href'));
+  await page.screenshot({ path: `${S}/11-details-lire.png` });
+  await page.click('aside.panneau button.detecte.copie');
+  verifier('un appui sur le code le copie', '4821B', await page.evaluate(() => navigator.clipboard.readText()));
+  await page.click('aside.panneau button:has-text("Fermer")');
+
+  // Valider une tâche : C'est fait, l'état et les dernières fois le disent, puis annuler
+  await page.locator('.rang', { hasText: 'Promener le chien' }).locator('button.titre').click();
+  await page.waitForSelector('aside.panneau .etat');
+  verifier('ouverte, elle dit à qui c’est le tour', true, (await page.textContent('aside.panneau .etat-boite')).includes('Paul'));
+  await page.click('aside.panneau button:has-text("C’est fait")');
+  await page.waitForSelector('aside.panneau .etat.fait');
+  verifier('la tâche se dit faite', true, (await page.textContent('aside.panneau .etat-boite')).includes('Faite à'));
+  verifier('les dernières fois la montrent', true, (await page.textContent('aside.panneau .historique')).includes('Faite'));
+  await page.screenshot({ path: `${S}/12-tache-validee.png` });
+  await page.click('aside.panneau button:has-text("Annuler : pas encore faite")');
+  await page.waitForSelector('aside.panneau button:has-text("C’est fait")');
+  verifier('annuler la remet à faire', true, (await page.textContent('aside.panneau .etat-boite')).includes('À faire aujourd’hui'));
+  await page.click('aside.panneau button:has-text("Fermer")');
 
   // Menu du compte
   await page.click('button[aria-label="Mon compte"]');

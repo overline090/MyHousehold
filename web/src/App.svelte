@@ -4,6 +4,7 @@
   import Connexion from './app/Connexion.svelte';
   import Accueil from './app/accueil/Accueil.svelte';
   import Taches from './app/taches/Taches.svelte';
+  import Administration from './app/admin/Administration.svelte';
   import AVenir from './app/AVenir.svelte';
   import APropos from './app/APropos.svelte';
   import { ApiError, setupApi } from './lib/api';
@@ -15,7 +16,6 @@
   const A_VENIR: Record<string, string> = {
     '/agenda': 'Agenda',
     '/foyer': 'Foyer',
-    '/administration': 'Administration',
     '/preferences': 'Préférences',
     '/profil': 'Mon profil',
     '/appareils': 'Mes appareils',
@@ -62,6 +62,8 @@
       <APropos />
     {:else if route.chemin.startsWith('/taches')}
       <Taches />
+    {:else if route.chemin.startsWith('/administration')}
+      <Administration />
     {:else if page}
       <AVenir nom={page} />
     {:else}

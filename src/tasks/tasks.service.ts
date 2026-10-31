@@ -8,6 +8,7 @@ import {
   TaskKind,
 } from '@prisma/client';
 import { ClockService } from '../common/clock/clock.service';
+import { nettoyerDetails } from './details';
 import { AppException } from '../common/errors/app.exception';
 import { ErrorCode } from '../common/errors/error-codes';
 import { PrismaService } from '../common/prisma/prisma.service';
@@ -129,7 +130,7 @@ export class TasksService {
         householdId,
         createdById,
         title: dto.title.trim(),
-        description: dto.description?.trim() ?? null,
+        description: nettoyerDetails(dto.description),
         kind,
         groupId: dto.groupId ?? null,
         priority: dto.priority ?? 0,
@@ -223,11 +224,39 @@ export class TasksService {
       take: 10,
     });
 
+    // Les dernières fois : faite, manquée ou passée, quand et par qui.
+    // C'est ce qui dit d'une tâche datée si elle est tenue.
+    const history = await this.prisma.taskOccurrence.findMany({
+      where: {
+        taskId,
+        deletedAt: null,
+        status: { in: [OccurrenceStatus.DONE, OccurrenceStatus.MISSED, OccurrenceStatus.SKIPPED] },
+      },
+      select: {
+        id: true,
+        scheduledFor: true,
+        dueAt: true,
+        status: true,
+        completedAt: true,
+        note: true,
+        assignee: { select: { id: true, firstName: true, lastName: true } },
+        completedBy: { select: { id: true, firstName: true, lastName: true } },
+      },
+      orderBy: [{ scheduledFor: 'desc' }, { completedAt: 'desc' }],
+      take: 10,
+    });
+
     return {
       ...shapeTask(task),
       upcoming: upcoming.map((o) => ({
         ...o,
         scheduledFor: o.scheduledFor ? toLocalDate(o.scheduledFor) : null,
+      })),
+      history: history.map((o) => ({
+        ...o,
+        scheduledFor: o.scheduledFor ? toLocalDate(o.scheduledFor) : null,
+        // En retard : faite après son échéance.
+        late: !!(o.completedAt && o.dueAt && o.completedAt > o.dueAt),
       })),
     };
   }
@@ -362,7 +391,7 @@ export class TasksService {
         where: { id: taskId },
         data: {
           title: dto.title?.trim(),
-          description: dto.description?.trim(),
+          description: dto.description === undefined ? undefined : nettoyerDetails(dto.description),
           groupId: dto.groupId === undefined ? undefined : dto.groupId,
           priority: dto.priority,
           rrule,

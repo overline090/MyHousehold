@@ -39,11 +39,14 @@ export class CreateTaskDto {
   @Length(1, 120)
   title!: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    description:
+      'Les détails, en HTML restreint : gras, italique, souligné, barré, couleurs de la palette, surligneur, listes et cases. Le reste est retiré.',
+  })
   @IsOptional()
   @IsString()
-  @Length(0, 2000)
-  description?: string;
+  @Length(0, 20000)
+  description?: string | null;
 
   @ApiPropertyOptional({ enum: TaskKind, default: TaskKind.SCHEDULED })
   @IsOptional()
