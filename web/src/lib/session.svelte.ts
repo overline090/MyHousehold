@@ -91,6 +91,20 @@ export async function imageProtegee(chemin: string): Promise<string | null> {
   return reponse.ok ? URL.createObjectURL(await reponse.blob()) : null;
 }
 
+/**
+ * L'identifiant de ce navigateur, tiré au hasard une fois et gardé : il
+ * permet de le reconnaître dans « Mes appareils » et de déconnecter les
+ * autres sans lui.
+ */
+export function monAppareil(): string {
+  let id = localStorage.getItem('mh-appareil');
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem('mh-appareil', id);
+  }
+  return id;
+}
+
 export async function seConnecter(identifiant: string, motDePasse: string): Promise<void> {
   const reponse = await request<{ accessToken: string; user: Utilisateur; household: Foyer }>(
     '/api/v1/auth/login',
@@ -101,6 +115,7 @@ export async function seConnecter(identifiant: string, motDePasse: string): Prom
         username: identifiant.trim().toLowerCase(),
         password: motDePasse,
         deviceName: navigateurEnClair(),
+        deviceId: monAppareil(),
       }),
     },
   );

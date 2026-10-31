@@ -6,19 +6,19 @@
   import Taches from './app/taches/Taches.svelte';
   import Agenda from './app/agenda/Agenda.svelte';
   import Foyer from './app/foyer/Foyer.svelte';
+  import Profil from './app/compte/Profil.svelte';
+  import Appareils from './app/compte/Appareils.svelte';
+  import Preferences from './app/compte/Preferences.svelte';
   import Administration from './app/admin/Administration.svelte';
   import AVenir from './app/AVenir.svelte';
   import APropos from './app/APropos.svelte';
   import { ApiError, setupApi } from './lib/api';
-  import { chargerPreferences } from './lib/preferences.svelte';
-  import { route } from './lib/route.svelte';
+  import { appliquerApparence, chargerPreferences, preferences } from './lib/preferences.svelte';
+  import { aller, route } from './lib/route.svelte';
   import { restaurer, session } from './lib/session.svelte';
 
   /** Les pages dont la maquette est validée mais pas encore écrite. */
   const A_VENIR: Record<string, string> = {
-    '/preferences': 'Préférences',
-    '/profil': 'Mon profil',
-    '/appareils': 'Mes appareils',
   };
 
   const surAssistant = $derived(route.chemin.startsWith('/setup'));
@@ -40,7 +40,18 @@
   });
 
   $effect(() => {
-    if (session.utilisateur) void chargerPreferences().catch(() => {});
+    if (!session.utilisateur) return;
+    void chargerPreferences()
+      .then(() => {
+        // La page choisie pour l'ouverture, quand on arrive sur la racine.
+        const ouverture = preferences.valeurs.pageOuverture;
+        if (route.chemin === '/' && ouverture && ouverture !== 'accueil') aller(`/${ouverture}`);
+      })
+      .catch(() => {});
+  });
+
+  $effect(() => {
+    appliquerApparence(preferences.valeurs.apparence);
   });
 
   const page = $derived(
@@ -66,6 +77,12 @@
       <Agenda />
     {:else if route.chemin.startsWith('/foyer')}
       <Foyer />
+    {:else if route.chemin.startsWith('/profil')}
+      <Profil />
+    {:else if route.chemin.startsWith('/appareils')}
+      <Appareils />
+    {:else if route.chemin.startsWith('/preferences')}
+      <Preferences />
     {:else if route.chemin.startsWith('/administration')}
       <Administration />
     {:else if page}

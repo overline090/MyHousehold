@@ -12,7 +12,8 @@ export interface Tuile {
 }
 
 export interface Preferences {
-  accueil?: Tuile[];
+  /** null : l'accueil par défaut. */
+  accueil?: Tuile[] | null;
   navigationRepliee?: boolean;
   pageOuverture?: 'accueil' | 'taches' | 'agenda';
   apparence?: 'auto' | 'clair' | 'sombre';
@@ -39,4 +40,10 @@ export async function enregistrerPreferences(changement: Preferences): Promise<v
     method: 'PUT',
     body: JSON.stringify(changement),
   });
+}
+
+/** L'apparence choisie s'applique à toute la page : Automatique laisse l'ordinateur décider. */
+export function appliquerApparence(apparence: Preferences['apparence']): void {
+  if (apparence === 'clair' || apparence === 'sombre') document.documentElement.dataset.theme = apparence;
+  else delete document.documentElement.dataset.theme;
 }

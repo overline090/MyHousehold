@@ -102,6 +102,11 @@ Limites de débit, par IP et par route :
 
 ## Mon compte
 
+`GET /users/me/devices` : les appareils où le compte a une session valable (nom, version de
+l'app, dernière activité) ; `DELETE /users/me/devices/:id` en déconnecte un ;
+`POST /users/me/devices/disconnect-others` `{ deviceId }` déconnecte tous les autres.
+`PATCH /users/me` accepte aussi `username` (409 s'il est pris).
+
 `GET` et `PUT /users/me/preferences` : les préférences d'affichage du compte — tuiles de
 l'accueil (`accueil` : `colonnes` de 1 à 12, `hauteur` en pixels ou absente pour la hauteur
 du contenu ; l'ancienne `taille` `S`, `M`, `L` ou `XL` reste acceptée), menu replié

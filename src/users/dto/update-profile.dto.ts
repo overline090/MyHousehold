@@ -8,7 +8,14 @@ import {
   ValidateIf,
 } from 'class-validator';
 
+import { IsUsername } from '../username';
+
 export class UpdateProfileDto {
+  @ApiPropertyOptional({ example: 'marie', description: 'Changer d’identifiant : celui de la connexion.' })
+  @IsOptional()
+  @IsUsername()
+  username?: string;
+
   @ApiPropertyOptional({ example: 'Marie' })
   @IsOptional()
   @IsString()

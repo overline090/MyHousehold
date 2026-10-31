@@ -604,6 +604,11 @@ check "une taille de tuile inconnue est refusée" "400" \
 check "une tuile de plus de 12 colonnes est refusée" "400" \
   "$(status -X PUT "$BASE/users/me/preferences" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' \
     -d '{"accueil":[{"id":"en-retard","colonnes":13}]}')"
+check "mes appareils listent cette session" "yes" \
+  "$(curl -s "$BASE/users/me/devices" -H "authorization: Bearer $WEB_TOKEN" | py "
+import json,sys; d=json.load(sys.stdin); print('yes' if isinstance(d, list) and len(d) >= 1 and 'lastSeenAt' in d[0] else d)")"
+check "un identifiant déjà pris est refusé" "409" \
+  "$(status -X PATCH "$BASE/users/me" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' -d "{\"username\":\"premier-$SUFFIX\"}")"
 check "le foyer voit ce qui a été fait ce mois-ci, par personne et par groupe" "yes" \
   "$(curl -s "$BASE/contributions" -H "authorization: Bearer $WEB_TOKEN" | py "
 import json,sys; d=json.load(sys.stdin)

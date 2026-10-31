@@ -29,7 +29,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='clair']) {
     --fond: #101715;
     --surface: #18211f;
     --surface-douce: #1d2725;
@@ -47,6 +47,26 @@
     --alerte-trait: #4d3a16;
     --alerte-encre: #f3d9a4;
   }
+}
+
+/* Le choix fait dans Préférences l'emporte sur celui de l'ordinateur. */
+:root[data-theme='sombre'] {
+  --fond: #101715;
+  --surface: #18211f;
+  --surface-douce: #1d2725;
+  --encre: #e8efed;
+  --encre-douce: #c3d1cd;
+  --gris: #9bada8;
+  --trait: #2a3633;
+  --trait-net: #35443f;
+  --accent: #2dd4bf;
+  --accent-sombre: #5eead4;
+  --accent-doux: #16302c;
+  --accent-trait: #1f4a44;
+  --alerte: #fbbf24;
+  --alerte-fond: #2c2112;
+  --alerte-trait: #4d3a16;
+  --alerte-encre: #f3d9a4;
 }
 
 * {

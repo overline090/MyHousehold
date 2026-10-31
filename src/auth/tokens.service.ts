@@ -115,6 +115,13 @@ export class TokensService {
     }
 
     const next = await this.issueWithId(stored.userId, stored.deviceId);
+    // « Mes appareils » montre quand chacun a servi pour la dernière fois.
+    if (stored.deviceId) {
+      await this.prisma.device.updateMany({
+        where: { id: stored.deviceId },
+        data: { lastSeenAt: this.clock.now() },
+      });
+    }
     await this.prisma.refreshToken.update({
       where: { id: stored.id },
       data: {

@@ -23,8 +23,9 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   try {
     response = await fetch(path, {
       ...init,
+      // Un fichier envoyé en formulaire porte son propre type.
       headers: {
-        'content-type': 'application/json',
+        ...(init?.body instanceof FormData ? {} : { 'content-type': 'application/json' }),
         ...(init?.headers ?? {}),
       },
     });

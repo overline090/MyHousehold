@@ -4,7 +4,8 @@
 > d'outils, navigation repliable, disposition téléphone), l'**accueil en tuiles
 > personnalisables** la page **Tâches** (liste par groupe, fiche complète, validation, détails mis en forme)
 > l'**Agenda** (mois, semaine, jour, liste, fiche d'un rendez-vous), le **Foyer** (membres,
-> ce qui a été fait ce mois-ci, réglages en lecture) et, dans
+> ce qui a été fait ce mois-ci, réglages en lecture), **Mon profil**, **Mes appareils**,
+> **Préférences** (apparence appliquée, page à l'ouverture) et, dans
 > l'Administration, la **copie automatique** sont écrits, et joués dans un vrai navigateur contre un vrai
 > serveur (`scripts/wizard-e2e.js`, `scripts/web-e2e.js`). Les autres pages ont leur
 > maquette validée et le disent en attendant.

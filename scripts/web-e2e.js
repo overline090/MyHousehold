@@ -231,7 +231,30 @@ const verifier = (l, a, o) => { if (a === o) console.log('  ✓ ' + l); else { c
   await page.click('button[aria-label="Mon compte"]');
   await page.screenshot({ path: `${S}/6-menu.png` });
   await page.click('text=Mes appareils');
-  verifier('une page à venir le dit', true, await page.isVisible('text=prochaine version'));
+  await page.waitForSelector('.tableau .rang:not(.titres)');
+  verifier('Mes appareils reconnaît ce navigateur', true, await page.isVisible('text=Ce navigateur'));
+  await page.screenshot({ path: `${S}/15-appareils.png` });
+
+  // Préférences : l'apparence choisie s'applique tout de suite, et reste
+  await page.click('nav >> text=Préférences');
+  await page.click('button:has-text("Sombre")');
+  await page.waitForTimeout(300);
+  verifier('le thème sombre s’applique', 'sombre', await page.evaluate(() => document.documentElement.dataset.theme));
+  await page.screenshot({ path: `${S}/16-preferences-sombre.png` });
+  await page.click('button:has-text("Automatique")');
+
+  // Mon profil : changer son prénom
+  await page.click('button[aria-label="Mon compte"]');
+  await page.click('text=Mon profil');
+  await page.waitForSelector('form.carte');
+  await page.fill('form.carte label:has-text("Prénom") input', 'Marie-Anne');
+  await page.click('form.carte button:has-text("Enregistrer")');
+  await page.waitForSelector('text=Enregistré.');
+  verifier('le prénom changé se voit partout', true, (await page.textContent('.photo h2')).includes('Marie-Anne'));
+  await page.screenshot({ path: `${S}/17-profil.png` });
+  await page.fill('form.carte label:has-text("Prénom") input', 'Marie');
+  await page.click('form.carte button:has-text("Enregistrer")');
+  await page.waitForTimeout(400);
   await page.goBack();
   await page.waitForTimeout(300);
 

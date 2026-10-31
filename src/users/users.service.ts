@@ -59,9 +59,22 @@ export class UsersService {
    * `PATCH /members/:id`, par quelqu'un qui en a le droit.
    */
   async updateProfile(userId: string, dto: UpdateProfileDto) {
+    if (dto.username) {
+      const pris = await this.prisma.user.findFirst({
+        where: { username: dto.username, id: { not: userId } },
+        select: { id: true },
+      });
+      if (pris) {
+        throw AppException.conflict(
+          ErrorCode.USERNAME_ALREADY_USED,
+          'Cet identifiant est déjà pris. Choisissez-en un autre.',
+        );
+      }
+    }
     await this.prisma.user.update({
       where: { id: userId },
       data: {
+        username: dto.username,
         firstName: dto.firstName?.trim(),
         lastName: dto.lastName?.trim(),
         birthDate:
@@ -76,6 +89,51 @@ export class UsersService {
       },
     });
     return this.profile(userId);
+  }
+
+  /**
+   * Les appareils où le compte est connecté : ceux qui ont encore une
+   * session valable. Les sessions ouvertes sans identifiant d'appareil
+   * sont regroupées sous « inconnu ».
+   */
+  async devices(userId: string) {
+    const sessions = await this.prisma.refreshToken.findMany({
+      where: { userId, revokedAt: null, expiresAt: { gt: this.clock.now() } },
+      select: {
+        deviceId: true,
+        createdAt: true,
+        device: { select: { id: true, platform: true, appVersion: true, lastSeenAt: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    const parAppareil = new Map<string, { id: string; name: string | null; appVersion: string | null; lastSeenAt: Date }>();
+    for (const s of sessions) {
+      const id = s.deviceId ?? 'inconnu';
+      const vu = s.device?.lastSeenAt && s.device.lastSeenAt > s.createdAt ? s.device.lastSeenAt : s.createdAt;
+      const deja = parAppareil.get(id);
+      if (!deja) {
+        parAppareil.set(id, { id, name: s.device?.platform ?? null, appVersion: s.device?.appVersion ?? null, lastSeenAt: vu });
+      } else if (vu > deja.lastSeenAt) {
+        deja.lastSeenAt = vu;
+      }
+    }
+    return [...parAppareil.values()].sort((a, b) => b.lastSeenAt.getTime() - a.lastSeenAt.getTime());
+  }
+
+  /** Déconnecter un appareil : ses sessions sont révoquées, il devra se reconnecter. */
+  async disconnectDevice(userId: string, deviceId: string): Promise<void> {
+    await this.prisma.refreshToken.updateMany({
+      where: { userId, revokedAt: null, deviceId: deviceId === 'inconnu' ? null : deviceId },
+      data: { revokedAt: this.clock.now() },
+    });
+  }
+
+  /** Tous les autres : seul l'appareil d'où vient la demande reste connecté. */
+  async disconnectOthers(userId: string, keepDeviceId: string): Promise<void> {
+    await this.prisma.refreshToken.updateMany({
+      where: { userId, revokedAt: null, OR: [{ deviceId: null }, { deviceId: { not: keepDeviceId } }] },
+      data: { revokedAt: this.clock.now() },
+    });
   }
 
   async changePassword(

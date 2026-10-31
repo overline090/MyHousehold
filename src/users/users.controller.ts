@@ -27,6 +27,7 @@ import { AvatarsService } from './avatars.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { DeleteAccountDto } from './dto/delete-account.dto';
 import { PreferencesDto } from './dto/preferences.dto';
+import { KeepDeviceDto } from './dto/keep-device.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UsersService } from './users.service';
 
@@ -68,6 +69,32 @@ export class UsersController {
     @Body() dto: PreferencesDto,
   ) {
     return this.users.changerPreferences(user.id, dto);
+  }
+
+  @Get('me/devices')
+  @ApiOperation({ summary: 'Les appareils où mon compte est connecté' })
+  devices(@CurrentUser() user: AuthenticatedUser) {
+    return this.users.devices(user.id);
+  }
+
+  @Delete('me/devices/:deviceId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Déconnecter un de mes appareils' })
+  async disconnectDevice(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('deviceId') deviceId: string,
+  ): Promise<void> {
+    await this.users.disconnectDevice(user.id, deviceId);
+  }
+
+  @Post('me/devices/disconnect-others')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Déconnecter tous mes appareils sauf celui-ci' })
+  async disconnectOthers(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: KeepDeviceDto,
+  ): Promise<void> {
+    await this.users.disconnectOthers(user.id, dto.deviceId);
   }
 
   @Post('me/password')
