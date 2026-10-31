@@ -23,6 +23,15 @@ describe('nettoyerDetails', () => {
     );
   });
 
+  it('lit le surligneur et les couleurs écrits par l’app', () => {
+    expect(nettoyerDetails('<span style="background: rgba(253, 230, 138, 1.0);">a</span>')).toMatch(
+      /^<mark style="background-color: ?#fde68a">a<\/mark>$/,
+    );
+    expect(nettoyerDetails('<span style="color: rgba(185, 28, 28, 1.0);">b</span>')).toMatch(
+      /^<span style="color: ?#b91c1c">b<\/span>$/,
+    );
+  });
+
   it('traduit <font color> en couleur de texte', () => {
     expect(nettoyerDetails('<font color="#1d4ed8">bleu</font>')).toMatch(/^<span style="color: ?#1d4ed8">bleu<\/span>$/);
   });

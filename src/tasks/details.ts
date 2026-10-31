@@ -16,7 +16,7 @@ export const COULEURS_DU_SURLIGNEUR = ['#fde68a', '#bbf7d0', '#bfdbfe', '#fbcfe8
 
 const COULEUR = /^#[0-9a-f]{6}$/i;
 
-function couleurDe(style: string, propriete: 'color' | 'background-color'): string | null {
+function couleurDe(style: string, propriete: 'color' | 'background-color' | 'background'): string | null {
   const trouve = new RegExp(`(?:^|;)\\s*${propriete}\\s*:\\s*([^;]+)`, 'i').exec(style);
   const valeur = trouve?.[1].trim().toLowerCase();
   if (!valeur) return null;
@@ -49,7 +49,9 @@ export function nettoyerDetails(html: string | null | undefined): string | null 
       // ailleurs serait illisible dans l'un des deux thèmes.
       span: (_tag, attributs) => {
         const couleur = couleurDe(attributs.style ?? '', 'color');
-        const fond = couleurDe(attributs.style ?? '', 'background-color');
+        // L'app écrit « background », les navigateurs « background-color ».
+        const fond =
+          couleurDe(attributs.style ?? '', 'background-color') ?? couleurDe(attributs.style ?? '', 'background');
         if (fond && COULEURS_DU_SURLIGNEUR.includes(fond)) {
           return { tagName: 'mark', attribs: { style: `background-color: ${fond}` } };
         }
