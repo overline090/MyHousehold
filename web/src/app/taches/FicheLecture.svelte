@@ -48,6 +48,31 @@
   const peutGerer = $derived(aLeDroit('MANAGE_TASKS'));
 
   let t = $state<Detail | null>(null);
+  /** La saisie d'une tâche de fond dont on confirme la révocation. */
+  let aRevoquer = $state<string | null>(null);
+
+  /** On révoque ses propres saisies ; qui gère les tâches, celles de tous. */
+  function revocable(f: Fois): boolean {
+    return !!t && t.kind === 'BACKGROUND' && peutCocher && (peutGerer || f.completedBy?.id === session.utilisateur?.id);
+  }
+
+  async function revoquer(f: Fois) {
+    if (aRevoquer !== f.id) {
+      aRevoquer = f.id;
+      return;
+    }
+    envoi = true;
+    try {
+      t = await api<Detail>(`/tasks/${t!.id}/done/${f.id}`, { method: 'DELETE' });
+      aRevoquer = null;
+      erreur = null;
+      signalerUnChangement();
+    } catch (e) {
+      erreur = e instanceof ApiError ? e.message : 'Le serveur ne répond pas.';
+    } finally {
+      envoi = false;
+    }
+  }
   let erreur = $state<string | null>(null);
   let envoi = $state(false);
 
@@ -75,7 +100,7 @@
     if (!t.isActive) return { texte: 'En pause', classe: 'neutre', actions: false as const };
     if (t.kind === 'BACKGROUND') {
       const jours = t.elapsedSeconds != null ? joursEnClair(t.elapsedSeconds) : null;
-      const texte = !t.lastDoneAt ? 'Jamais faite' : `Faite il y a ${jours}`;
+      const texte = !t.lastDoneAt ? 'Jamais faite' : jours === "aujourd'hui" ? 'Faite aujourd’hui' : `Faite il y a ${jours}`;
       const classe = t.state === 'OVERDUE' ? 'retard' : t.state === 'DUE_SOON' ? 'bientot' : 'fait';
       return {
         texte: t.state === 'OVERDUE' ? `${texte} — en retard` : texte,
@@ -249,6 +274,15 @@
                 <span class="muet">
                   {f.status === 'DONE' ? (f.completedBy?.firstName ?? '') : (f.assignee?.firstName ?? '')}{f.late ? ' · en retard' : ''}
                 </span>
+                {#if revocable(f)}
+                  <button
+                    class="lien revoquer"
+                    class:confirmer={aRevoquer === f.id}
+                    disabled={envoi}
+                    title="Faite par erreur, ou pas vraiment faite : la retirer du journal"
+                    onclick={() => revoquer(f)}>{aRevoquer === f.id ? 'Retirer pour de bon' : 'Révoquer'}</button
+                  >
+                {/if}
               </div>
             {/each}
           </div>
@@ -480,6 +514,17 @@
 
   .fois:first-child {
     border-top: none;
+  }
+
+  button.lien.revoquer {
+    align-self: center;
+    color: var(--gris);
+    font-weight: 500;
+  }
+
+  button.lien.revoquer.confirmer {
+    color: #b91c1c;
+    font-weight: 600;
   }
 
   .quand {

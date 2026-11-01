@@ -291,7 +291,7 @@
     <div class="texte">
       <h3><button class="ouvrir" onclick={() => (ouverte = t.id)}>{t.title}</button></h3>
       <p class="muet" class:alerte={enRetard}>
-        {t.lastDoneAt ? `Il y a ${joursEnClair(ecoule)}` : 'Jamais faite'}
+        {t.lastDoneAt ? (joursEnClair(ecoule) === "aujourd'hui" ? 'Aujourd’hui' : `Il y a ${joursEnClair(ecoule)}`) : 'Jamais faite'}
         {#if delai} — à refaire dans les {joursEnClair(delai)}{/if}
       </p>
       {#if !enRetard && delai}

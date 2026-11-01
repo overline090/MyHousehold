@@ -231,6 +231,7 @@ de choses à faire.
 | `POST` | `/occurrences/:id/skip` | `COMPLETE_TASKS` | Passe son tour avec un motif. `200` |
 | `PATCH` | `/occurrences/:id` | `MANAGE_TASKS` | Réassigner, reporter, annoter |
 | `POST` | `/tasks/:id/done` | `COMPLETE_TASKS` | **Tâche de fond faite**, voir plus bas. `201` |
+| `DELETE` | `/tasks/:id/done/:entryId` | `COMPLETE_TASKS` | **Révoquer une saisie** d'une tâche de fond, voir plus bas |
 
 **Les détails** d'une tâche (`description`) sont du HTML restreint, nettoyé par le
 serveur : `b`, `i`, `u`, `s`, `span` avec une couleur de la palette, `mark` avec une
@@ -405,9 +406,16 @@ anciens compteurs, et il est conservé. L'UUID client rend l'appel idempotent : 
 double tap ou un rejeu hors-ligne ne crée pas deux entrées. Un instant futur est
 refusé (`400`).
 
-Ses entrées se lisent et se corrigent comme toute occurrence :
-`GET /occurrences?taskId=...`, puis `POST /occurrences/:id/uncomplete` pour revenir
-sur une saisie erronée.
+**Révoquer une saisie** — faite par erreur, ou pas vraiment faite :
+`DELETE /tasks/:id/done/:entryId`. L'entrée quitte le journal (suppression logique), et
+l'état repart de la saisie précédente. Chacun révoque les siennes ; avec
+`MANAGE_TASKS`, celles de tous (sinon `403`). Pas de délai : c'est une correction du
+journal. Rejouée, une révocation déjà faite répond `200` ; la réponse est la tâche, avec
+son `history` à jour.
+
+Dans `GET /tasks`, chaque tâche de fond porte aussi `recentDone` : ses vingt dernières
+saisies (`id`, `completedAt`, `completedById`, `note`), pour que l'app puisse en
+révoquer une hors ligne par son identifiant.
 
 ### Groupes de tâches
 

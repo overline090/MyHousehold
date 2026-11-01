@@ -125,6 +125,25 @@ export class TasksController {
     );
   }
 
+  // Révoquer une saisie : « fait » par erreur, ou pas vraiment fait. La
+  // saisie quitte le journal, l'état repart de la précédente.
+  @Delete('tasks/:taskId/done/:entryId')
+  @RequireRight(Right.COMPLETE_TASKS)
+  @ApiOperation({ summary: 'Révoquer une saisie « fait » d’une tâche de fond' })
+  async undoDone(
+    @Param('taskId', ParseUUIDPipe) taskId: string,
+    @Param('entryId', ParseUUIDPipe) entryId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.tasks.undoDone(
+      await this.households.currentId(),
+      taskId,
+      entryId,
+      user.id,
+      user.rights.includes(Right.MANAGE_TASKS),
+    );
+  }
+
   // ── Groupes ──────────────────────────────────────────────────────────
 
   @Get('task-groups')

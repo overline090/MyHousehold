@@ -395,6 +395,22 @@ check "corriger une saisie erronée recalcule l'état" "OVERDUE" \
   "$(curl -s -X POST "$BASE/occurrences/$DERNIERE/uncomplete" -H "authorization: Bearer $ENFANT_TOKEN" > /dev/null
      curl -s "$BASE/tasks/$FOND_ID" -H "authorization: Bearer $ADMIN" | field "['state']")"
 
+check "la liste des tâches porte le journal récent d'une tâche de fond" "1" \
+  "$(curl -s "$BASE/tasks" -H "authorization: Bearer $ADMIN" | py "
+import json,sys; print([len(t['recentDone']) for t in json.load(sys.stdin) if t['id'] == '$FOND_ID'][0])")"
+ANCIENNE=$(curl -s "$BASE/tasks/$FOND_ID" -H "authorization: Bearer $ADMIN" | py "
+import json,sys; print(json.load(sys.stdin)['history'][0]['id'])")
+check "un invité ne révoque pas une saisie" "403" \
+  "$(status -X DELETE "$BASE/tasks/$FOND_ID/done/$ANCIENNE" -H "authorization: Bearer $INVITE_TOKEN")"
+check "révoquer sa saisie la retire du journal" "0 True" \
+  "$(curl -s -X DELETE "$BASE/tasks/$FOND_ID/done/$ANCIENNE" -H "authorization: Bearer $ENFANT_TOKEN" | py "
+import json,sys; t=json.load(sys.stdin); print(len(t['history']), t['lastDoneAt'] is None)")"
+check "révoquer deux fois n'est pas une erreur" "200" \
+  "$(status -X DELETE "$BASE/tasks/$FOND_ID/done/$ANCIENNE" -H "authorization: Bearer $ENFANT_TOKEN")"
+# La suite attend une tâche de fond en retard : on la redéclare faite il y a vingt jours.
+curl -s -o /dev/null -X POST "$BASE/tasks/$FOND_ID/done" -H "authorization: Bearer $ENFANT_TOKEN" \
+  -H 'content-type: application/json' -d "{\"completedAt\":\"$VIEUX\"}"
+
 echo
 echo "Groupes, priorités, tâches ponctuelles"
 GROUPE_ID=$(curl -s -X POST "$BASE/task-groups" -H "authorization: Bearer $ADMIN" \
@@ -619,8 +635,9 @@ check "le bon code fait choisir un nouveau mot de passe" "204" \
   "$(status -X POST "$BASE/users/password-reset" -H 'content-type: application/json' -d '{"username":"premier-'$SUFFIX'","code":"'$CODE_OUBLI'","newPassword":"un nouveau mot de passe"}')"
 check "et il ne sert qu'une fois" "400" \
   "$(status -X POST "$BASE/users/password-reset" -H 'content-type: application/json' -d '{"username":"premier-'$SUFFIX'","code":"'$CODE_OUBLI'","newPassword":"un autre mot de passe"}')"
-check "le foyer voit ce qui a été fait ce mois-ci, par personne et par groupe" "yes" \
-  "$(curl -s "$BASE/contributions" -H "authorization: Bearer $WEB_TOKEN" | py "
+# Le mois de la tâche de fond déclarée il y a vingt jours : jamais vide, même un 1er du mois.
+check "le foyer voit ce qui a été fait dans un mois, par personne et par groupe" "yes" \
+  "$(curl -s "$BASE/contributions?month=${VIEUX:0:7}" -H "authorization: Bearer $WEB_TOKEN" | py "
 import json,sys; d=json.load(sys.stdin)
 print('yes' if d['total'] >= 1 and sum(m['count'] for m in d['byMember']) <= d['total'] and sum(g['count'] for g in d['byGroup']) == d['total'] else d)")"
 check "un mois mal écrit est refusé" "400" "$(status "$BASE/contributions?month=2026-13" -H "authorization: Bearer $WEB_TOKEN")"

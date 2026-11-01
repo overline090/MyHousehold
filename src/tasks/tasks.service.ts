@@ -179,7 +179,31 @@ export class TasksService {
     });
 
     const etats = await this.etatsDeFond(tasks);
-    return tasks.map((task) => shapeTask(task, etats.get(task.id)));
+    // Le journal récent des tâches de fond : l'app le garde pour pouvoir
+    // révoquer une saisie hors ligne, par son identifiant.
+    const deFond = tasks.filter((t) => t.kind === TaskKind.BACKGROUND).map((t) => t.id);
+    const journal = deFond.length
+      ? await this.prisma.taskOccurrence.findMany({
+          where: { taskId: { in: deFond }, deletedAt: null, status: OccurrenceStatus.DONE },
+          select: { id: true, taskId: true, completedAt: true, note: true, completedById: true },
+          orderBy: { completedAt: 'desc' },
+          take: 50 * deFond.length,
+        })
+      : [];
+    const parTache = new Map<string, typeof journal>();
+    for (const e of journal) {
+      const liste = parTache.get(e.taskId) ?? [];
+      if (liste.length < 20) liste.push(e);
+      parTache.set(e.taskId, liste);
+    }
+    return tasks.map((task) => {
+      const vue = shapeTask(task, etats.get(task.id));
+      if (task.kind !== TaskKind.BACKGROUND) return vue;
+      return {
+        ...vue,
+        recentDone: (parTache.get(task.id) ?? []).map(({ taskId: _t, ...e }) => e),
+      };
+    });
   }
 
   /**
@@ -478,6 +502,31 @@ export class TasksService {
     });
 
     await this.materializeDefinition(taskId);
+    return this.findOne(householdId, taskId);
+  }
+
+  /**
+   * Révoquer une saisie du journal d'une tâche de fond. Chacun révoque
+   * les siennes ; qui gère les tâches peut révoquer celles des autres.
+   * Rejouée (file hors ligne), une révocation déjà faite est un succès.
+   */
+  async undoDone(householdId: string, taskId: string, entryId: string, userId: string, gereLesTaches: boolean) {
+    const entree = await this.prisma.taskOccurrence.findFirst({
+      where: { id: entryId, taskId, householdId, task: { kind: TaskKind.BACKGROUND } },
+      select: { id: true, deletedAt: true, completedById: true, status: true },
+    });
+    if (!entree || entree.status !== OccurrenceStatus.DONE) {
+      throw AppException.notFound("Cette saisie n'existe pas.");
+    }
+    if (!entree.deletedAt) {
+      if (entree.completedById !== userId && !gereLesTaches) {
+        throw AppException.forbidden(
+          ErrorCode.FORBIDDEN_RIGHT,
+          'Seule la personne qui l’a saisie, ou qui gère les tâches, peut la révoquer.',
+        );
+      }
+      await this.prisma.taskOccurrence.update({ where: { id: entryId }, data: { deletedAt: this.clock.now() } });
+    }
     return this.findOne(householdId, taskId);
   }
 

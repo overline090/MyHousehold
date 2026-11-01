@@ -241,6 +241,19 @@ const verifier = (l, a, o) => { if (a === o) console.log('  ✓ ' + l); else { c
   verifier('annuler la remet à faire', true, (await page.textContent('aside.panneau .etat-boite')).includes('À faire aujourd’hui'));
   await page.click('aside.panneau button:has-text("Fermer")');
 
+  // Tâche de fond : une saisie faite par erreur se révoque
+  await page.locator('.rang', { hasText: 'Détartrer la bouilloire' }).locator('button.titre').click();
+  await page.waitForSelector('aside.panneau .historique');
+  await page.click('aside.panneau button:has-text("C’est fait")');
+  await page.waitForFunction(() => document.querySelectorAll('aside.panneau .historique .fois').length === 2);
+  await page.click('aside.panneau .historique .fois >> nth=0 >> button.revoquer');
+  verifier('révoquer demande confirmation', true, await page.isVisible('aside.panneau button:has-text("Retirer pour de bon")'));
+  await page.screenshot({ path: `${S}/13-fond-revoquer.png` });
+  await page.click('aside.panneau button:has-text("Retirer pour de bon")');
+  await page.waitForFunction(() => document.querySelectorAll('aside.panneau .historique .fois').length === 1);
+  verifier('la saisie révoquée quitte le journal, l’état repart de la précédente', true, (await page.textContent('aside.panneau .etat-boite')).includes('Faite il y a 26'));
+  await page.click('aside.panneau button:has-text("Fermer")');
+
   // Agenda : le mois, le jour choisi, et un rendez-vous qui se répète
   await page.click('nav >> text=Agenda');
   await page.waitForSelector('.mois .case');
