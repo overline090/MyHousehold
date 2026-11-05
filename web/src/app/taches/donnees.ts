@@ -9,6 +9,8 @@ export interface Groupe {
   id: string;
   name: string;
   color: string;
+  /** Une icône de la liste, « texte: » et un emoji ou des lettres, ou null. */
+  icon?: string | null;
 }
 
 /** Une tâche telle que le serveur la décrit, tous types confondus. */

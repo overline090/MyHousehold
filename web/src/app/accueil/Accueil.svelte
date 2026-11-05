@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PastilleGroupe from '../../lib/PastilleGroupe.svelte';
   import { ApiError } from '../../lib/api';
   import { barre } from '../../lib/barre.svelte';
   import Icone from '../../lib/Icone.svelte';
@@ -267,7 +268,7 @@
     <div class="texte">
       <h3><button class="ouvrir" onclick={() => (ouverte = o.taskId)}>{o.title}</button></h3>
       <p class="muet" class:alerte={enRetard}>
-        {#if o.group}<span class="groupe"><i style:background={o.group.color}></i>{o.group.name}</span> ·{/if}
+        {#if o.group}<span class="groupe"><PastilleGroupe color={o.group.color} icon={o.group.icon} taille={16} />{o.group.name}</span> ·{/if}
         {#if enRetard && o.scheduledFor}
           {retardEnClair(o.scheduledFor, donnees!.aujourdHui)}
         {:else if o.status === 'DONE' && o.completedAt}
@@ -857,12 +858,6 @@
     font-weight: 600;
   }
 
-  .groupe i {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    display: block;
-  }
 
   .etiquette {
     flex: none;

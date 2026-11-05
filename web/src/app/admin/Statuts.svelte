@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ChoixCouleur from '../../lib/ChoixCouleur.svelte';
   import { ApiError } from '../../lib/api';
   import { barre } from '../../lib/barre.svelte';
   import Icone from '../../lib/Icone.svelte';
@@ -222,11 +223,7 @@
       <label>Nom du statut<input bind:value={fiche.nom} required maxlength="40" /></label>
       <div class="champ">
         <span>Couleur</span>
-        <div class="couleurs">
-          {#each COULEURS as c (c)}
-            <button type="button" class:actif={fiche.couleur === c} style:background={c} aria-label={c} onclick={() => (fiche!.couleur = c)}></button>
-          {/each}
-        </div>
+        <ChoixCouleur bind:valeur={fiche.couleur} couleurs={COULEURS} />
       </div>
       <div class="champ">
         <span>Droits</span>
@@ -465,24 +462,8 @@
     accent-color: var(--accent);
   }
 
-  .couleurs {
-    display: flex;
-    gap: 8px;
-  }
 
-  .couleurs button {
-    width: 30px;
-    height: 30px;
-    min-height: 0;
-    padding: 0;
-    border-radius: 50%;
-    border: 3px solid var(--surface);
-    box-shadow: 0 0 0 1px var(--trait-net);
-  }
 
-  .couleurs button.actif {
-    box-shadow: 0 0 0 2px var(--encre);
-  }
 
   .porteur {
     display: flex;

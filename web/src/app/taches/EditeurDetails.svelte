@@ -5,9 +5,9 @@
 
   /**
    * Écrire les détails d'une tâche : gras, italique, souligné, barré,
-   * couleur, surligneur, listes et cases. Les couleurs sont celles de la
-   * palette — le serveur n'en accepte pas d'autres, pour que le texte
-   * reste lisible en clair comme en sombre.
+   * couleur, surligneur, listes et cases. Le texte prend une couleur de
+   * la palette ou une autre (« + ») ; le surligneur garde sa palette, pour
+   * que le texte reste lisible dessus.
    */
   let { valeur = $bindable(''), desactive = false }: { valeur: string; desactive?: boolean } = $props();
 
@@ -77,6 +77,24 @@
     faire('foreColor', c);
   }
 
+  /** Le sélecteur du navigateur prend le focus : on garde la sélection pour la lui rendre. */
+  let selectionGardee: Range | null = null;
+
+  function garderSelection() {
+    const sel = window.getSelection();
+    selectionGardee = sel && sel.rangeCount && zone?.contains(sel.anchorNode) ? sel.getRangeAt(0).cloneRange() : null;
+  }
+
+  function couleurPerso(c: string) {
+    const sel = window.getSelection();
+    if (selectionGardee && sel) {
+      zone?.focus();
+      sel.removeAllRanges();
+      sel.addRange(selectionGardee);
+    }
+    choisirCouleur(c.toLowerCase());
+  }
+
   function choisirSurligneur(c: string) {
     surligneur = c;
     palette = null;
@@ -121,6 +139,12 @@
             {#each COULEURS as c (c)}
               <button type="button" role="menuitem" aria-label={c} class:actif={c === couleur} style:background={c} onmousedown={(e) => e.preventDefault()} onclick={() => choisirCouleur(c)}></button>
             {/each}
+            {#if !COULEURS.includes(couleur)}
+              <button type="button" role="menuitem" aria-label={couleur} class="actif" style:background={couleur} onmousedown={(e) => e.preventDefault()} onclick={() => choisirCouleur(couleur)}></button>
+            {/if}
+            <label class="plus" title="Couleur personnalisée">
+              <input type="color" aria-label="Couleur personnalisée" value={couleur} onpointerdown={garderSelection} onchange={(e) => couleurPerso((e.currentTarget as HTMLInputElement).value)} />
+            </label>
           </div>
         </div>
       {/if}
@@ -344,5 +368,37 @@
     padding: 2px 10px;
     color: var(--encre-douce);
     background: var(--surface);
+  }
+  .plus {
+    position: relative;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: conic-gradient(#ef4444, #f59e0b, #84cc16, #10b981, #06b6d4, #6366f1, #d946ef, #ef4444);
+    cursor: pointer;
+  }
+
+  .plus::after {
+    content: '+';
+    position: absolute;
+    inset: 5px;
+    border-radius: 50%;
+    background: var(--surface);
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .plus input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: none;
+    cursor: pointer;
   }
 </style>

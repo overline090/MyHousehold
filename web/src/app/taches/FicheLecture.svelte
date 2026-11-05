@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PastilleGroupe from '../../lib/PastilleGroupe.svelte';
   import { ApiError } from '../../lib/api';
   import { signalerUnChangement } from '../../lib/barre.svelte';
   import Icone from '../../lib/Icone.svelte';
@@ -217,7 +218,7 @@
       {@const p = priorite(t.priority)}
       <div class="entete">
         {#if p}<span class="etiquette {p.classe}">{p.libelle}</span>{/if}
-        {#if t.group}<span class="groupe"><i style:background={t.group.color}></i>{t.group.name}</span>{/if}
+        {#if t.group}<span class="groupe"><PastilleGroupe color={t.group.color} icon={t.group.icon} taille={16} />{t.group.name}</span>{/if}
         <span class="muet">
           {t.kind === 'SCHEDULED'
             ? repetitionEnClair(t.recurrence, t.dueTime)
@@ -398,12 +399,6 @@
     font-weight: 600;
   }
 
-  .groupe i {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    display: block;
-  }
 
   .etat-boite {
     border: 1px solid var(--trait);

@@ -325,6 +325,12 @@ const verifier = (l, a, o) => { if (a === o) console.log('  ✓ ' + l); else { c
   await page.click('nav.nav >> text=Stock');
   await page.click('button:has-text("+ Nouveau tableau")');
   await page.fill('form.panneau label:has-text("Nom") input', 'Garde-manger');
+  // Une icône personnalisée : un emoji, sur une couleur choisie librement.
+  await page.click('form.panneau .segment button:has-text("Perso")');
+  await page.fill('form.panneau label:has-text("Emoji ou lettres") input', '🍝');
+  await page.fill('form.panneau input[aria-label="Couleur personnalisée"]', '#fde68a');
+  verifier('l’aperçu montre l’emoji', '🍝', (await page.textContent('form.panneau .tete-panneau .texte'))?.trim());
+  await page.screenshot({ path: `${S}/21-icone-perso.png` });
   await page.click('form.panneau button:has-text("Créer le tableau")');
   await page.waitForSelector('.tableau-puce:has-text("Garde-manger")');
   await page.click('button:has-text("+ Nouvel article")');

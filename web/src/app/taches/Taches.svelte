@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PastilleGroupe from '../../lib/PastilleGroupe.svelte';
   import { ApiError } from '../../lib/api';
   import { barre, signalerUnChangement } from '../../lib/barre.svelte';
   import Icone from '../../lib/Icone.svelte';
@@ -73,10 +74,10 @@
   const parGroupe = $derived.by(() => {
     if (!donnees) return [];
     const sections = donnees.groupes
-      .map((g) => ({ cle: g.id, nom: g.name, couleur: g.color, taches: visibles.filter((t) => t.group?.id === g.id) }))
+      .map((g) => ({ cle: g.id, nom: g.name, couleur: g.color, icone: g.icon ?? null, taches: visibles.filter((t) => t.group?.id === g.id) }))
       .filter((s) => s.taches.length > 0);
     const sans = visibles.filter((t) => !t.group);
-    if (sans.length) sections.push({ cle: 'aucun', nom: 'Sans groupe', couleur: '#c9d3d0', taches: sans });
+    if (sans.length) sections.push({ cle: 'aucun', nom: 'Sans groupe', couleur: '#c9d3d0', icone: null, taches: sans });
     return sections;
   });
 
@@ -189,7 +190,7 @@
     </p>
   {/if}
   {#each parGroupe as section (section.cle)}
-    <div class="titre-groupe"><i style:background={section.couleur}></i>{section.nom}</div>
+    <div class="titre-groupe"><PastilleGroupe color={section.couleur} icon={section.icone} taille={20} />{section.nom}</div>
     {#each section.taches as t (t.id)}
       {@const p = priorite(t.priority)}
       {@const suite = prochaine(t)}
@@ -403,12 +404,6 @@
     letter-spacing: 0.05em;
   }
 
-  .titre-groupe i {
-    width: 9px;
-    height: 9px;
-    border-radius: 50%;
-    display: block;
-  }
 
   .vide {
     padding: 22px 16px;

@@ -8,7 +8,7 @@ export interface Occurrence {
   title: string;
   kind: 'SCHEDULED' | 'BACKGROUND' | 'ONE_OFF';
   priority: number;
-  group: { id: string; name: string; color: string } | null;
+  group: { id: string; name: string; color: string; icon?: string | null } | null;
   scheduledFor: string | null;
   dueAt: string | null;
   status: 'PENDING' | 'DONE' | 'SKIPPED' | 'MISSED';
@@ -20,7 +20,7 @@ export interface TacheDeFond {
   id: string;
   title: string;
   priority: number;
-  group: { id: string; name: string; color: string } | null;
+  group: { id: string; name: string; color: string; icon?: string | null } | null;
   maxIntervalSeconds: number | null;
   lastDoneAt: string | null;
   elapsedSeconds: number | null;

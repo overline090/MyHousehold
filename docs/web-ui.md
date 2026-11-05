@@ -59,17 +59,25 @@ par qui), ou quand elle commence — avec « C'est fait », « Passer cette fois
 « Annuler : pas encore faite » ; puis ses détails, les dernières fois (faite, manquée
 ou passée, par qui, en retard ou non) et les prochaines. « Modifier » ouvre la fiche.
 
-**Les détails** se mettent en forme (gras, italique, souligné, barré, couleur et
-surligneur de la palette, listes, cases à cocher). À la lecture, les téléphones
+**Les détails** se mettent en forme (gras, italique, souligné, barré, couleur du
+texte — de la palette ou personnalisée —, surligneur de la palette, listes, cases à
+cocher). À la lecture, les téléphones
 (appeler, copier), les adresses (ouvrir dans la carte, copier), les liens et ce que
 repèrent les règles de **copie automatique** (Administration › Réglages du foyer)
 deviennent utilisables d'un appui.
+
+**Couleurs et icônes.** Chaque choix de couleur (statuts, groupes, stock, texte des
+détails) propose sa palette et une pastille « + » qui ouvre le sélecteur de couleur du
+navigateur. Les groupes de tâches et le stock prennent une icône : aucune, une de la
+liste, ou « Perso », un emoji ou une à deux lettres posé sur la couleur ; le stock
+accepte aussi une image importée. Un groupe se modifie depuis Administration ›
+Réglages du foyer.
 
 **Les plugins.** Administration › Plugins liste ceux livrés avec MyHousehold ; un
 administrateur du serveur (`MANAGE_SERVER`) les active pour tout le foyer. Ceux qui ne
 sont pas encore écrits sont marqués « En préparation ». **Gestion de stock** ajoute la
 page Stock et la tuile « À racheter » : des tableaux (garde-manger, salle de bain…)
-avec une icône ou une image, et des articles avec quantité, minimum, péremption, lien
+avec une icône, un emoji ou une image, et des articles avec quantité, minimum, péremption, lien
 pour racheter et détail. Sous le minimum, l'article passe « À racheter » ; à 15 jours
 de sa péremption, « Bientôt périmé ». « Déclarer une sortie » retire d'un coup ce
 qu'on a pris, dans un ou plusieurs tableaux, et prévient de ce qui passera sous le

@@ -3,7 +3,10 @@
   import Icone from '../../lib/Icone.svelte';
   import { api } from '../../lib/session.svelte';
   import { imageDuTableau, type Tableau } from './donnees';
-  import { COULEURS_STOCK, ICONES_STOCK } from './icones';
+  import ChoixCouleur from '../../lib/ChoixCouleur.svelte';
+  import ChoixIcone from '../../lib/ChoixIcone.svelte';
+  import { ecrireIcone, lireIcone, texteValide, type SorteDIcone } from '../../lib/icones';
+  import { COULEURS_STOCK } from './icones';
   import Vignette from './Vignette.svelte';
 
   /** Créer ou modifier un tableau : son nom, son icône ou son image, sa couleur. */
@@ -19,8 +22,10 @@
 
   /* svelte-ignore state_referenced_locally */
   const depart = tableau;
-  let sorteImage = $state<'aucune' | 'icone' | 'image'>(depart?.hasImage ? 'image' : depart && !depart.icon ? 'aucune' : 'icone');
-  let icone = $state(depart?.icon ?? 'panier');
+  const lue = lireIcone(depart?.icon, 'panier');
+  let sorteImage = $state<SorteDIcone>(depart?.hasImage ? 'image' : depart ? lue.sorte : 'icone');
+  let icone = $state(lue.icone);
+  let texte = $state(lue.texte);
   let couleur = $state(depart?.color ?? COULEURS_STOCK[0]);
   let fichier = $state<File | null>(null);
   let entree = $state<HTMLInputElement>();
@@ -36,7 +41,7 @@
     try {
       const t = await api<Tableau>(depart ? `/stock/boards/${depart.id}` : '/stock/boards', {
         method: depart ? 'PATCH' : 'POST',
-        body: JSON.stringify({ name: nom.trim(), icon: sorteImage === 'icone' ? icone : null, color: couleur }),
+        body: JSON.stringify({ name: nom.trim(), icon: ecrireIcone(sorteImage, icone, texte), color: couleur }),
       });
       if (sorteImage === 'image' && fichier) {
         const f = new FormData();
@@ -76,7 +81,7 @@
     {#if apercu}
       <img class="apercu" src={apercu} alt="" />
     {:else}
-      <Vignette icon={sorteImage === 'icone' ? icone : null} color={couleur} image={sorteImage === 'image' && depart ? imageDuTableau(depart) : null} taille={44} />
+      <Vignette icon={ecrireIcone(sorteImage, icone, texte)} color={couleur} image={sorteImage === 'image' && depart ? imageDuTableau(depart) : null} taille={44} />
     {/if}
     <h3>{depart ? 'Modifier le tableau' : 'Nouveau tableau'}</h3>
     <button type="button" class="fermer" aria-label="Fermer" onclick={onFermer}><Icone nom="fermer" taille={18} /></button>
@@ -87,27 +92,10 @@
 
     <div class="champ">
       <span>Image</span>
-      <div class="segment">
-        <button type="button" class:actif={sorteImage === 'aucune'} onclick={() => (sorteImage = 'aucune')}>Aucune</button>
-        <button type="button" class:actif={sorteImage === 'icone'} onclick={() => (sorteImage = 'icone')}>Icône</button>
-        <button type="button" class:actif={sorteImage === 'image'} onclick={() => ((sorteImage = 'image'), entree?.click())}>Importer une image</button>
-      </div>
+      <ChoixIcone bind:sorte={sorteImage} bind:icone bind:texte onImporter={() => entree?.click()} />
       <input bind:this={entree} type="file" accept="image/*" hidden onchange={(e) => (fichier = (e.currentTarget as HTMLInputElement).files?.[0] ?? null)} />
-      {#if sorteImage === 'icone'}
-        <div class="icones">
-          {#each Object.entries(ICONES_STOCK) as [cle, trace] (cle)}
-            <button type="button" class:actif={icone === cle} aria-label={cle} onclick={() => (icone = cle)}>
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">{@html trace}</svg>
-            </button>
-          {/each}
-        </div>
-      {/if}
       {#if sorteImage !== 'image'}
-        <div class="couleurs">
-          {#each COULEURS_STOCK as c (c)}
-            <button type="button" class:actif={couleur === c} style:background={c} aria-label={c} onclick={() => (couleur = c)}></button>
-          {/each}
-        </div>
+        <ChoixCouleur bind:valeur={couleur} couleurs={COULEURS_STOCK} />
       {/if}
     </div>
 
@@ -130,7 +118,7 @@
     {/if}
     <span class="espace"></span>
     <button type="button" onclick={onFermer}>Annuler</button>
-    <button type="submit" class="primaire" disabled={envoi || !nom.trim()}>{depart ? 'Enregistrer' : 'Créer le tableau'}</button>
+    <button type="submit" class="primaire" disabled={envoi || !nom.trim() || (sorteImage === 'perso' && !texteValide(texte.trim()))}>{depart ? 'Enregistrer' : 'Créer le tableau'}</button>
   </div>
 </form>
 
@@ -228,67 +216,13 @@
     color: var(--encre-douce);
   }
 
-  .segment {
-    display: flex;
-    border: 1px solid var(--trait-net);
-    border-radius: 10px;
-    overflow: hidden;
-  }
 
-  .segment button {
-    flex: 1;
-    border: none;
-    border-radius: 0;
-    min-height: 38px;
-    font-size: 13px;
-  }
 
-  .segment button + button {
-    border-left: 1px solid var(--trait-net);
-  }
 
-  .segment button.actif {
-    background: var(--accent-doux);
-    color: var(--accent-sombre);
-    font-weight: 600;
-  }
 
-  .icones {
-    display: grid;
-    grid-template-columns: repeat(6, 1fr);
-    gap: 6px;
-  }
 
-  .icones button {
-    min-height: 40px;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
 
-  .icones button.actif {
-    border: 2px solid var(--accent);
-    background: var(--accent-doux);
-    color: var(--accent-sombre);
-  }
 
-  .couleurs {
-    display: flex;
-    gap: 6px;
-  }
 
-  .couleurs button {
-    width: 26px;
-    height: 26px;
-    min-height: 0;
-    padding: 0;
-    border-radius: 50%;
-    border: 2px solid var(--surface);
-    box-shadow: 0 0 0 1px var(--trait-net);
-  }
 
-  .couleurs button.actif {
-    box-shadow: 0 0 0 2px var(--encre);
-  }
 </style>

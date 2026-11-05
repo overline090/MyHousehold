@@ -2,6 +2,7 @@
   import { ApiError } from '../../lib/api';
   import { api, session, type Foyer } from '../../lib/session.svelte';
   import NouveauGroupe from '../taches/NouveauGroupe.svelte';
+  import PastilleGroupe from '../../lib/PastilleGroupe.svelte';
   import CopieAutomatique from './CopieAutomatique.svelte';
 
   /** Administration › Réglages du foyer : le foyer, l'arrivée des nouveaux membres, les groupes de tâches. */
@@ -14,11 +15,11 @@
     id: string;
     name: string;
     color: string;
+    icon?: string | null;
     position: number;
   }
   type FoyerComplet = Foyer & { registrationOpen?: boolean; inviteTtlHours?: number };
 
-  const COULEURS = ['#0F766E', '#65A30D', '#B45309', '#B91C1C', '#7C3AED', '#2563EB', '#DB2777', '#475569'];
   const FUSEAUX = (Intl as unknown as { supportedValuesOf?: (c: string) => string[] }).supportedValuesOf?.('timeZone') ?? ['Europe/Paris'];
 
   let nom = $state(session.foyer?.name ?? '');
@@ -32,7 +33,7 @@
   let message = $state<{ texte: string; erreur: boolean } | null>(null);
   let envoi = $state(false);
   let nouveauGroupe = $state(false);
-  let edition = $state<{ id: string; nom: string; couleur: string } | null>(null);
+  let edition = $state<Groupe | null>(null);
 
   async function charger() {
     try {
@@ -159,40 +160,14 @@
   <div class="tableau">
     {#each groupes as g, i (g.id)}
       <div class="rang">
-        {#if edition?.id === g.id}
-          <input class="nom-groupe" bind:value={edition.nom} maxlength="60" aria-label="Nom du groupe" />
-          <span class="couleurs">
-            {#each COULEURS as c (c)}
-              <button class:actif={edition.couleur === c} style:background={c} aria-label={c} onclick={() => (edition!.couleur = c)}></button>
-            {/each}
-          </span>
-          <button
-            class="primaire"
-            disabled={envoi || !edition.nom.trim()}
-            onclick={() => faire(async () => {
-              await api(`/task-groups/${g.id}`, { method: 'PATCH', body: JSON.stringify({ name: edition!.nom.trim(), color: edition!.couleur }) });
-              edition = null;
-            })}>OK</button
-          >
-          <button
-            class="danger"
-            disabled={envoi}
-            title="Les tâches du groupe restent, sans groupe"
-            onclick={() => faire(async () => {
-              await api(`/task-groups/${g.id}`, { method: 'DELETE' });
-              edition = null;
-            }, 'Groupe supprimé ; ses tâches restent, sans groupe.')}>Supprimer</button
-          >
-        {:else}
           <span class="ordre">
             <button aria-label="Monter" disabled={i === 0 || envoi} onclick={() => deplacer(i, -1)}>↑</button>
             <button aria-label="Descendre" disabled={i === groupes.length - 1 || envoi} onclick={() => deplacer(i, 1)}>↓</button>
           </span>
-          <i class="pastille" style:background={g.color}></i>
+          <PastilleGroupe color={g.color} icon={g.icon} taille={22} />
           <b class="nom">{g.name}</b>
           <span class="muet">{parGroupe.get(g.id) ?? 0} tâche{(parGroupe.get(g.id) ?? 0) > 1 ? 's' : ''}</span>
-          <button class="lien" onclick={() => (edition = { id: g.id, nom: g.name, couleur: g.color })}>Modifier</button>
-        {/if}
+          <button class="lien" onclick={() => (edition = g)}>Modifier</button>
       </div>
     {:else}
       <p class="muet vide">Aucun groupe pour l’instant.</p>
@@ -204,6 +179,15 @@
 
 {#if nouveauGroupe}
   <NouveauGroupe onFermer={() => (nouveauGroupe = false)} onCree={() => ((nouveauGroupe = false), void charger())} />
+{/if}
+
+{#if edition}
+  <NouveauGroupe
+    groupe={edition}
+    onFermer={() => (edition = null)}
+    onCree={() => ((edition = null), void charger())}
+    onSupprime={() => ((edition = null), void charger())}
+  />
 {/if}
 
 <style>
@@ -351,16 +335,7 @@
     flex: 1;
   }
 
-  .nom-groupe {
-    flex: 1;
-  }
 
-  .pastille {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    display: block;
-  }
 
   .ordre {
     display: flex;
@@ -374,24 +349,8 @@
     font-size: 13px;
   }
 
-  .couleurs {
-    display: flex;
-    gap: 5px;
-  }
 
-  .couleurs button {
-    width: 22px;
-    height: 22px;
-    min-height: 0;
-    padding: 0;
-    border-radius: 50%;
-    border: 2px solid var(--surface);
-    box-shadow: 0 0 0 1px var(--trait-net);
-  }
 
-  .couleurs button.actif {
-    box-shadow: 0 0 0 2px var(--encre);
-  }
 
   button.lien {
     min-height: 0;
@@ -402,9 +361,6 @@
     font-weight: 600;
   }
 
-  .danger {
-    color: #b91c1c;
-  }
 
   .vide {
     padding: 14px 18px;
