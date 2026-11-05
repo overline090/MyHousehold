@@ -556,7 +556,8 @@ PLUGIN_DISABLED`.
 `texte:` suivi d'un emoji ou d'une à deux lettres (`texte:🍝`, `texte:PR`), affiché sur
 la couleur. Les couleurs sont des `#rrggbb` quelconques.
 
-Chaque article porte aussi `toBuy` (quantité sous le minimum), `expired` et
+Tableaux et articles portent `hasImage`, et `imageVersion`, qui change à chaque image
+importée. Chaque article porte aussi `toBuy` (quantité sous le minimum), `expired` et
 `expiresSoon` (péremption dans les 15 jours, au fuseau du foyer).
 
 ## Activité et contributions

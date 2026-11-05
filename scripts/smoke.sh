@@ -668,6 +668,17 @@ CAFE=$(curl -s -X POST "$BASE/stock/items" -H "authorization: Bearer $WEB_TOKEN"
   -d '{"boardId":"'$TABLEAU'","name":"Café en grains","icon":"tasse","quantity":3,"minimum":2,"link":"https://exemple.fr/cafe"}' | field "['id']")
 check "un tableau prend un emoji pour icône" "texte:🍝" \
   "$(curl -s -X PATCH "$BASE/stock/boards/$TABLEAU" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' -d '{"icon":"texte:🍝"}' | field "['icon']")"
+# Une image de 2×2 pixels : l'app la retélécharge quand sa version change.
+python3 -c "
+import struct,zlib,sys
+def bloc(t,d): return struct.pack('>I',len(d))+t+d+struct.pack('>I',zlib.crc32(t+d))
+brut=b''.join(b'\\x00'+b'\\x0f\\x76\\x6e'*2 for _ in range(2))
+sys.stdout.buffer.write(b'\\x89PNG\\r\\n\\x1a\\n'+bloc(b'IHDR',struct.pack('>IIBBBBB',2,2,8,2,0,0,0))+bloc(b'IDAT',zlib.compress(brut))+bloc(b'IEND',b''))" > /tmp/mh-smoke.png
+check "une image importée a une version" "True True" \
+  "$(curl -s -X PUT "$BASE/stock/boards/$TABLEAU/image" -H "authorization: Bearer $WEB_TOKEN" -F "file=@/tmp/mh-smoke.png;type=image/png" \
+    | py "import json,sys; d=json.load(sys.stdin); print(d['hasImage'], bool(d['imageVersion']))")"
+check "l'image retirée, plus de version" "None" \
+  "$(curl -s -X DELETE "$BASE/stock/boards/$TABLEAU/image" -H "authorization: Bearer $WEB_TOKEN" | field "['imageVersion']")"
 TOMATES=$(curl -s -X POST "$BASE/stock/items" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' \
   -d '{"boardId":"'$TABLEAU'","name":"Tomates pelées","quantity":6,"minimum":4}' | field "['id']")
 check "une de plus" "4" "$(curl -s -X POST "$BASE/stock/items/$CAFE/adjust" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' -d '{"delta":1}' | field "['quantity']")"

@@ -7,6 +7,14 @@ import { PrismaService } from '../common/prisma/prisma.service';
 import { todayIn } from '../tasks/recurrence';
 import { CreateBoardDto, CreateItemDto, SortieDto, UpdateBoardDto, UpdateItemDto } from './dto/stock.dto';
 
+/**
+ * Change à chaque image importée : l'app ne retélécharge une image que
+ * quand sa version a changé.
+ */
+function versionDe(imagePath: string | null): string | null {
+  return imagePath ? (imagePath.split('/').pop() ?? imagePath).replace(/\.webp$/, '').split('-').pop() ?? null : null;
+}
+
 const BOARD = {
   id: true,
   name: true,
@@ -58,7 +66,7 @@ export class StockService {
 
   private vueTableau(b: Prisma.StockBoardGetPayload<{ select: typeof BOARD }>) {
     const { _count, imagePath, ...reste } = b;
-    return { ...reste, hasImage: !!imagePath, itemCount: _count.items };
+    return { ...reste, hasImage: !!imagePath, imageVersion: versionDe(imagePath), itemCount: _count.items };
   }
 
   private vueArticle(i: ItemRow, aujourdHui: string) {
@@ -70,6 +78,7 @@ export class StockService {
       ...reste,
       expiresOn: peremption,
       hasImage: !!imagePath,
+      imageVersion: versionDe(imagePath),
       toBuy: i.minimum !== null && i.quantity < i.minimum,
       expired: peremption !== null && peremption < aujourdHui,
       expiresSoon: peremption !== null && peremption <= limite.toISOString().slice(0, 10),
