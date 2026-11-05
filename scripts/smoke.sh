@@ -416,6 +416,11 @@ echo "Groupes, priorités, tâches ponctuelles"
 GROUPE_ID=$(curl -s -X POST "$BASE/task-groups" -H "authorization: Bearer $ADMIN" \
   -H 'content-type: application/json' -d '{"name":"Cuisine","color":"#0F766E"}' | field "['id']")
 check "un groupe de tâches est créé" "ok" "$([[ -n $GROUPE_ID ]] && echo ok)"
+check "un groupe prend une icône personnalisée et une couleur libre" "texte:🍳 #E11D48" \
+  "$(curl -s -X PATCH "$BASE/task-groups/$GROUPE_ID" -H "authorization: Bearer $ADMIN" -H 'content-type: application/json' \
+    -d '{"icon":"texte:🍳","color":"#E11D48"}' | py "import json,sys; d=json.load(sys.stdin); print(d['icon'], d['color'])")"
+check "une icône de trois lettres est refusée" "400" \
+  "$(status -X PATCH "$BASE/task-groups/$GROUPE_ID" -H "authorization: Bearer $ADMIN" -H 'content-type: application/json' -d '{"icon":"texte:ABC"}')"
 PONCTUELLE_ID=$(curl -s -X POST "$BASE/tasks" -H "authorization: Bearer $ADMIN" \
   -H 'content-type: application/json' \
   -d "{\"title\":\"Changer le fusible\",\"kind\":\"ONE_OFF\",\"dueDate\":\"2026-11-15\",\"priority\":3,\"groupId\":\"$GROUPE_ID\"}" | field "['id']")
@@ -661,6 +666,8 @@ check "un plugin pas encore disponible ne s'active pas" "400" \
 TABLEAU=$(curl -s -X POST "$BASE/stock/boards" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' -d '{"name":"Garde-manger","icon":"bocal"}' | field "['id']")
 CAFE=$(curl -s -X POST "$BASE/stock/items" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' \
   -d '{"boardId":"'$TABLEAU'","name":"Café en grains","icon":"tasse","quantity":3,"minimum":2,"link":"https://exemple.fr/cafe"}' | field "['id']")
+check "un tableau prend un emoji pour icône" "texte:🍝" \
+  "$(curl -s -X PATCH "$BASE/stock/boards/$TABLEAU" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' -d '{"icon":"texte:🍝"}' | field "['icon']")"
 TOMATES=$(curl -s -X POST "$BASE/stock/items" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' \
   -d '{"boardId":"'$TABLEAU'","name":"Tomates pelées","quantity":6,"minimum":4}' | field "['id']")
 check "une de plus" "4" "$(curl -s -X POST "$BASE/stock/items/$CAFE/adjust" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' -d '{"delta":1}' | field "['quantity']")"

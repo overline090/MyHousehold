@@ -7,11 +7,15 @@ describe('nettoyerDetails', () => {
     );
   });
 
-  it('garde les couleurs de la palette, et elles seules', () => {
+  it('garde toute couleur de texte, et le surligneur de la palette seulement', () => {
     expect(nettoyerDetails('<span style="color: #B91C1C">rouge</span>')).toMatch(
       /^<span style="color: ?#b91c1c">rouge<\/span>$/,
     );
-    expect(nettoyerDetails('<span style="color: #123456">autre</span>')).toBe('autre');
+    expect(nettoyerDetails('<span style="color: #123456">autre</span>')).toMatch(
+      /^<span style="color: ?#123456">autre<\/span>$/,
+    );
+    expect(nettoyerDetails('<span style="color: red">nommée</span>')).toBe('nommée');
+    expect(nettoyerDetails('<span style="background-color:#123456">fond</span>')).toBe('fond');
     expect(nettoyerDetails('<span style="background-color:#fde68a">surligné</span>')).toMatch(
       /^<mark style="background-color: ?#fde68a">surligné<\/mark>$/,
     );

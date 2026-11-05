@@ -1,5 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsHexColor, IsInt, IsOptional, IsString, IsUUID, Length, Max, Min } from 'class-validator';
+import { IsHexColor, IsInt, IsOptional, IsString, IsUUID, Length, Max, Min, ValidateIf } from 'class-validator';
+import { EstUneIcone, ICONES } from '../../common/icones/icone';
+
+const DESCRIPTION_ICONE = `Une icône de la liste (${ICONES.join(', ')}), « texte: » suivi d'un emoji ou d'une à deux lettres, ou null.`;
 
 export class CreateTaskGroupDto {
   @ApiPropertyOptional({ description: 'UUID généré par le client' })
@@ -16,6 +19,12 @@ export class CreateTaskGroupDto {
   @IsOptional()
   @IsHexColor()
   color?: string;
+
+  @ApiPropertyOptional({ nullable: true, example: 'texte:🍳', description: DESCRIPTION_ICONE })
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null)
+  @EstUneIcone()
+  icon?: string | null;
 
   @ApiPropertyOptional({ minimum: 0, maximum: 999 })
   @IsOptional()
@@ -36,6 +45,12 @@ export class UpdateTaskGroupDto {
   @IsOptional()
   @IsHexColor()
   color?: string;
+
+  @ApiPropertyOptional({ nullable: true, example: 'texte:🍳', description: DESCRIPTION_ICONE })
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null)
+  @EstUneIcone()
+  icon?: string | null;
 
   @ApiPropertyOptional({ minimum: 0, maximum: 999 })
   @IsOptional()

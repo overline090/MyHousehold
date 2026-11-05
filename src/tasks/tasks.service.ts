@@ -66,7 +66,7 @@ const taskSelect = {
   endsOn: true,
   createdAt: true,
   updatedAt: true,
-  group: { select: { id: true, name: true, color: true } },
+  group: { select: { id: true, name: true, color: true, icon: true } },
   assignees: {
     select: { userId: true, position: true },
     orderBy: { position: 'asc' },
@@ -230,7 +230,7 @@ export class TasksService {
       },
       select: {
         completedById: true,
-        task: { select: { group: { select: { id: true, name: true, color: true } } } },
+        task: { select: { group: { select: { id: true, name: true, color: true, icon: true } } } },
       },
     });
 

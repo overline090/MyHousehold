@@ -10,7 +10,11 @@ const AUCUN: Attributes = {};
  * doivent pouvoir afficher tout ce qui est accepté.
  */
 
-/** Les couleurs de la palette : le texte et le surligneur n'en prennent pas d'autres. */
+/**
+ * La palette proposée pour le texte ; on peut aussi en choisir une autre.
+ * Le surligneur, lui, n'en prend pas d'autres : sous du texte, une teinte
+ * foncée le rendrait illisible.
+ */
 export const COULEURS_DU_TEXTE = ['#111827', '#b91c1c', '#b45309', '#15803d', '#1d4ed8', '#7c3aed'];
 export const COULEURS_DU_SURLIGNEUR = ['#fde68a', '#bbf7d0', '#bfdbfe', '#fbcfe8', '#fed7aa', '#e5e7eb'];
 
@@ -45,8 +49,8 @@ export function nettoyerDetails(html: string | null | undefined): string | null 
       em: 'i',
       strike: 's',
       div: 'p',
-      // Seules les couleurs de la palette passent : une couleur choisie
-      // ailleurs serait illisible dans l'un des deux thèmes.
+      // Toute couleur de texte passe, écrite en #rrggbb ; seul le
+      // surligneur reste à sa palette.
       span: (_tag, attributs) => {
         const couleur = couleurDe(attributs.style ?? '', 'color');
         // L'app écrit « background », les navigateurs « background-color ».
@@ -55,7 +59,7 @@ export function nettoyerDetails(html: string | null | undefined): string | null 
         if (fond && COULEURS_DU_SURLIGNEUR.includes(fond)) {
           return { tagName: 'mark', attribs: { style: `background-color: ${fond}` } };
         }
-        return couleur && COULEURS_DU_TEXTE.includes(couleur)
+        return couleur
           ? { tagName: 'span', attribs: { style: `color: ${couleur}` } }
           : // Un span sans couleur n'apporte rien : on garde son texte, pas la balise.
             { tagName: 'retire', attribs: AUCUN };
@@ -63,7 +67,7 @@ export function nettoyerDetails(html: string | null | undefined): string | null 
       // <font color> : ce que le navigateur écrit pour une couleur de texte.
       font: (_tag, attributs) => {
         const couleur = couleurDe(`color: ${attributs.color ?? ''}`, 'color');
-        return couleur && COULEURS_DU_TEXTE.includes(couleur)
+        return couleur
           ? { tagName: 'span', attribs: { style: `color: ${couleur}` } }
           : { tagName: 'retire', attribs: AUCUN };
       },

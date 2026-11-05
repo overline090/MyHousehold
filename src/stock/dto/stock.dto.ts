@@ -12,15 +12,15 @@ import {
   IsUrl,
   IsUUID,
   Length,
-  Matches,
   Max,
   Min,
   ValidateIf,
   ValidateNested,
 } from 'class-validator';
 
-/** Les icônes que l'on peut choisir pour un tableau ou un article. */
-export const ICONES = ['boite', 'bocal', 'flacon', 'medicament', 'ampoule', 'panier', 'outil', 'tasse', 'pomme', 'bouteille', 'savon', 'linge'] as const;
+import { EstUneIcone, ICONES } from '../../common/icones/icone';
+
+export { ICONES };
 
 export class CreateBoardDto {
   @ApiPropertyOptional({ description: 'Identifiant choisi par le téléphone, pour une création faite hors ligne.' })
@@ -33,10 +33,14 @@ export class CreateBoardDto {
   @Length(1, 60)
   name!: string;
 
-  @ApiPropertyOptional({ enum: ICONES, nullable: true })
+  @ApiPropertyOptional({
+    nullable: true,
+    example: 'bocal',
+    description: `Une icône de la liste (${ICONES.join(', ')}), ou « texte: » suivi d'un emoji ou d'une à deux lettres.`,
+  })
   @IsOptional()
   @ValidateIf((_, v) => v !== null)
-  @Matches(new RegExp(`^(${ICONES.join('|')})$`))
+  @EstUneIcone()
   icon?: string | null;
 
   @ApiPropertyOptional({ example: '#0F766E' })
@@ -69,10 +73,14 @@ export class CreateItemDto {
   @Length(1, 80)
   name!: string;
 
-  @ApiPropertyOptional({ enum: ICONES, nullable: true })
+  @ApiPropertyOptional({
+    nullable: true,
+    example: 'bocal',
+    description: `Une icône de la liste (${ICONES.join(', ')}), ou « texte: » suivi d'un emoji ou d'une à deux lettres.`,
+  })
   @IsOptional()
   @ValidateIf((_, v) => v !== null)
-  @Matches(new RegExp(`^(${ICONES.join('|')})$`))
+  @EstUneIcone()
   icon?: string | null;
 
   @ApiPropertyOptional()

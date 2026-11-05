@@ -9,6 +9,7 @@ const groupSelect = {
   id: true,
   name: true,
   color: true,
+  icon: true,
   position: true,
   createdAt: true,
   _count: { select: { tasks: { where: { deletedAt: null, isActive: true } } } },
@@ -61,6 +62,7 @@ export class TaskGroupsService {
         householdId,
         name: dto.name.trim(),
         color: dto.color ?? '#0F766E',
+        icon: dto.icon ?? null,
         position: dto.position ?? 0,
       },
       select: groupSelect,
@@ -75,7 +77,7 @@ export class TaskGroupsService {
 
     const groupe = await this.prisma.taskGroup.update({
       where: { id: groupId },
-      data: { name: dto.name?.trim(), color: dto.color, position: dto.position },
+      data: { name: dto.name?.trim(), color: dto.color, icon: dto.icon, position: dto.position },
       select: groupSelect,
     });
 

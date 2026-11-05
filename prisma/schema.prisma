@@ -267,6 +267,8 @@ model TaskGroup {
   name        String
   /// Repère de lecture en liste.
   color       String @default("#0F766E")
+  /// Une icône de la liste, ou « texte: » et un emoji ou une à deux lettres.
+  icon        String?
   position    Int    @default(0)
 
   createdAt DateTime  @default(now()) @db.Timestamptz

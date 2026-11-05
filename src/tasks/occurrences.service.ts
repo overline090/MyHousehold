@@ -36,7 +36,7 @@ const occurrenceSelect = {
       kind: true,
       priority: true,
       graceHours: true,
-      group: { select: { id: true, name: true, color: true } },
+      group: { select: { id: true, name: true, color: true, icon: true } },
     },
   },
   assignee: { select: { id: true, firstName: true, lastName: true } },

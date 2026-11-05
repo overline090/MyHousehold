@@ -234,8 +234,8 @@ de choses à faire.
 | `DELETE` | `/tasks/:id/done/:entryId` | `COMPLETE_TASKS` | **Révoquer une saisie** d'une tâche de fond, voir plus bas |
 
 **Les détails** d'une tâche (`description`) sont du HTML restreint, nettoyé par le
-serveur : `b`, `i`, `u`, `s`, `span` avec une couleur de la palette, `mark` avec une
-couleur de surligneur, `ul`/`ol`/`li` (une case : `li data-case="oui|non"`), `a`
+serveur : `b`, `i`, `u`, `s`, `span` avec une couleur de texte (`#rrggbb`, celles de la
+palette ou une autre), `mark` avec une couleur de la palette du surligneur, `ul`/`ol`/`li` (une case : `li data-case="oui|non"`), `a`
 (http, https, tel, mailto), `p`, `br`. Le reste est retiré ; un texte vide devient
 `null`.
 
@@ -426,6 +426,9 @@ révoquer une hors ligne par son identifiant.
 | `PATCH` | `/task-groups/:id` | `MANAGE_TASKS` |
 | `DELETE` | `/task-groups/:id` | `MANAGE_TASKS` |
 
+Un groupe porte `{ name, color, icon, position }`. `color` est une couleur `#rrggbb`
+quelconque ; `icon` suit la règle des icônes ci-dessous.
+
 Une tâche appartient à **un groupe au plus**. `DELETE` détache les tâches du groupe au
 lieu de les supprimer : perdre une corvée parce qu'on a rangé une étiquette serait une
 mauvaise surprise.
@@ -546,6 +549,12 @@ PLUGIN_DISABLED`.
 | `POST` | `/stock/items/:id/adjust` | `COMPLETE_TASKS` | `{ delta }` — jamais sous zéro |
 | `PUT`/`DELETE`/`GET` | `/stock/items/:id/image` | `MANAGE_TASKS` / `VIEW` | |
 | `POST` | `/stock/out` | `COMPLETE_TASKS` | Déclarer une sortie : `{ items: [{ id, quantity }] }`, en une fois, inscrite au fil d'activité |
+
+**Icônes** (stock et groupes de tâches) : `null` pour aucune, un nom de la liste
+(`boite`, `bocal`, `flacon`, `medicament`, `ampoule`, `panier`, `outil`, `tasse`,
+`pomme`, `bouteille`, `savon`, `linge`, `maison`, `lit`, `plante`, `voiture`), ou
+`texte:` suivi d'un emoji ou d'une à deux lettres (`texte:🍝`, `texte:PR`), affiché sur
+la couleur. Les couleurs sont des `#rrggbb` quelconques.
 
 Chaque article porte aussi `toBuy` (quantité sous le minimum), `expired` et
 `expiresSoon` (péremption dans les 15 jours, au fuseau du foyer).
