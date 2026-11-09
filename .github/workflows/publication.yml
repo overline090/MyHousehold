@@ -104,7 +104,9 @@ jobs:
             tar -czf "sortie/myhousehold-server-$v-linux-$nom.tar.gz" -C "tmp-$arch" "myhousehold-server-$v"
             (cd sortie && sha256sum "myhousehold-server-$v-linux-$nom.tar.gz" > "myhousehold-server-$v-linux-$nom.tar.gz.sha256")
           done
-          cp deploy/docker-compose.yml deploy/installer.sh deploy/maj/myhousehold-maj deploy/systemd/* .env.example sortie/
+          cp deploy/docker-compose.yml deploy/installer.sh deploy/maj/myhousehold-maj deploy/systemd/* sortie/
+          # GitHub renomme les fichiers commençant par un point.
+          cp .env.example sortie/env.example
           {
             echo "MyHousehold, serveur $v"
             echo

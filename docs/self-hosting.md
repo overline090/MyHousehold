@@ -38,7 +38,7 @@ de jobs) et `maj` (l'outil de mise à jour, voir plus bas). À la main, c'est :
 ```bash
 mkdir -p /opt/myhousehold && cd /opt/myhousehold
 curl -fsSLO https://github.com/overline090/MyHousehold/releases/latest/download/docker-compose.yml
-curl -fsSL -o .env https://github.com/overline090/MyHousehold/releases/latest/download/.env.example
+curl -fsSL -o .env https://raw.githubusercontent.com/overline090/MyHousehold/main/.env.example
 # remplir les CHANGEME, et ajouter MH_VERSION=<version>, MH_DOSSIER=/opt/myhousehold,
 # COMPOSE_PROFILES=maj (sans cette ligne, pas de mises à jour automatiques)
 docker compose up -d
