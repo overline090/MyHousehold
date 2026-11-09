@@ -1,0 +1,12 @@
+# Toutes les cinq minutes : l'outil lit les réglages d'Administration ›
+# Serveur et n'agit qu'à l'heure choisie, ou sur demande.
+[Unit]
+Description=MyHousehold, mise à jour du serveur (minuteur)
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

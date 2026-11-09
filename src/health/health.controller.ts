@@ -1,3 +1,4 @@
+import { versionCourante } from '../releases/version-courante';
 import { Controller, Get } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
@@ -47,7 +48,7 @@ export class HealthController {
   version() {
     return {
       name: 'myhousehold-server',
-      version: process.env.npm_package_version ?? '0.1.0',
+      version: versionCourante(),
       environment: this.config.get<string>('NODE_ENV'),
     };
   }

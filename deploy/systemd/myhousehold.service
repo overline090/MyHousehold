@@ -1,0 +1,27 @@
+# MyHousehold — le serveur, installation classique (sans Docker).
+[Unit]
+Description=MyHousehold, serveur du foyer
+After=network-online.target postgresql.service redis-server.service
+Wants=network-online.target
+
+[Service]
+User=myhousehold
+Group=myhousehold
+EnvironmentFile=/etc/myhousehold/myhousehold.env
+# « actuelle » désigne la version installée : l'outil de mise à jour la change.
+WorkingDirectory=/opt/myhousehold/actuelle
+# Les migrations avant chaque démarrage : une nouvelle version ne demande rien à la main.
+ExecStartPre=/usr/bin/env node node_modules/prisma/build/index.js migrate deploy
+ExecStart=/usr/bin/env node dist/main.js
+Restart=on-failure
+RestartSec=5
+# Le serveur n'a besoin que de son dossier de données.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/myhousehold
+# Écouter le port 3443 et l'annonce mDNS (5353) ne demande pas root.
+
+[Install]
+WantedBy=multi-user.target

@@ -1,3 +1,4 @@
+import { versionCourante } from '../releases/version-courante';
 import { Controller, Get, Req } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
@@ -34,7 +35,7 @@ export class NetworkController {
 
     return {
       name: 'myhousehold-server',
-      version: process.env.npm_package_version ?? '0.1.0',
+      version: versionCourante(),
       fingerprint: this.network.fingerprint,
       fingerprintDisplay: displayFingerprint(this.network.fingerprint),
       householdName: foyer?.name ?? null,

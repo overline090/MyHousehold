@@ -1,0 +1,86 @@
+# MyHousehold — installation par Docker, à partir des images publiées.
+# L'installeur (installer.sh) crée le .env à côté ; sinon, copiez
+# .env.example en .env et remplissez les secrets (docs/self-hosting.md).
+name: myhousehold
+
+services:
+  api:
+    image: ghcr.io/overline090/myhousehold:${MH_VERSION:-latest}
+    restart: unless-stopped
+    env_file: .env
+    # Le réseau de l'hôte : l'annonce sur le Wi-Fi (mDNS) ne traverse pas
+    # le réseau isolé d'un conteneur, et le serveur doit connaître
+    # l'adresse de la machine pour la mettre dans son QR code.
+    network_mode: host
+    environment:
+      DATABASE_URL: postgresql://myhousehold:${POSTGRES_PASSWORD}@127.0.0.1:5432/myhousehold
+      REDIS_URL: redis://127.0.0.1:6379
+      MH_DATA_DIR: /data
+      MH_HTTP_HOST: 127.0.0.1
+      MH_HTTPS_PORT: 3443
+    volumes:
+      - app-data:/data
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # L'image applique les migrations à chaque démarrage.
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: myhousehold
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?définissez POSTGRES_PASSWORD dans .env}
+      POSTGRES_DB: myhousehold
+    ports:
+      - '127.0.0.1:5432:5432'
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U myhousehold -d myhousehold']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ['redis-server', '--save', '', '--appendonly', 'no']
+    ports:
+      - '127.0.0.1:6379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Les mises à jour automatiques. Elles se règlent dans Administration ›
+  # Serveur. Cet outil pilote Docker : il a la main sur la machine, c'est
+  # pourquoi il vit à part du serveur, qui n'y a pas accès. Pour s'en
+  # passer, retirer « maj » de COMPOSE_PROFILES dans .env.
+  maj:
+    image: ghcr.io/overline090/myhousehold-maj:${MH_VERSION:-latest}
+    profiles: ['maj']
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      MH_DOSSIER: ${MH_DOSSIER:?définissez MH_DOSSIER dans .env (le chemin absolu de ce dossier)}
+      TZ: ${MH_DEFAULT_TIMEZONE:-Europe/Paris}
+      MH_RELEASES_URL: ${MH_RELEASES_URL:-https://api.github.com/repos/overline090/MyHousehold/releases/latest}
+      MH_INTERVALLE: ${MH_MAJ_INTERVALLE:-300}
+      MH_ATTENTE_SANTE: ${MH_MAJ_ATTENTE_SANTE:-240}
+      MH_IMAGE_MAJ: ghcr.io/overline090/myhousehold-maj:${MH_VERSION:-latest}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Le même chemin dedans et dehors : Compose, lancé d'ici, doit voir
+      # le dossier là où Docker le voit.
+      - ${MH_DOSSIER}:${MH_DOSSIER}
+      - app-data:/data
+    depends_on:
+      - api
+
+volumes:
+  db-data:
+  app-data:

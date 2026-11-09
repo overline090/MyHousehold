@@ -85,8 +85,10 @@ node docs/mockups/cadre/rendre.js   # 1280 × 800 pour l'ordinateur, 390 × 844 
 - **Statuts et droits se modifient sur place** : chaque case se coche ou se décoche,
   et les changements attendent « Enregistrer » dans un bandeau qui les résume ; ✎
   ouvre un statut (nom, couleur, droits). La colonne Administrateur est verrouillée.
-- **Mise à jour du serveur : l'option prudente.** La page annonce la version et donne
-  la commande à lancer sur la machine ; le serveur ne se met pas à jour lui-même, ce
-  qui demanderait de lui confier toute la machine.
+- **Mise à jour du serveur : automatique, par un outil à part.** Le serveur ne se met
+  pas à jour lui-même — il faudrait lui confier toute la machine. Un outil installé à
+  côté (conteneur `maj`, minuteur systemd) lit les réglages de la page (seul ou non,
+  heure, majeures, « Mettre à jour maintenant »), sauvegarde, met à jour, revient en
+  arrière si la nouvelle version ne répond pas. Sans lui, la page donne la commande.
 - **Mot de passe oublié, sans e-mail** : un administrateur génère un code à usage
   unique, valable une heure, et le donne de vive voix.

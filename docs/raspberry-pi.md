@@ -22,9 +22,10 @@ tenir, et les images Docker arm64 existent pour tout.
 
 ### 1. Docker Compose sur un système existant *(disponible)*
 
-Pour qui a déjà un Pi qui tourne. Voir [self-hosting.md](self-hosting.md). Les images
-doivent être publiées en **multi-architecture** (`linux/amd64` et `linux/arm64`) pour
-que la même commande fonctionne sur un PC et sur un Pi *(à faire)*.
+Pour qui a déjà un Pi qui tourne : `sudo bash installer.sh`, voir
+[self-hosting.md](self-hosting.md). Les images sont publiées en **multi-architecture**
+(`linux/amd64` et `linux/arm64`) : la même commande fonctionne sur un PC et sur un Pi.
+Sans Docker, `installer.sh --classique` installe l'archive arm64.
 
 ### 2. Image « clés en main » *(à faire)*
 

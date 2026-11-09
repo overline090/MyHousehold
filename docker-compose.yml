@@ -35,7 +35,7 @@ services:
     # Les migrations sont appliquées au démarrage : une mise à jour de
     # l'image ne doit pas demander d'étape manuelle oubliable.
     command: >
-      sh -c "npx prisma migrate deploy && node dist/main.js"
+      sh -c "node node_modules/prisma/build/index.js migrate deploy && node dist/main.js"
 
   db:
     image: postgres:16-alpine

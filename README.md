@@ -73,14 +73,19 @@ Les raisons de ces choix et les alternatives écartées sont dans
 
 ## Démarrage
 
+Sur la machine qui servira de serveur (PC, NAS, Raspberry Pi 64 bits) :
+
 ```bash
-cp .env.example .env            # puis remplacer les CHANGEME
-docker compose up -d --build
-curl http://localhost:3000/health
+curl -fsSLO https://github.com/overline090/MyHousehold/releases/latest/download/installer.sh
+sudo bash installer.sh               # avec Docker (recommandé)
+sudo bash installer.sh --classique   # sans Docker
 ```
 
-Puis ouvrez **http://localhost:3000/setup** : l'assistant vous guide jusqu'au foyer
-fonctionnel, sans terminal.
+L'installeur génère les secrets, démarre le serveur et ses mises à jour
+automatiques, puis donne l'adresse de l'assistant : **http://localhost:3000/setup**,
+qui vous guide jusqu'au foyer fonctionnel, sans terminal.
+
+Image Docker : `ghcr.io/overline090/myhousehold` (amd64, arm64).
 
 Installation détaillée, sauvegardes et reverse proxy :
 [`docs/self-hosting.md`](docs/self-hosting.md).
@@ -89,7 +94,7 @@ Installation détaillée, sauvegardes et reverse proxy :
 
 ```bash
 npm ci
-docker compose up -d db redis   # seules les dépendances
+docker compose up -d db redis   # seules les dépendances (docker-compose.yml de la racine)
 npx prisma migrate deploy
 npm run start:dev
 

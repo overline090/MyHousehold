@@ -1,0 +1,301 @@
+#!/usr/bin/env bash
+# ─────────────────────────────────────────────────────────────────────
+# MyHousehold — l'outil de mise à jour du serveur.
+#
+# Le serveur ne se met pas à jour lui-même : il faudrait lui confier la
+# machine entière. Cet outil tourne à côté — un conteneur avec Docker,
+# un minuteur systemd sinon — et ne parle au serveur que par deux
+# fichiers du dossier de données :
+#
+#   mises-a-jour/politique.json  écrit par le serveur (Administration ›
+#                                Serveur) : seul ou non, à quelle heure,
+#                                majeures ou non, demande immédiate ;
+#   mises-a-jour/etat.json       écrit ici : dernier passage, dernière
+#                                mise à jour et son résultat.
+#
+# Une mise à jour : sauvegarde de la base, nouvelle version, contrôle de
+# santé ; si la nouvelle version ne répond pas, retour à l'ancienne.
+#
+#   myhousehold-maj               boucle, un passage toutes les 5 minutes
+#   myhousehold-maj --une-fois    un seul passage (minuteur systemd)
+#
+# Variables :
+#   MH_MODE         docker | classique                       (obligatoire)
+#   MH_DONNEES      dossier de données du serveur            (/data)
+#   MH_SANTE_URL    adresse HTTP locale du serveur           (http://127.0.0.1:3000)
+#   MH_RELEASES_URL page des publications du serveur         (GitHub)
+#   MH_INTERVALLE   secondes entre deux passages             (300)
+#   Docker :    MH_DOSSIER  dossier du docker-compose.yml et du .env
+#   Classique : MH_RACINE   (/opt/myhousehold), MH_SERVICE (myhousehold),
+#               MH_ENV      (/etc/myhousehold/myhousehold.env)
+# ─────────────────────────────────────────────────────────────────────
+set -uo pipefail
+
+MH_MODE="${MH_MODE:?MH_MODE doit valoir docker ou classique}"
+MH_DONNEES="${MH_DONNEES:-/data}"
+MH_SANTE_URL="${MH_SANTE_URL:-http://127.0.0.1:3000}"
+MH_RELEASES_URL="${MH_RELEASES_URL:-https://api.github.com/repos/overline090/MyHousehold/releases/latest}"
+MH_INTERVALLE="${MH_INTERVALLE:-300}"
+MH_DOSSIER="${MH_DOSSIER:-}"
+MH_RACINE="${MH_RACINE:-/opt/myhousehold}"
+MH_SERVICE="${MH_SERVICE:-myhousehold}"
+MH_ENV="${MH_ENV:-/etc/myhousehold/myhousehold.env}"
+# Pour les essais : le temps laissé à la nouvelle version pour répondre.
+MH_ATTENTE_SANTE="${MH_ATTENTE_SANTE:-240}"
+
+ECHANGE="$MH_DONNEES/mises-a-jour"
+ETAT="$ECHANGE/etat.json"
+POLITIQUE="$ECHANGE/politique.json"
+SAUVEGARDES="$MH_DONNEES/sauvegardes"
+
+journal() { printf '%s %s\n' "$(date -u +%FT%TZ)" "$*" >&2; }
+maintenant() { date -u +%FT%TZ; }
+
+# ── État partagé avec le serveur ─────────────────────────────────────
+
+etat_lire() { [ -s "$ETAT" ] && jq -c . "$ETAT" 2>/dev/null || echo '{}'; }
+
+# etat_ecrire '<filtre jq>' [--arg nom valeur]… : modifie etat.json d'un coup.
+etat_ecrire() {
+  local filtre="$1"; shift
+  if [ ! -d "$ECHANGE" ]; then
+    mkdir -p "$ECHANGE"
+    # Le serveur doit pouvoir y écrire sa politique : même propriétaire que le dossier de données.
+    chown --reference="$MH_DONNEES" "$ECHANGE" 2>/dev/null || true
+  fi
+  local provisoire="$ECHANGE/.etat.json.$$"
+  etat_lire | jq --arg mode "$MH_MODE" --arg vu "$(maintenant)" "$@" \
+    ". + {outil: \$mode, vu: \$vu} | $filtre" > "$provisoire" && mv "$provisoire" "$ETAT"
+}
+
+resultat() { # resultat <reussie|echouee|differee> <de> <vers> <message> [sauvegarde]
+  etat_ecrire '.enCours = false | .derniere = {le: $le, de: $de, vers: $vers, resultat: $r, message: $m, sauvegarde: (if $s == "" then null else $s end)}' \
+    --arg le "$(maintenant)" --arg r "$1" --arg de "$2" --arg vers "$3" --arg m "$4" --arg s "${5:-}"
+}
+
+politique() { # politique <clé> <défaut>
+  local v
+  v="$( [ -s "$POLITIQUE" ] && jq -r --arg k "$1" '.[$k] // empty | tostring' "$POLITIQUE" 2>/dev/null )"
+  printf '%s' "${v:-$2}"
+}
+
+# ── Versions ─────────────────────────────────────────────────────────
+
+version_installee() {
+  curl -fsS --max-time 10 "$MH_SANTE_URL/version" 2>/dev/null | jq -r '.version // empty'
+}
+
+publication() { curl -fsSL --max-time 30 -H 'Accept: application/vnd.github+json' "$MH_RELEASES_URL"; }
+
+plus_recente() { # plus_recente <a> <b> : vrai si a > b
+  [ "$1" != "$2" ] && [ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | tail -n1)" = "$1" ]
+}
+
+majeure() { printf '%s' "${1%%.*}"; }
+
+attendre_version() { # attendre_version <version> : le serveur répond-il, et dans cette version ?
+  local fin=$(( $(date +%s) + MH_ATTENTE_SANTE ))
+  while [ "$(date +%s)" -lt "$fin" ]; do
+    [ "$(version_installee)" = "$1" ] && return 0
+    sleep 5
+  done
+  return 1
+}
+
+# ── Sauvegarde ───────────────────────────────────────────────────────
+
+# Garder les cinq dernières : assez pour revenir en arrière, sans remplir le disque.
+elaguer() { ls -1t "$SAUVEGARDES"/avant-*.sql.gz 2>/dev/null | tail -n +6 | xargs -r rm -f; }
+
+sauvegarder() { # sauvegarder <version visée> : écrit le chemin de la sauvegarde
+  mkdir -p "$SAUVEGARDES"
+  local fichier="$SAUVEGARDES/avant-$1-$(date -u +%Y%m%d-%H%M%S).sql.gz"
+  if [ "$MH_MODE" = docker ]; then
+    (cd "$MH_DOSSIER" && docker compose exec -T db pg_dump -U myhousehold -d myhousehold) | gzip > "$fichier" || return 1
+  else
+    ( set -a; . "$MH_ENV"; set +a; pg_dump --dbname="${DATABASE_URL%%\?*}" ) | gzip > "$fichier" || return 1
+  fi
+  # Un dump vide n'est pas une sauvegarde.
+  [ "$(gzip -dc "$fichier" | head -c 100 | wc -c)" -gt 0 ] || { rm -f "$fichier"; return 1; }
+  elaguer
+  printf '%s' "$fichier"
+}
+
+# ── Docker ───────────────────────────────────────────────────────────
+
+env_lire() { grep -E "^$1=" "$MH_DOSSIER/.env" | tail -n1 | cut -d= -f2-; }
+
+env_ecrire() { # env_ecrire <clé> <valeur> : remplace ou ajoute dans .env
+  local f="$MH_DOSSIER/.env"
+  if grep -qE "^$1=" "$f"; then
+    sed -i "s|^$1=.*|$1=$2|" "$f"
+  else
+    printf '%s=%s\n' "$1" "$2" >> "$f"
+  fi
+}
+
+installer_docker() { # installer_docker <de> <vers>
+  local de="$1" vers="$2" avant
+  avant="$(env_lire MH_VERSION)"
+  env_ecrire MH_VERSION "$vers"
+  if ! (cd "$MH_DOSSIER" && docker compose pull --ignore-pull-failures api maj && docker compose up -d api); then
+    env_ecrire MH_VERSION "${avant:-$de}"
+    (cd "$MH_DOSSIER" && docker compose up -d api)
+    return 1
+  fi
+  if ! attendre_version "$vers"; then
+    journal "La version $vers ne répond pas : retour à $de."
+    env_ecrire MH_VERSION "${avant:-$de}"
+    (cd "$MH_DOSSIER" && docker compose up -d api)
+    attendre_version "$de" || journal "Attention : la version $de ne répond pas non plus."
+    return 2
+  fi
+}
+
+# L'outil passe lui aussi à la nouvelle version. Il ne peut pas se
+# recréer lui-même — Compose l'arrêterait avant d'avoir lancé le nouveau —,
+# alors un conteneur éphémère, de l'image actuelle, s'en charge.
+remplacer_l_outil() {
+  [ -n "${MH_IMAGE_MAJ:-}" ] || return 0
+  docker run -d --rm --network host \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    -v "$MH_DOSSIER:$MH_DOSSIER" -w "$MH_DOSSIER" \
+    --entrypoint sh "$MH_IMAGE_MAJ" -c 'sleep 5; docker compose up -d --no-deps maj' >/dev/null 2>&1 || true
+}
+
+# ── Installation classique ───────────────────────────────────────────
+
+architecture() {
+  case "$(uname -m)" in
+    x86_64 | amd64) echo x64 ;;
+    aarch64 | arm64) echo arm64 ;;
+    *) return 1 ;;
+  esac
+}
+
+installer_classique() { # installer_classique <de> <vers> <json de la publication>
+  local tmp code
+  tmp="$(mktemp -d)"
+  installer_classique_dans "$tmp" "$@"; code=$?
+  rm -rf "$tmp"
+  return "$code"
+}
+
+installer_classique_dans() { # installer_classique_dans <dossier temporaire> <de> <vers> <publication>
+  local tmp="$1" de="$2" vers="$3" pub="$4" arch nom url_archive url_somme attendue precedente
+  arch="$(architecture)" || { journal "Architecture $(uname -m) non prise en charge."; return 1; }
+  nom="myhousehold-server-$vers-linux-$arch.tar.gz"
+  url_archive="$(jq -r --arg n "$nom" '.assets[]? | select(.name == $n) | .browser_download_url' <<<"$pub")"
+  url_somme="$(jq -r --arg n "$nom.sha256" '.assets[]? | select(.name == $n) | .browser_download_url' <<<"$pub")"
+  [ -n "$url_archive" ] && [ -n "$url_somme" ] || { journal "Archive $nom absente de la publication."; return 1; }
+
+  curl -fsSL --max-time 600 -o "$tmp/$nom" "$url_archive" || return 1
+  attendue="$(curl -fsSL --max-time 30 "$url_somme" | awk '{print $1}')"
+  # Rien ne s'installe sans que la somme corresponde.
+  [ "$(sha256sum "$tmp/$nom" | awk '{print $1}')" = "$attendue" ] || { journal "Somme SHA-256 incorrecte pour $nom."; return 1; }
+
+  mkdir -p "$MH_RACINE/versions/$vers"
+  tar -xzf "$tmp/$nom" -C "$MH_RACINE/versions/$vers" --strip-components=1 || return 1
+  chown -R --reference="$MH_RACINE" "$MH_RACINE/versions/$vers" 2>/dev/null || true
+
+  precedente="$(readlink -f "$MH_RACINE/actuelle" 2>/dev/null || true)"
+  ln -sfn "versions/$vers" "$MH_RACINE/actuelle.nouvelle" && mv -Tf "$MH_RACINE/actuelle.nouvelle" "$MH_RACINE/actuelle"
+  # Le service applique les migrations avant de démarrer (ExecStartPre).
+  systemctl restart "$MH_SERVICE"
+  if ! attendre_version "$vers"; then
+    journal "La version $vers ne répond pas : retour à $de."
+    if [ -n "$precedente" ]; then
+      ln -sfn "$precedente" "$MH_RACINE/actuelle.nouvelle" && mv -Tf "$MH_RACINE/actuelle.nouvelle" "$MH_RACINE/actuelle"
+    fi
+    systemctl restart "$MH_SERVICE"
+    attendre_version "$de" || journal "Attention : la version $de ne répond pas non plus."
+    return 2
+  fi
+  # Garder la version précédente pour un retour en arrière, pas plus.
+  ls -1dt "$MH_RACINE"/versions/*/ 2>/dev/null | tail -n +3 | xargs -r rm -rf
+}
+
+# ── Un passage ───────────────────────────────────────────────────────
+
+passage() {
+  local actuelle pub vers demande traitee
+  etat_ecrire '.'
+
+  actuelle="$(version_installee)"
+  [ -n "$actuelle" ] || { journal "Le serveur ne répond pas sur $MH_SANTE_URL : rien à faire."; return 0; }
+  etat_ecrire '.versionInstallee = $v' --arg v "$actuelle"
+
+  pub="$(publication)" || { journal "Page des publications injoignable."; return 0; }
+  vers="$(jq -r '.tag_name // empty' <<<"$pub")"; vers="${vers#v}"
+  [ -n "$vers" ] || return 0
+
+  demande="$(politique maintenant '')"; [ "$demande" = null ] && demande=''
+  traitee="$(etat_lire | jq -r '.demandeTraitee // empty')"
+  local neuve=''
+  [ -n "$demande" ] && [ "$demande" != "$traitee" ] && neuve=1
+
+  if ! plus_recente "$vers" "$actuelle"; then
+    [ -n "$neuve" ] && etat_ecrire '.demandeTraitee = $d' --arg d "$demande"
+    return 0
+  fi
+
+  if [ -z "$neuve" ]; then
+    # Une version majeure peut demander plus qu'une mise à jour : elle attend qu'on la demande.
+    if [ "$(majeure "$vers")" != "$(majeure "$actuelle")" ] && [ "$(politique majeures false)" != true ]; then
+      if [ "$(etat_lire | jq -r '.derniere.vers // empty')" != "$vers" ]; then
+        resultat differee "$actuelle" "$vers" "Version majeure : elle s'installe sur demande (Mettre à jour maintenant)."
+      fi
+      return 0
+    fi
+    [ "$(politique automatique true)" = true ] || return 0
+    [ "$((10#$(date +%H)))" -eq "$(politique heure 4)" ] || return 0
+    # Une version qui a déjà échoué ne se réessaie pas seule : elle attend une demande.
+    if [ "$(etat_lire | jq -r '.derniere | select(.resultat == "echouee") | .vers // empty')" = "$vers" ]; then
+      return 0
+    fi
+  fi
+
+  [ -n "$neuve" ] && etat_ecrire '.demandeTraitee = $d' --arg d "$demande"
+  journal "Mise à jour de $actuelle vers $vers."
+  etat_ecrire '.enCours = true'
+
+  local sauvegarde code
+  if ! sauvegarde="$(sauvegarder "$vers")"; then
+    resultat echouee "$actuelle" "$vers" "La sauvegarde de la base a échoué : rien n'a été changé."
+    return 0
+  fi
+
+  if [ "$MH_MODE" = docker ]; then
+    installer_docker "$actuelle" "$vers"; code=$?
+  else
+    installer_classique "$actuelle" "$vers" "$pub"; code=$?
+  fi
+
+  case "$code" in
+    0) resultat reussie "$actuelle" "$vers" "Mise à jour installée." "$sauvegarde"
+       journal "Version $vers installée."
+       [ "$MH_MODE" = docker ] && remplacer_l_outil ;;
+    2) resultat echouee "$actuelle" "$vers" "La nouvelle version ne répondait pas : retour à $actuelle." "$sauvegarde" ;;
+    *) resultat echouee "$actuelle" "$vers" "Téléchargement ou installation impossible : rien n'a été changé." "$sauvegarde" ;;
+  esac
+}
+
+for outil in curl jq; do
+  command -v "$outil" >/dev/null || { journal "$outil est nécessaire."; exit 1; }
+done
+case "$MH_MODE" in
+  docker) [ -n "$MH_DOSSIER" ] && [ -f "$MH_DOSSIER/.env" ] || { journal "MH_DOSSIER doit désigner le dossier du .env."; exit 1; } ;;
+  classique) : ;;
+  *) journal "MH_MODE doit valoir docker ou classique."; exit 1 ;;
+esac
+
+if [ "${1:-}" = --une-fois ]; then
+  passage
+  exit 0
+fi
+
+journal "Outil de mise à jour démarré ($MH_MODE), un passage toutes les $MH_INTERVALLE s."
+while true; do
+  passage || true
+  sleep "$MH_INTERVALLE"
+done

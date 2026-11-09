@@ -7,3 +7,9 @@ coverage
 !.env.example
 *.log
 docs
+**/node_modules
+web-dist
+captures-assistant
+dump.rdb
+deploy
+*.tsbuildinfo

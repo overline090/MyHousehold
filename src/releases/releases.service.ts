@@ -4,6 +4,7 @@ import { ReleaseCheck } from '@prisma/client';
 import { ClockService } from '../common/clock/clock.service';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { isUpdateAvailable } from './version';
+import { versionCourante } from './version-courante';
 
 /** Forme d'une publication GitHub, réduite à ce qu'on lit. */
 interface PublishedRelease {
@@ -28,8 +29,10 @@ export class ReleasesService {
     private readonly clock: ClockService,
   ) {}
 
+  private readonly version = versionCourante();
+
   get currentVersion(): string {
-    return process.env.npm_package_version ?? '0.1.0';
+    return this.version;
   }
 
   get enabled(): boolean {

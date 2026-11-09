@@ -1,11 +1,7 @@
 # Auto-hébergement
 
-> ⚠️ **Le serveur est en v0.4** : il gère les comptes, les statuts et leurs droits,
-> le foyer, les tâches des trois sortes (récurrentes, de fond, ponctuelles) et les
-> rendez-vous. L'application Android et la partie authentifiée de l'interface web
-> restent à écrire ([`roadmap.md`](roadmap.md)). L'installation décrite ici fonctionne,
-> mais l'application n'est pas encore utilisable au quotidien. Voir
-> [`roadmap.md`](roadmap.md).
+Un serveur sert un foyer. Il s'installe en une commande, avec Docker (recommandé)
+ou sans, et se met à jour seul, la nuit.
 
 ## Matériel visé
 
@@ -16,28 +12,64 @@
 | VPS 1 vCPU / 1 Go | ✅ |
 | Raspberry Pi Zero, 512 Mo | ❌ PostgreSQL + Redis + Node ne tiennent pas |
 
-## Composition
-
-Trois conteneurs : `api` (NestJS), `db` (PostgreSQL 16), `redis` (file de jobs).
+## Installation
 
 ```bash
-cp .env.example .env        # puis remplir les CHANGEME
-docker compose up -d --build
-curl http://localhost:3000/health
+curl -fsSLO https://github.com/overline090/MyHousehold/releases/latest/download/installer.sh
+less installer.sh                    # il s'exécute en root : lisez-le
+sudo bash installer.sh               # Docker, dans /opt/myhousehold
+sudo bash installer.sh --classique   # sans Docker
 ```
+
+Options : `--dossier <chemin>` (Docker), `--version <x.y.z>`, `--sans-maj` (sans les
+mises à jour automatiques). Relancé sur une installation existante, l'installeur garde
+les secrets et les données.
 
 Puis ouvrez **http://localhost:3000/setup** : l'assistant d'installation vous guide
 jusqu'au foyer fonctionnel, sans toucher à un terminal.
 
-Les migrations sont appliquées au démarrage du conteneur `api` : une mise à jour
-d'image ne demande aucune étape manuelle oubliable.
+### Avec Docker
+
+L'installeur télécharge le `docker-compose.yml` de la version, crée un `.env` aux
+secrets aléatoires et démarre quatre conteneurs : `api` (l'image
+`ghcr.io/overline090/myhousehold`, amd64 et arm64), `db` (PostgreSQL 16), `redis` (file
+de jobs) et `maj` (l'outil de mise à jour, voir plus bas). À la main, c'est :
+
+```bash
+mkdir -p /opt/myhousehold && cd /opt/myhousehold
+curl -fsSLO https://github.com/overline090/MyHousehold/releases/latest/download/docker-compose.yml
+curl -fsSL -o .env https://github.com/overline090/MyHousehold/releases/latest/download/.env.example
+# remplir les CHANGEME, et ajouter MH_VERSION=<version>, MH_DOSSIER=/opt/myhousehold,
+# COMPOSE_PROFILES=maj (sans cette ligne, pas de mises à jour automatiques)
+docker compose up -d
+```
+
+L'image applique les migrations à chaque démarrage : une nouvelle version ne demande
+aucune étape à la main. Le `docker-compose.yml` à la racine du dépôt, lui, construit
+l'image depuis les sources : il sert au développement.
+
+### Sans Docker (installation classique)
+
+Sur Debian, Ubuntu ou Raspberry Pi OS 64 bits, avec **Node.js 22** déjà installé.
+L'installeur ajoute PostgreSQL, Redis et jq, crée l'utilisateur système
+`myhousehold`, la base et ses secrets, et installe :
+
+| Quoi | Où |
+|---|---|
+| Le serveur, une version par dossier | `/opt/myhousehold/versions/<x.y.z>`, `/opt/myhousehold/actuelle` désigne celle qui tourne |
+| La configuration et les secrets | `/etc/myhousehold/myhousehold.env` |
+| Les données (photos, images, certificat, sauvegardes) | `/var/lib/myhousehold` |
+| Le service | `myhousehold.service` (migrations à chaque démarrage) |
+| Les mises à jour | `myhousehold-maj.timer`, toutes les cinq minutes |
+
+L'archive téléchargée est vérifiée par sa somme SHA-256, publiée avec la version.
 
 Deux écoutes :
 
 - **HTTP, `127.0.0.1:3000`** : la machine elle-même et un reverse proxy. L'accès depuis
   Internet passe par un reverse proxy TLS, jamais en direct.
 - **HTTPS, port 3443, sur le réseau de la maison** : c'est là que le téléphone se
-  connecte. Le certificat est créé au premier démarrage dans le volume `app-data`, et
+  connecte. Le certificat est créé au premier démarrage dans le dossier de données, et
   l'app retient son **empreinte** : le perdre oblige chaque téléphone à revérifier le
   serveur. Il fait partie de la sauvegarde.
 
@@ -119,6 +151,7 @@ docker compose exec -T db pg_dump -U myhousehold myhousehold | gzip > backup.sql
 
 # 2. le volume de données : les photos de profil sont des fichiers, pas
 #    des colonnes — un dump SQL seul rendrait le foyer sans visages
+# (chaque mise à jour en fait déjà une, dans sauvegardes/ du dossier de données)
 docker run --rm -v myhousehold_app-data:/data -v "$PWD":/sortie alpine \
   tar czf /sortie/donnees.tar.gz -C /data .
 
@@ -131,21 +164,55 @@ reconstructibles.
 
 ## Mise à jour
 
-Le serveur vous prévient : il regarde une fois par jour s'il existe une version plus
-récente, et l'administrateur de l'instance la voit dans la zone d'administration
-(`GET /api/v1/admin/updates`). Rien n'est envoyé au passage — il lit une page de
-publications — et `MH_UPDATE_CHECK=false` coupe ces appels pour qui ne veut aucun
-trafic sortant.
+**Automatique, par défaut.** Chaque nuit à 4 h, si une nouvelle version est publiée,
+elle s'installe seule. Tout se règle dans **Administration › Serveur** : seule ou non,
+l'heure, les versions majeures, et « Mettre à jour maintenant ».
+
+Le serveur ne se met pas à jour lui-même : il faudrait lui confier la machine entière.
+C'est un **outil à part** qui s'en charge — le conteneur `maj` avec Docker, le
+minuteur `myhousehold-maj.timer` sinon. Il passe toutes les cinq minutes et ne parle
+au serveur que par deux fichiers du dossier de données :
+
+- `mises-a-jour/politique.json`, écrit par le serveur : les réglages de la page ;
+- `mises-a-jour/etat.json`, écrit par l'outil : son dernier passage, la dernière mise
+  à jour et son résultat, que la page affiche.
+
+Une mise à jour se fait en quatre temps :
+
+1. **sauvegarde de la base** dans `sauvegardes/` du dossier de données (les cinq
+   dernières sont gardées) ;
+2. **nouvelle version** : nouvelle image (Docker) ou nouvelle archive vérifiée par sa
+   somme SHA-256 (classique) ;
+3. **contrôle de santé** : le serveur doit répondre, dans la nouvelle version, en
+   moins de quatre minutes ;
+4. sinon, **retour à l'ancienne version**, et la page le dit. Une version qui a échoué
+   ne se réessaie pas seule : elle attend « Mettre à jour maintenant ».
+
+Une **version majeure** n'est installée seule que si la case « Versions majeures
+aussi » est cochée ; sinon, elle attend une demande. Les migrations restent
+**rétrocompatibles d'une version majeure à la précédente** : un retour en arrière
+retrouve une base qu'il sait lire, et un serveur mis à jour continue de servir les
+téléphones pas encore mis à jour.
+
+**Ce que l'outil peut faire.** Avec Docker, il a accès au socket Docker, donc à la
+machine : c'est pourquoi il vit à part du serveur, qui, lui, n'y a pas accès. Pour s'en
+passer, retirez `maj` de `COMPOSE_PROFILES` dans `.env` (ou installez avec
+`--sans-maj`, ou désactivez `myhousehold-maj.timer`) ; la page donne alors la commande à
+lancer :
 
 ```bash
-git pull
-docker compose up -d --build
+cd /opt/myhousehold && docker compose pull && docker compose up -d
 ```
 
-Les migrations seront toujours **rétrocompatibles d'une version majeure à la
-précédente**, afin qu'un serveur mis à jour continue de servir des apps non encore
-mises à jour. C'est une contrainte forte mais indispensable : on ne contrôle pas le
-moment où chaque membre du foyer met son téléphone à jour.
+`MH_UPDATE_CHECK=false` coupe tout appel sortant du serveur ; l'outil, lui, lit la page
+des publications (`MH_RELEASES_URL`) à chaque passage.
+
+### Venir d'une installation par les sources
+
+Un serveur installé avec `git pull && docker compose up -d --build` passe aux images
+publiées en lançant l'installeur dans le même dossier (`--dossier <dossier du dépôt>`) :
+il garde le `.env`, et les volumes, nommés d'après le dossier, restent les mêmes si ce
+dossier s'appelle `MyHousehold`. Sauvegardez avant.
 
 ## Configurer OAuth Google (optionnel)
 

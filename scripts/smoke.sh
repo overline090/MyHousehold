@@ -590,6 +590,21 @@ check "l'administrateur voit l'état des mises à jour" "yes" \
 import json,sys
 d = json.load(sys.stdin)
 print('yes' if d['currentVersion'] and 'updateAvailable' in d else d)")"
+check "la politique de mise à jour a ses valeurs par défaut" "True 4 False" \
+  "$(curl -s "$BASE/admin/updates" -H "authorization: Bearer $ADMIN" | py "
+import json,sys; p=json.load(sys.stdin)['auto']['politique']; print(p['automatique'], p['heure'], p['majeures'])")"
+check "l'administrateur règle l'heure des mises à jour" "2" \
+  "$(curl -s -X PATCH "$BASE/admin/updates/policy" -H "authorization: Bearer $ADMIN" -H 'content-type: application/json' \
+    -d '{"heure":2}' | py "import json,sys; print(json.load(sys.stdin)['auto']['politique']['heure'])")"
+check "une heure hors de 0–23 est refusée" "400" \
+  "$(status -X PATCH "$BASE/admin/updates/policy" -H "authorization: Bearer $ADMIN" -H 'content-type: application/json' -d '{"heure":24}')"
+check "un adulte ne règle pas les mises à jour" "403" \
+  "$(status -X PATCH "$BASE/admin/updates/policy" -H "authorization: Bearer $ADULTE_TOKEN" -H 'content-type: application/json' -d '{"heure":3}')"
+# Sans outil de mise à jour à côté du serveur, « maintenant » le dit ; avec, la demande est notée.
+MAINTENANT=$(status -X POST "$BASE/admin/updates/now" -H "authorization: Bearer $ADMIN")
+OUTIL=$(curl -s "$BASE/admin/updates" -H "authorization: Bearer $ADMIN" | py "import json,sys; print(json.load(sys.stdin)['auto']['outil']['actif'])")
+check "« Mettre à jour maintenant » suit la présence de l'outil" "ok" \
+  "$([[ ( $OUTIL == True && $MAINTENANT == 202 ) || ( $OUTIL == False && $MAINTENANT == 400 ) ]] && echo ok || echo "$OUTIL $MAINTENANT")"
 check "la vérification des mises à jour se déclenche" "202" \
   "$(status -X POST "$BASE/admin/jobs/releases.check/run" -H "authorization: Bearer $ADMIN")"
 check "l'administrateur supprime le compte d'un autre" "204" \

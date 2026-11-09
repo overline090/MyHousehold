@@ -1,0 +1,13 @@
+# MyHousehold — un passage de l'outil de mise à jour (lancé par le minuteur).
+[Unit]
+Description=MyHousehold, mise à jour du serveur
+After=myhousehold.service
+
+[Service]
+Type=oneshot
+Environment=MH_MODE=classique
+Environment=MH_DONNEES=/var/lib/myhousehold
+Environment=MH_RACINE=/opt/myhousehold
+Environment=MH_SERVICE=myhousehold
+Environment=MH_ENV=/etc/myhousehold/myhousehold.env
+ExecStart=/usr/local/bin/myhousehold-maj --une-fois

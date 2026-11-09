@@ -3,9 +3,18 @@
   import { api } from '../../lib/session.svelte';
 
   /**
-   * Administration › Serveur. La mise à jour suit l'option prudente : le
-   * serveur ne se met pas à jour lui-même, il dit quoi lancer.
+   * Administration › Serveur. Le serveur ne se met pas à jour lui-même :
+   * un outil installé à côté (conteneur « maj » avec Docker, minuteur
+   * systemd sinon) lit les réglages faits ici et s'en charge. Sans cet
+   * outil, la page donne la commande à lancer.
    */
+  interface Derniere {
+    le?: string;
+    de?: string;
+    vers?: string;
+    resultat?: 'reussie' | 'echouee' | 'differee';
+    message?: string;
+  }
   interface MisesAJour {
     currentVersion: string;
     latestVersion: string | null;
@@ -13,6 +22,10 @@
     checkedAt?: string | null;
     notesUrl: string | null;
     app: { version: string | null; publishedAt: string | null; downloadUrl?: string | null };
+    auto: {
+      politique: { automatique: boolean; heure: number; majeures: boolean; maintenant: string | null };
+      outil: { present: boolean; actif: boolean; mode: 'docker' | 'classique' | null; vu: string | null; enCours: boolean; derniere: Derniere | null };
+    };
   }
   interface Serveur {
     address: string;
@@ -28,6 +41,63 @@
   let serveur = $state<Serveur | null>(null);
   let erreur = $state<string | null>(null);
   let copie = $state(false);
+  let envoi = $state(false);
+  let message = $state<{ texte: string; erreur: boolean } | null>(null);
+
+  const auto = $derived(maj?.auto);
+  const demandeEnAttente = $derived(
+    !!auto?.politique.maintenant && !auto.outil.enCours && (auto.outil.derniere?.le ?? '') < auto.politique.maintenant,
+  );
+
+  // Pendant une mise à jour, la page suit : l'outil passe toutes les cinq minutes.
+  $effect(() => {
+    if (!auto?.outil.enCours && !demandeEnAttente) return;
+    const minuteur = setInterval(() => void recharger(), 10_000);
+    return () => clearInterval(minuteur);
+  });
+
+  async function recharger() {
+    try {
+      maj = await api<MisesAJour>('/admin/updates');
+    } catch {
+      // Pendant le redémarrage, le serveur ne répond pas : on réessaie au prochain tour.
+    }
+  }
+
+  async function regler(changement: Partial<{ automatique: boolean; heure: number; majeures: boolean }>) {
+    envoi = true;
+    message = null;
+    try {
+      maj = await api<MisesAJour>('/admin/updates/policy', { method: 'PATCH', body: JSON.stringify(changement) });
+    } catch (e) {
+      message = { texte: e instanceof ApiError ? e.message : 'Le serveur ne répond pas.', erreur: true };
+    } finally {
+      envoi = false;
+    }
+  }
+
+  async function maintenant() {
+    envoi = true;
+    message = null;
+    try {
+      maj = await api<MisesAJour>('/admin/updates/now', { method: 'POST' });
+      message = { texte: 'Demande envoyée : la mise à jour commence dans les cinq minutes.', erreur: false };
+    } catch (e) {
+      message = { texte: e instanceof ApiError ? e.message : 'Le serveur ne répond pas.', erreur: true };
+    } finally {
+      envoi = false;
+    }
+  }
+
+  function ilYA(iso: string | null | undefined): string {
+    if (!iso) return '';
+    const minutes = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+    if (minutes < 1) return 'à l’instant';
+    if (minutes < 60) return `il y a ${minutes} min`;
+    return new Date(iso).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
+  }
+
+  const RESULTATS = { reussie: 'réussie', echouee: 'échouée', differee: 'en attente' } as const;
 
   $effect(() => {
     void (async () => {
@@ -60,17 +130,57 @@
     </div>
     <div class="ligne-info"><span>Version installée</span><span class="muet">{maj?.currentVersion ?? '…'}</span></div>
     {#if maj?.latestVersion}<div class="ligne-info"><span>Dernière version</span><span class="muet">{maj.latestVersion}</span></div>{/if}
-    {#if maj?.updateAvailable}
+    {#if auto?.outil.actif}
+      <div class="auto">
+        <label class="bascule">
+          <input type="checkbox" role="switch" checked={auto.politique.automatique} disabled={envoi} onchange={() => regler({ automatique: !auto.politique.automatique })} />
+          <span>Installer seul les nouvelles versions, la nuit à</span>
+          <select
+            aria-label="Heure des mises à jour"
+            value={auto.politique.heure}
+            disabled={envoi || !auto.politique.automatique}
+            onchange={(e) => regler({ heure: Number((e.currentTarget as HTMLSelectElement).value) })}
+          >
+            {#each Array.from({ length: 24 }, (_, h) => h) as h (h)}<option value={h}>{h} h</option>{/each}
+          </select>
+        </label>
+        <label class="bascule">
+          <input type="checkbox" checked={auto.politique.majeures} disabled={envoi || !auto.politique.automatique} onchange={() => regler({ majeures: !auto.politique.majeures })} />
+          <span>Versions majeures aussi <span class="muet">(sinon, elles attendent « Mettre à jour maintenant »)</span></span>
+        </label>
+        <p class="muet">
+          Avant chaque mise à jour, la base est sauvegardée ; si la nouvelle version ne répond pas, l’ancienne revient.
+          Outil de mise à jour : {auto.outil.mode === 'docker' ? 'conteneur Docker' : 'service système'}, vu {ilYA(auto.outil.vu)}.
+        </p>
+      </div>
+      {#if auto.outil.enCours}
+        <div class="encadre">Mise à jour en cours… le serveur redémarre, la page se rafraîchit seule.</div>
+      {:else if demandeEnAttente}
+        <div class="encadre">Mise à jour demandée : elle commence dans les cinq minutes.</div>
+      {:else if maj?.updateAvailable}
+        <button class="primaire bouton-maj" disabled={envoi} onclick={maintenant}>Mettre à jour maintenant vers {maj.latestVersion}</button>
+      {/if}
+      {#if auto.outil.derniere?.vers}
+        {@const d = auto.outil.derniere}
+        <p class="muet" class:mal={d.resultat === 'echouee'}>
+          Dernière : {d.de} → {d.vers}, {RESULTATS[d.resultat ?? 'reussie']}{d.le ? `, ${ilYA(d.le)}` : ''}. {d.message ?? ''}
+        </p>
+      {/if}
+    {:else if maj?.updateAvailable}
       <p class="muet">Pour l’installer, lancez sur la machine du serveur, dans le dossier de MyHousehold :</p>
       <div class="commande">
         <code>{COMMANDE}</code>
         <button aria-label="Copier la commande" onclick={copier}>{copie ? '✓' : '⧉'}</button>
       </div>
-      <p class="muet">Le serveur ne se met pas à jour lui-même : il faudrait lui confier toute la machine.</p>
-      {#if maj.notesUrl}<a class="bouton-lien" href={maj.notesUrl} target="_blank" rel="noopener noreferrer">Voir les nouveautés</a>{/if}
+      <p class="muet">
+        Aucun outil de mise à jour ne tourne à côté de ce serveur. L’installeur le met en place : les mises à jour se
+        feront alors seules, la nuit, et se régleront ici.
+      </p>
     {:else if maj}
       <p class="muet">Le serveur est à jour.</p>
     {/if}
+    {#if maj?.updateAvailable && maj.notesUrl}<a class="bouton-lien" href={maj.notesUrl} target="_blank" rel="noopener noreferrer">Voir les nouveautés</a>{/if}
+    {#if message}<p class:mal={message.erreur} class="petit">{message.texte}</p>{/if}
   </section>
 
   <section class="carte">
@@ -244,5 +354,51 @@
 
   .petit {
     font-size: 12px;
+  }
+
+  .auto {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 0 4px;
+    border-top: 1px solid var(--trait);
+  }
+
+  .auto .bascule {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--encre);
+    flex-wrap: wrap;
+  }
+
+  .auto .bascule > span {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .auto .bascule:first-child > span {
+    flex: 0 1 auto;
+  }
+
+  .auto .bascule input {
+    width: 18px;
+    height: 18px;
+    min-height: 0;
+    accent-color: var(--accent);
+  }
+
+  .auto .bascule select {
+    width: auto;
+    flex: none;
+    min-height: 32px;
+    padding: 2px 8px;
+  }
+
+  .bouton-maj {
+    align-self: flex-start;
   }
 </style>

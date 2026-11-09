@@ -6,6 +6,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  Patch,
   ParseBoolPipe,
   ParseUUIDPipe,
   Post,
@@ -15,6 +16,8 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AppException } from '../common/errors/app.exception';
 import { ErrorCode } from '../common/errors/error-codes';
 import { JobName } from '../scheduler/job-names';
+import { MiseAJourService } from '../releases/mise-a-jour.service';
+import { PolitiqueDto } from '../releases/politique.dto';
 import { ReleasesService } from '../releases/releases.service';
 import { SchedulerService } from '../scheduler/scheduler.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -50,6 +53,7 @@ export class AdminController {
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
     private readonly config: ConfigService,
+    private readonly miseAJour: MiseAJourService,
   ) {}
 
   /**
@@ -121,8 +125,40 @@ export class AdminController {
    */
   @Get('updates')
   @ApiOperation({ summary: 'Mises à jour disponibles pour le serveur et l’app' })
-  updates() {
-    return this.releases.status();
+  async updates() {
+    const [etat, politique, outil] = await Promise.all([
+      this.releases.status(),
+      this.miseAJour.politique(),
+      this.miseAJour.outil(),
+    ]);
+    return { ...etat, auto: { politique, outil } };
+  }
+
+  /**
+   * Ce que l'outil de mise à jour doit faire : seul, la nuit, à quelle
+   * heure, majeures comprises ou non.
+   */
+  @Patch('updates/policy')
+  @ApiOperation({ summary: 'Régler les mises à jour automatiques' })
+  async updatePolicy(@Body() dto: PolitiqueDto) {
+    await this.miseAJour.changer(dto);
+    return this.updates();
+  }
+
+  /** « Mettre à jour maintenant » : l'outil s'en charge à son prochain passage, dans les cinq minutes. */
+  @Post('updates/now')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiOperation({ summary: 'Demander une mise à jour immédiate' })
+  async updateNow() {
+    const outil = await this.miseAJour.outil();
+    if (!outil.actif) {
+      throw AppException.badRequest(
+        ErrorCode.VALIDATION_FAILED,
+        "Aucun outil de mise à jour ne tourne à côté du serveur : voir « Mise à jour » dans docs/self-hosting.md.",
+      );
+    }
+    await this.miseAJour.demander();
+    return this.updates();
   }
 
   /**

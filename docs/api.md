@@ -648,6 +648,15 @@ publications. `MH_UPDATE_CHECK=false` coupe entièrement ces appels sortants.
 | `GET` | `/app-release` | Public : l'app l'interroge avant toute connexion |
 | `GET` | `/api/v1/admin/updates` | `MANAGE_SERVER` |
 | `POST` | `/api/v1/admin/jobs/releases.check/run` | `MANAGE_SERVER` : vérifier tout de suite |
+| `PATCH` | `/api/v1/admin/updates/policy` | `MANAGE_SERVER` : `{ automatique?, heure? (0–23), majeures? }` |
+| `POST` | `/api/v1/admin/updates/now` | `MANAGE_SERVER` : mettre à jour dans les cinq minutes (400 sans outil de mise à jour actif) |
+
+`GET /admin/updates` porte aussi `auto` : `politique` (`automatique`, `heure`,
+`majeures`, `maintenant`) et `outil` (`present`, `actif` — passé il y a moins d'un
+quart d'heure —, `mode` `docker`|`classique`, `vu`, `enCours`, `derniere` : `{ le, de,
+vers, resultat: reussie|echouee|differee, message, sauvegarde }`). Le serveur et
+l'outil ne se parlent que par `mises-a-jour/politique.json` et
+`mises-a-jour/etat.json` du dossier de données (voir `docs/self-hosting.md`).
 
 L'état des mises à jour **n'est pas** exposé sur `/version`, qui est public :
 annoncer à tout visiteur qu'un serveur est en retard d'une version, c'est lui
