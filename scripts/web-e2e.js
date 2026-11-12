@@ -101,8 +101,9 @@ const verifier = (l, a, o) => { if (a === o) console.log('  ✓ ' + l); else { c
   verifier('la taille choisie est gardée', JSON.stringify(tailleChoisie), JSON.stringify(apres));
   verifier('la tuile retirée reste retirée', false, await page.isVisible('section[aria-label="À faire par les autres"]'));
 
-  // Ajout rapide
-  await page.click('button.ajouter');
+  // Ajout rapide : le bouton est dans la page, à côté du titre, plus dans la barre du haut.
+  verifier('plus de bouton « Ajouter » dans la barre du haut', 0, await page.locator('header button.ajouter').count());
+  await page.click('.tete-page button.ajouter:has-text("Ajouter")');
   await page.fill('form.feuille input:not([type])', 'Remplacer l’ampoule');
   await page.click('form.feuille button:has-text("Avant une date")');
   await page.screenshot({ path: `${S}/5-ajout.png` });
@@ -117,7 +118,7 @@ const verifier = (l, a, o) => { if (a === o) console.log('  ✓ ' + l); else { c
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${S}/7-taches.png` });
   verifier('la liste des tâches montre la règle en clair', true, (await page.textContent('.tableau')).includes('Chaque jour, 11 h'));
-  await page.click('button.ajouter');
+  await page.click('.tete-page button:has-text("Nouvelle tâche")');
   await page.waitForSelector('form.panneau');
   await page.fill('form.panneau label:has-text("Titre") input', 'Arroser le potager');
   await page.click('form.panneau button:has-text("Jours")');
@@ -333,7 +334,7 @@ const verifier = (l, a, o) => { if (a === o) console.log('  ✓ ' + l); else { c
   await page.screenshot({ path: `${S}/21-icone-perso.png` });
   await page.click('form.panneau button:has-text("Créer le tableau")');
   await page.waitForSelector('.tableau-puce:has-text("Garde-manger")');
-  await page.click('button:has-text("+ Nouvel article")');
+  await page.click('.tete-page button:has-text("Nouvel article")');
   await page.fill('form.panneau label:has-text("Nom") input', 'Café en grains');
   await page.fill('form.panneau input[aria-label="Quantité"]', '3');
   await page.check('form.panneau label:has-text("Minimum") input');

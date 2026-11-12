@@ -100,11 +100,14 @@
     void charger();
   });
 
-  // Les boutons de l'accueil vont dans la barre d'outils, à gauche d'« Ajouter ».
+  // En tête de l'accueil : Personnaliser, et « Ajouter » (une tâche ou un rendez-vous, en deux champs).
+  const peutAjouter = $derived(aLeDroit('MANAGE_TASKS') || aLeDroit('MANAGE_APPOINTMENTS'));
   $effect(() => {
     barre.actions = edition ? boutonsEdition : boutonPersonnaliser;
+    barre.ajouter = !edition && peutAjouter ? { libelle: 'Ajouter', faire: () => (barre.ajoutRapide = true) } : null;
     return () => {
       barre.actions = null;
+      barre.ajouter = null;
     };
   });
 

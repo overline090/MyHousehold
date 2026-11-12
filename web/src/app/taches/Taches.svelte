@@ -45,7 +45,7 @@
 
   $effect(() => {
     barre.actions = peutGerer ? boutons : null;
-    barre.ajouter = peutGerer ? () => (fiche = { tache: null }) : null;
+    barre.ajouter = peutGerer ? { libelle: 'Nouvelle tâche', faire: () => (fiche = { tache: null }) } : null;
     return () => {
       barre.actions = null;
       barre.ajouter = null;

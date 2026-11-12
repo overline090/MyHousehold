@@ -37,16 +37,19 @@
   const administration = $derived(
     ['MANAGE_MEMBERS', 'MANAGE_STATUSES', 'MANAGE_SERVER'].some((d) => aLeDroit(d)),
   );
-  const peutAjouter = $derived(aLeDroit('MANAGE_TASKS') || aLeDroit('MANAGE_APPOINTMENTS'));
+  /** Le titre de la page en cours, au-dessus de ses boutons. */
+  const titrePage = $derived(
+    [...PRINCIPALES, ...BAS, { chemin: '/administration', libelle: 'Administration' }].find((e) => estActive(e.chemin))
+      ?.libelle ?? '',
+  );
 
-  // Sur téléphone, la page se comporte comme l'app : barre du bas, bouton +, menu ☰.
+  // Sur téléphone, la page se comporte comme l'app : barre du bas, menu ☰.
   const requete = window.matchMedia('(max-width: 760px)');
   let telephone = $state(requete.matches);
   requete.addEventListener('change', (e) => (telephone = e.matches));
 
   let voletOuvert = $state(false);
   let menuCompte = $state(false);
-  let ajout = $state(false);
   let majServeur = $state(false);
 
   // Le choix replié/déplié suit le compte ; localStorage évite seulement
@@ -153,14 +156,7 @@
       <b>{session.foyer?.name ?? 'MyHousehold'}</b>
     </a>
 
-    {#if barre.actions && !telephone}
-      <div class="actions">{@render barre.actions()}</div>
-    {/if}
-    {#if peutAjouter && !telephone}
-      <button class="primaire ajouter" onclick={() => (barre.ajouter ? barre.ajouter() : (ajout = true))}>
-        <Icone nom="plus" taille={18} />Ajouter
-      </button>
-    {/if}
+    <span class="espace"></span>
     {#if majServeur}
       <button
         class="icone point"
@@ -180,13 +176,28 @@
     {#if !telephone}
       {@render navigation(repliee ? 'repliee' : '')}
     {/if}
-    <main class="page">{@render children()}</main>
+    <main class="page">
+      <!-- Le bouton d'ajout est dans la page, à côté de son titre, et dit ce
+           qu'il crée : en haut à droite de l'écran, il changeait de sens
+           d'une page à l'autre. -->
+      {#if barre.actions || barre.ajouter}
+        <div class="tete-page">
+          <h1>{titrePage}</h1>
+          <div class="actions">
+            {#if barre.actions}{@render barre.actions()}{/if}
+            {#if barre.ajouter}
+              <button class="primaire ajouter" onclick={barre.ajouter.faire}>
+                <Icone nom="plus" taille={18} />{barre.ajouter.libelle}
+              </button>
+            {/if}
+          </div>
+        </div>
+      {/if}
+      {@render children()}
+    </main>
   </div>
 
   {#if telephone}
-    {#if peutAjouter}
-      <button class="fab" aria-label="Ajouter" onclick={() => (barre.ajouter ? barre.ajouter() : (ajout = true))}><Icone nom="plus" taille={28} /></button>
-    {/if}
     <nav class="onglets" aria-label="Onglets">
       {#each PRINCIPALES.slice(0, 3) as entree (entree.chemin)}
         <a
@@ -229,8 +240,8 @@
     </div>
   {/if}
 
-  {#if ajout}
-    <AjoutRapide onFermer={() => (ajout = false)} />
+  {#if barre.ajoutRapide}
+    <AjoutRapide onFermer={() => (barre.ajoutRapide = false)} />
   {/if}
 </div>
 
@@ -353,6 +364,28 @@
     flex: 1;
     min-width: 0;
     padding: 20px 26px 40px;
+  }
+
+  .espace {
+    flex: 1;
+  }
+
+  .tete-page {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+
+  .tete-page h1 {
+    flex: 1;
+    margin: 0;
+    font-size: 22px;
+  }
+
+  .tete-page .actions {
+    flex-wrap: wrap;
   }
 
   .nav {
@@ -544,23 +577,6 @@
     font-weight: 600;
   }
 
-  .fab {
-    position: fixed;
-    right: 18px;
-    bottom: 82px;
-    z-index: 4;
-    width: 58px;
-    height: 58px;
-    padding: 0;
-    border: none;
-    border-radius: 18px;
-    background: var(--accent);
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 6px 16px rgba(15, 118, 110, 0.35);
-  }
 
   @media (max-width: 760px) {
     .page {

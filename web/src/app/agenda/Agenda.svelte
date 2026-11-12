@@ -1,7 +1,6 @@
 <script lang="ts">
   import { ApiError } from '../../lib/api';
   import { barre } from '../../lib/barre.svelte';
-  import Icone from '../../lib/Icone.svelte';
   import { aLeDroit, api, session } from '../../lib/session.svelte';
   import { jourDans, type Membre } from '../accueil/donnees';
   import FicheLecture from '../taches/FicheLecture.svelte';
@@ -85,8 +84,7 @@
   });
 
   $effect(() => {
-    barre.actions = peutGerer ? boutons : null;
-    barre.ajouter = peutGerer ? () => (fiche = { id: null, jour: choisi }) : null;
+    barre.ajouter = peutGerer ? { libelle: 'Nouveau rendez-vous', faire: () => (fiche = { id: null, jour: choisi }) } : null;
     return () => {
       barre.actions = null;
       barre.ajouter = null;
@@ -147,10 +145,6 @@
     return r.isAllDay ? 'Journée' : heureLocale(r.startAt, fuseau);
   }
 </script>
-
-{#snippet boutons()}
-  <button onclick={() => (fiche = { id: null, jour: choisi })}><Icone nom="plus" taille={16} />Nouveau rendez-vous</button>
-{/snippet}
 
 {#snippet journee(j: string, avecAjout: boolean)}
   {@const contenu = du(j)}

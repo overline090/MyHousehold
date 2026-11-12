@@ -42,8 +42,10 @@
 
   $effect(() => {
     barre.actions = boutons;
+    barre.ajouter = peutGerer && choisi ? { libelle: 'Nouvel article', faire: () => (fiche = { article: null }) } : null;
     return () => {
       barre.actions = null;
+      barre.ajouter = null;
     };
   });
 
@@ -64,7 +66,6 @@
 
 {#snippet boutons()}
   {#if peutFaire && articles.length}<button onclick={() => (sortie = true)}>Déclarer une sortie</button>{/if}
-  {#if peutGerer && choisi}<button onclick={() => (fiche = { article: null })}>+ Nouvel article</button>{/if}
 {/snippet}
 
 {#if erreur}<div class="encadre alerte">{erreur}</div>{/if}

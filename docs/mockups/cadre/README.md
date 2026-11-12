@@ -46,6 +46,7 @@ node docs/mockups/cadre/rendre.js   # 1280 × 800 pour l'ordinateur, 390 × 844 
 | `35-tache-details-lire.html` | Les lire : un appui sur un numéro (appeler, copier), une adresse (carte, copier), un code (copié) |
 | `36-admin-copie-automatique.html` | Administration › Réglages du foyer › **Copie automatique** : les règles du foyer, et les essayer |
 | `37-tache-valider.html` | Une tâche ouverte : son état, « C’est fait » ou « Passer cette fois », les dernières fois et par qui |
+| `38-ajouter-dans-la-page.html` | Le bouton d'ajout en tête de chaque page, nommé : « Nouvelle tâche », « Nouveau rendez-vous »… |
 
 ## Ce que ce cadre décide
 
@@ -56,15 +57,18 @@ node docs/mockups/cadre/rendre.js   # 1280 × 800 pour l'ordinateur, 390 × 844 
   seulement à qui en a le droit — absente, pas grisée.
 - **L'accueil est fait de tuiles**, que chacun dispose à sa façon : l'ordre, la
   taille et les tuiles affichées appartiennent au compte, pas au foyer. Ses boutons
-  (Personnaliser, puis Rétablir et Terminé) sont dans la barre d'outils, à gauche
-  d'Ajouter : les tuiles commencent tout en haut.
+  (Personnaliser, puis Rétablir et Terminé, et Ajouter) sont en tête de la page.
 - **Repliable** sur ordinateur ; le choix est retenu d'une visite à l'autre.
 - **La barre d'outils est au-dessus de tout**, sur toute la largeur : le bouton ☰
-  qui replie la navigation, le foyer, puis Ajouter, la mise à jour du serveur quand
-  il y en a une (administrateurs) et la photo qui ouvre le menu du compte. La
-  navigation et la page sont dessous.
-- **Pas de titre de page** : l'entrée active de la navigation dit déjà où l'on est,
-  et la place va au contenu.
+  qui replie la navigation, le foyer, la mise à jour du serveur quand il y en a une
+  (administrateurs) et la photo qui ouvre le menu du compte. La navigation et la page
+  sont dessous.
+- **Ajouter se fait dans la page, et dit ce qu'il crée** (maquette
+  `38-ajouter-dans-la-page.html`) : en tête de la page, à côté de son titre,
+  « Nouvelle tâche », « Nouveau rendez-vous », « Nouvel article » ; l'accueil garde
+  « Ajouter » (tâche ou rendez-vous, en deux champs). Un seul « Ajouter » en haut à
+  droite de l'écran changeait de sens d'une page à l'autre. Pas de bouton flottant
+  sur téléphone : le même bouton, en tête de la page.
 - **Sur téléphone, la page se comporte comme l'app**, pour qu'on n'ait pas deux
   façons de faire la même chose.
 
