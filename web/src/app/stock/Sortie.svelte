@@ -23,6 +23,7 @@
   /* svelte-ignore state_referenced_locally */
   let choisi = $state(tableauId ?? tableaux[0]?.id ?? null);
   let pris = $state<Record<string, number>>({});
+  let note = $state('');
   let erreur = $state<string | null>(null);
   let envoi = $state(false);
 
@@ -51,7 +52,7 @@
     envoi = true;
     erreur = null;
     try {
-      await api('/stock/out', { method: 'POST', body: JSON.stringify({ items: lignes.map(([id, quantity]) => ({ id, quantity })) }) });
+      await api('/stock/out', { method: 'POST', body: JSON.stringify({ items: lignes.map(([id, quantity]) => ({ id, quantity })), note: note.trim() || undefined }) });
       onValide();
     } catch (err) {
       erreur = err instanceof ApiError ? err.message : 'Le serveur ne répond pas.';
@@ -101,6 +102,11 @@
         <p class="muet">Aucun article dans ce tableau.</p>
       {/each}
     </div>
+
+    <label class="note">
+      Note <span class="muet">(facultative : pour qui, pourquoi)</span>
+      <input bind:value={note} maxlength="300" placeholder="Pour la fièvre de Lou" />
+    </label>
 
     {#if sousLeMinimum.length}
       <div class="encadre avertissement">
@@ -280,5 +286,17 @@
     border-color: #fed7aa;
     color: #9a3412;
     font-size: 13px;
+  }
+  .note {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--encre-douce);
+  }
+
+  .note .muet {
+    font-weight: 400;
   }
 </style>

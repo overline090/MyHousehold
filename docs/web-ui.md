@@ -77,10 +77,12 @@ Réglages du foyer.
 administrateur du serveur (`MANAGE_SERVER`) les active pour tout le foyer. Ceux qui ne
 sont pas encore écrits sont marqués « En préparation ». **Gestion de stock** ajoute la
 page Stock et la tuile « À racheter » : des tableaux (garde-manger, salle de bain…)
-avec une icône, un emoji ou une image, et des articles avec quantité, minimum, péremption, lien
+avec une icône, un emoji ou une image, rangés par **groupe** (la pharmacie : groupe A,
+groupe B — « Groupes du tableau »), et des articles avec quantité, minimum, péremption, lien
 pour racheter et détail. Sous le minimum, l'article passe « À racheter » ; à 15 jours
-de sa péremption, « Bientôt périmé ». « Déclarer une sortie » retire d'un coup ce
-qu'on a pris, dans un ou plusieurs tableaux, et prévient de ce qui passera sous le
+de sa péremption, « Bientôt périmé ». « Retirer », sur chaque ligne, sort un article en un
+clic avec une note facultative (pour qui, pourquoi), gardée dans l'historique de sa
+fiche ; « Déclarer une sortie » retire d'un coup ce qu'on a pris, dans un ou plusieurs tableaux, et prévient de ce qui passera sous le
 minimum.
 
 Ce qu'elle ne fait **pas** : notifications push, mode hors-ligne, scan de QR code.

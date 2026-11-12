@@ -2,7 +2,7 @@
   import { ApiError } from '../../lib/api';
   import Icone from '../../lib/Icone.svelte';
   import { api } from '../../lib/session.svelte';
-  import { imageDeLArticle, type Article, type Tableau } from './donnees';
+  import { imageDeLArticle, type Article, type Groupe, type Mouvement, type Tableau } from './donnees';
   import ChoixCouleur from '../../lib/ChoixCouleur.svelte';
   import ChoixIcone from '../../lib/ChoixIcone.svelte';
   import { ecrireIcone, lireIcone, texteValide, type SorteDIcone } from '../../lib/icones';
@@ -13,6 +13,7 @@
   let {
     article,
     tableaux,
+    groupes,
     tableauId,
     lectureSeule,
     onFermer,
@@ -20,6 +21,7 @@
   }: {
     article: Article | null;
     tableaux: Tableau[];
+    groupes: Groupe[];
     tableauId: string;
     lectureSeule: boolean;
     onFermer: () => void;
@@ -30,6 +32,24 @@
   const depart = article;
   /* svelte-ignore state_referenced_locally */
   let tableau = $state(depart?.boardId ?? tableauId);
+  let groupe = $state<string>(depart?.groupId ?? '');
+  const groupesDuTableau = $derived(groupes.filter((g) => g.boardId === tableau));
+  // Changer de tableau : le groupe de l'ancien ne vaut plus.
+  $effect(() => {
+    if (groupe && !groupesDuTableau.some((g) => g.id === groupe)) groupe = '';
+  });
+
+  let historique = $state<Mouvement[]>([]);
+  $effect(() => {
+    if (!depart) return;
+    void api<Mouvement[]>(`/stock/items/${depart.id}/movements`)
+      .then((m) => (historique = m))
+      .catch(() => {});
+  });
+
+  function quand(iso: string): string {
+    return new Date(iso).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  }
   const lue = lireIcone(depart?.icon, 'boite');
   let sorteImage = $state<SorteDIcone>(depart?.hasImage ? 'image' : depart ? lue.sorte : 'icone');
   let icone = $state(lue.icone);
@@ -56,6 +76,7 @@
     erreur = null;
     const corps = {
       boardId: tableau,
+      groupId: groupe || null,
       name: nom.trim(),
       icon: ecrireIcone(sorteImage, icone, texte),
       color: couleur,
@@ -135,6 +156,16 @@
       </label>
     {/if}
 
+    {#if groupesDuTableau.length}
+      <label>
+        Groupe
+        <select bind:value={groupe}>
+          <option value="">Sans groupe</option>
+          {#each groupesDuTableau as g (g.id)}<option value={g.id}>{g.name}</option>{/each}
+        </select>
+      </label>
+    {/if}
+
     <div class="deux">
       <div class="champ">
         <span>Quantité actuelle</span>
@@ -161,6 +192,23 @@
     </div>
 
     <label>Détail<textarea bind:value={detail} rows="2" maxlength="500" placeholder="Facultatif"></textarea></label>
+
+    {#if historique.length}
+      <div class="champ">
+        <span>Dernières entrées et sorties</span>
+        <ul class="historique">
+          {#each historique as m (m.id)}
+            <li>
+              <b class:sortie={m.delta < 0}>{m.delta > 0 ? `+${m.delta}` : m.delta}</b>
+              <span class="quoi">
+                {#if m.note}<span>« {m.note} »</span>{/if}
+                <span class="muet">{m.actor?.firstName ?? 'Quelqu’un'} · {quand(m.createdAt)}</span>
+              </span>
+            </li>
+          {/each}
+        </ul>
+      </div>
+    {/if}
 
     {#if erreur}<div class="encadre alerte">{erreur}</div>{/if}
   </fieldset>
@@ -325,5 +373,41 @@
   textarea {
     font: inherit;
     font-weight: 400;
+  }
+  .historique {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--trait);
+    border-radius: 10px;
+    font-weight: 400;
+  }
+
+  .historique li {
+    display: flex;
+    gap: 12px;
+    align-items: baseline;
+    padding: 8px 12px;
+    border-top: 1px solid var(--trait);
+    font-size: 13px;
+    color: var(--encre);
+  }
+
+  .historique li:first-child {
+    border-top: none;
+  }
+
+  .historique b {
+    min-width: 34px;
+    color: #15803d;
+  }
+
+  .historique b.sortie {
+    color: #b45309;
+  }
+
+  .historique .quoi {
+    display: flex;
+    flex-direction: column;
   }
 </style>

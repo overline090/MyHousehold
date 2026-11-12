@@ -11,9 +11,26 @@ export interface Tableau {
   itemCount: number;
 }
 
+export interface Groupe {
+  id: string;
+  boardId: string;
+  name: string;
+  color: string;
+  position: number;
+}
+
+export interface Mouvement {
+  id: string;
+  delta: number;
+  note: string | null;
+  createdAt: string;
+  actor: { id: string; firstName: string } | null;
+}
+
 export interface Article {
   id: string;
   boardId: string;
+  groupId: string | null;
   name: string;
   icon: string | null;
   color: string | null;

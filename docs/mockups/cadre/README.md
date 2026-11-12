@@ -46,6 +46,8 @@ node docs/mockups/cadre/rendre.js   # 1280 × 800 pour l'ordinateur, 390 × 844 
 | `35-tache-details-lire.html` | Les lire : un appui sur un numéro (appeler, copier), une adresse (carte, copier), un code (copié) |
 | `36-admin-copie-automatique.html` | Administration › Réglages du foyer › **Copie automatique** : les règles du foyer, et les essayer |
 | `37-tache-valider.html` | Une tâche ouverte : son état, « C’est fait » ou « Passer cette fois », les dernières fois et par qui |
+| `40-stock-groupes.html` | Le stock rangé par groupe (Pharmacie › Groupe A, Groupe B), « Retirer » sur chaque ligne |
+| `41-stock-retrait.html` | « Retirer » : combien, et une note facultative |
 | `38-ajouter-dans-la-page.html` | Le « + » d'ajout en tête de chaque page, à côté de son titre |
 
 ## Ce que ce cadre décide

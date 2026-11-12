@@ -357,6 +357,34 @@ const verifier = (l, a, o) => { if (a === o) console.log('  ✓ ' + l); else { c
   await page.click('.filtres button:has-text("À racheter")');
   verifier('l’article sous le minimum est à racheter', true, await page.isVisible('.rang:has-text("Café en grains")'));
   await page.screenshot({ path: `${S}/22-stock.png` });
+
+  // Les groupes d'un tableau, et « Retirer » avec une note.
+  await page.click('.filtres button:has-text("Tout")');
+  await page.click('button.groupes');
+  await page.fill('.panneau input[aria-label="Nom du nouveau groupe"]', 'Groupe A');
+  await page.click('.panneau button[aria-label="Créer le groupe"]');
+  await page.waitForSelector('.panneau .ligne:has-text("Groupe A")');
+  await page.click('.panneau button.fermer');
+  await page.click('.rang:has-text("Café en grains") button.article');
+  await page.selectOption('form.panneau label:has-text("Groupe") select', { label: 'Groupe A' });
+  await page.click('form.panneau button:has-text("Enregistrer")');
+  await page.waitForSelector('.titre-groupe:has-text("Groupe A")');
+  verifier('l’article est rangé dans son groupe', true, await page.isVisible('.titre-groupe:has-text("Groupe A")'));
+  await page.click('.rang:has-text("Café en grains") button:has-text("+")');
+  await page.waitForTimeout(300);
+  await page.click('.rang:has-text("Café en grains") button.retirer');
+  await page.fill('form.pop input', 'Pour la machine du bureau');
+  await page.screenshot({ path: `${S}/22-retrait.png` });
+  await page.click('form.pop button[type=submit]');
+  await page.waitForSelector('form.pop', { state: 'detached' });
+  await page.waitForTimeout(400);
+  verifier('« Retirer » enlève une unité', '1', (await page.textContent('.rang:has-text("Café en grains") .nombre')).trim());
+  await page.click('.rang:has-text("Café en grains") button.article');
+  await page.waitForSelector('.historique');
+  verifier('la note est dans l’historique de l’article', true, (await page.textContent('.historique')).includes('Pour la machine du bureau'));
+  await page.screenshot({ path: `${S}/22-historique.png` });
+  await page.click('form.panneau button.fermer');
+  await page.screenshot({ path: `${S}/22-stock-groupes.png` });
   await page.click('nav.nav >> text=Accueil');
   await page.click('button:has-text("Personnaliser")');
   await page.click('button:has-text("Ajouter une tuile")');
