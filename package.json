@@ -1,6 +1,6 @@
 {
   "name": "myhousehold-server",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Serveur auto-hébergé de MyHousehold — assistant de gestion du quotidien d'un foyer",
   "license": "SEE LICENSE IN LICENSE",
   "private": true,
