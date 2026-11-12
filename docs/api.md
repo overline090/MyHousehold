@@ -550,6 +550,7 @@ PLUGIN_DISABLED`.
 | `PUT`/`DELETE`/`GET` | `/stock/items/:id/image` | `MANAGE_TASKS` / `VIEW` | |
 | `POST` | `/stock/out` | `COMPLETE_TASKS` | Déclarer une sortie : `{ items: [{ id, quantity }], note? }`, en une fois, inscrite au fil d'activité avec sa note |
 | `GET` | `/stock/items/:id/movements` | `VIEW` | Les 30 derniers mouvements : `{ id, delta, note, createdAt, actor: { id, firstName } }`, sorties en négatif |
+| `GET` | `/stock/movements` | `VIEW` | Les mouvements des 90 derniers jours, tous articles (1 000 au plus), avec `itemId` : ce que l'app garde pour ses fiches |
 | `GET` | `/stock/groups?boardId=` | `VIEW` | Les groupes d'un tableau (ou de tous) : `{ id, boardId, name, color, position }` |
 | `POST` | `/stock/groups` | `MANAGE_TASKS` | `{ id?, boardId, name, color?, position? }`, création idempotente par `id` |
 | `PATCH`/`DELETE` | `/stock/groups/:id` | `MANAGE_TASKS` | Supprimer un groupe garde ses articles, « sans groupe » |

@@ -173,6 +173,14 @@ export class StockController {
     return this.stock.movements(id);
   }
 
+  @Get('movements')
+  @RequireRight(Right.VIEW)
+  @ApiOperation({ summary: 'Les mouvements des 90 derniers jours, tous articles' })
+  async recentMovements() {
+    await this.actif();
+    return this.stock.recentMovements();
+  }
+
   @Get('groups')
   @RequireRight(Right.VIEW)
   @ApiOperation({ summary: 'Les groupes d’un tableau, ou de tous' })

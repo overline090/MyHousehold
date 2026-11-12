@@ -729,6 +729,8 @@ import json,sys; print('yes' if any('fièvre de Lou' in (e.get('summary') or '')
 check "+ et − restent dans l'historique" "1 -1" \
   "$(curl -s -o /dev/null -X POST "$BASE/stock/items/$DOLI/adjust" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' -d '{"delta":1}'; \
      curl -s "$BASE/stock/items/$DOLI/movements" -H "authorization: Bearer $WEB_TOKEN" | py "import json,sys; m=json.load(sys.stdin); print(m[0]['delta'], m[1]['delta'])")"
+check "les mouvements récents de tout le stock" "yes" "$(curl -s "$BASE/stock/movements" -H "authorization: Bearer $WEB_TOKEN" | py "
+import json,sys; print('yes' if any(m['itemId'] == '$DOLI' and m['note'] == 'Pour la fièvre de Lou' for m in json.load(sys.stdin)) else 'no')")"
 check "supprimer un groupe garde ses articles, sans groupe" "None" \
   "$(curl -s -o /dev/null -X DELETE "$BASE/stock/groups/$GROUPE_A" -H "authorization: Bearer $WEB_TOKEN"; \
      curl -s "$BASE/stock/items?boardId=$PHARMA" -H "authorization: Bearer $WEB_TOKEN" | py "import json,sys; print(json.load(sys.stdin)[0]['groupId'])")"

@@ -385,6 +385,18 @@ export class StockService {
 
   // ── Historique ────────────────────────────────────────────────────────
 
+  /** Les mouvements des 90 derniers jours, tous articles : ce que l'app garde pour ses fiches. */
+  async recentMovements() {
+    const foyer = await this.foyer();
+    const depuis = new Date(this.clock.now().getTime() - 90 * 86_400_000);
+    return this.prisma.stockMovement.findMany({
+      where: { createdAt: { gte: depuis }, item: { deletedAt: null, board: { householdId: foyer.id, deletedAt: null } } },
+      orderBy: { createdAt: 'desc' },
+      take: 1000,
+      select: { id: true, itemId: true, delta: true, note: true, createdAt: true, actor: { select: { id: true, firstName: true } } },
+    });
+  }
+
   /** Les derniers mouvements d'un article : ce qui est entré, sorti, par qui, et la note. */
   async movements(itemId: string) {
     await this.requireItem(itemId);
