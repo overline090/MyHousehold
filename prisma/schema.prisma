@@ -760,6 +760,8 @@ model StockItem {
 
   /// Le groupe de l'article dans son tableau (Groupe A, Groupe B…) ; aucun : « Sans groupe ».
   groupId String? @db.Uuid
+  /// Le code-barres ou le contenu du QR code de l'article : le scanner ouvre « Retirer ».
+  barcode String?
 
   board     StockBoard      @relation(fields: [boardId], references: [id], onDelete: Cascade)
   group     StockGroup?     @relation(fields: [groupId], references: [id], onDelete: SetNull)
@@ -767,6 +769,7 @@ model StockItem {
 
   @@index([boardId])
   @@index([groupId])
+  @@index([barcode])
   @@map("stock_item")
 }
 

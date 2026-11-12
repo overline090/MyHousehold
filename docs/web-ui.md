@@ -82,7 +82,8 @@ groupe B — « Groupes du tableau »), et des articles avec quantité, minimum,
 pour racheter et détail. Sous le minimum, l'article passe « À racheter » ; à 15 jours
 de sa péremption, « Bientôt périmé ». « Retirer », sur chaque ligne, sort un article en un
 clic avec une note facultative (pour qui, pourquoi), gardée dans l'historique de sa
-fiche ; « Déclarer une sortie » retire d'un coup ce qu'on a pris, dans un ou plusieurs tableaux, et prévient de ce qui passera sous le
+fiche. Un article peut porter un **code-barres ou un QR code** (saisi dans sa fiche) :
+scanné dans l'app, il ouvre « Retirer ». « Déclarer une sortie » retire d'un coup ce qu'on a pris, dans un ou plusieurs tableaux, et prévient de ce qui passera sous le
 minimum.
 
 Ce qu'elle ne fait **pas** : notifications push, mode hors-ligne, scan de QR code.

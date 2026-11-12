@@ -58,6 +58,7 @@
   let fichier = $state<File | null>(null);
   let entree = $state<HTMLInputElement>();
   let nom = $state(depart?.name ?? '');
+  let code = $state(depart?.barcode ?? '');
   let quantite = $state(depart?.quantity ?? 1);
   let avecMinimum = $state(depart ? depart.minimum !== null : false);
   let minimum = $state(depart?.minimum ?? 1);
@@ -77,6 +78,7 @@
     const corps = {
       boardId: tableau,
       groupId: groupe || null,
+      barcode: code.trim() || null,
       name: nom.trim(),
       icon: ecrireIcone(sorteImage, icone, texte),
       color: couleur,
@@ -155,6 +157,12 @@
         </select>
       </label>
     {/if}
+
+    <label>
+      Code-barres ou QR code
+      <input bind:value={code} maxlength="200" placeholder="Facultatif — 3401060145128" autocomplete="off" />
+      <span class="aide">Scanné dans l’app (Stock, bouton de scan), il ouvre « Retirer » pour cet article.</span>
+    </label>
 
     {#if groupesDuTableau.length}
       <label>
@@ -409,5 +417,10 @@
   .historique .quoi {
     display: flex;
     flex-direction: column;
+  }
+  .aide {
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--gris);
   }
 </style>

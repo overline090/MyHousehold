@@ -122,6 +122,13 @@ export class CreateItemDto {
   @Length(0, 500)
   detail?: string | null;
 
+  @ApiPropertyOptional({ nullable: true, example: '3401060145128', description: 'Code-barres ou contenu du QR code ; null : aucun.' })
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null && v !== '')
+  @IsString()
+  @Length(1, 200)
+  barcode?: string | null;
+
   @ApiPropertyOptional({ nullable: true, description: 'Un groupe du même tableau ; null : sans groupe.' })
   @IsOptional()
   @ValidateIf((_, v) => v !== null)

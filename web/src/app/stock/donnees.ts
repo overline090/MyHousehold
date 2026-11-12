@@ -31,6 +31,8 @@ export interface Article {
   id: string;
   boardId: string;
   groupId: string | null;
+  /** Code-barres ou contenu du QR code ; le scanner, dans l'app, ouvre « Retirer ». */
+  barcode: string | null;
   name: string;
   icon: string | null;
   color: string | null;

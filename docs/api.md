@@ -544,7 +544,7 @@ PLUGIN_DISABLED`.
 | `PUT`/`DELETE`/`GET` | `/stock/boards/:id/image` | `MANAGE_TASKS` / `VIEW` | Image importée (champ `file`), à la place de l'icône |
 | `GET` | `/stock/items` | `VIEW` | `?boardId=` facultatif |
 | `GET` | `/stock/to-buy` | `VIEW` | Sous le minimum ou périmés dans les 15 jours, avec `boardName` |
-| `POST` | `/stock/items` | `MANAGE_TASKS` | `{ boardId, groupId?, name, icon?, color?, quantity?, minimum?, expiresOn?, link?, detail? }` — `groupId`, un groupe du même tableau |
+| `POST` | `/stock/items` | `MANAGE_TASKS` | `{ boardId, groupId?, barcode?, name, icon?, color?, quantity?, minimum?, expiresOn?, link?, detail? }` — `groupId`, un groupe du même tableau ; `barcode`, un code-barres ou le contenu d'un QR code, propre à un seul article (`409 BARCODE_ALREADY_USED` sinon) |
 | `PATCH`/`DELETE` | `/stock/items/:id` | `MANAGE_TASKS` | |
 | `POST` | `/stock/items/:id/adjust` | `COMPLETE_TASKS` | `{ delta }` — jamais sous zéro |
 | `PUT`/`DELETE`/`GET` | `/stock/items/:id/image` | `MANAGE_TASKS` / `VIEW` | |

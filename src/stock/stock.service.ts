@@ -47,6 +47,7 @@ const ITEM = {
   id: true,
   boardId: true,
   groupId: true,
+  barcode: true,
   name: true,
   icon: true,
   imagePath: true,
@@ -210,6 +211,7 @@ export class StockService {
         link: dto.link || null,
         detail: dto.detail?.trim() || null,
         groupId: await this.groupeDuTableau(dto.groupId, dto.boardId),
+        barcode: await this.codeLibre(dto.barcode, null),
       },
       select: ITEM,
     });
@@ -241,6 +243,7 @@ export class StockService {
         link: dto.link === undefined ? undefined : dto.link || null,
         detail: dto.detail === undefined ? undefined : dto.detail?.trim() || null,
         groupId,
+        barcode: dto.barcode === undefined ? undefined : await this.codeLibre(dto.barcode, id),
       },
       select: ITEM,
     });
@@ -314,6 +317,22 @@ export class StockService {
       }),
     ]);
     return this.items();
+  }
+
+  /**
+   * Un code ne désigne qu'un article : scanné, il doit ouvrir le bon. Les
+   * espaces autour sont retirés ; vide, il n'y a pas de code.
+   */
+  private async codeLibre(code: string | null | undefined, pourArticle: string | null): Promise<string | null> {
+    const propre = code?.trim() || null;
+    if (!propre) return null;
+    const foyer = await this.foyer();
+    const pris = await this.prisma.stockItem.findFirst({
+      where: { barcode: propre, deletedAt: null, board: { householdId: foyer.id, deletedAt: null }, ...(pourArticle ? { id: { not: pourArticle } } : {}) },
+      select: { name: true },
+    });
+    if (pris) throw AppException.conflict(ErrorCode.BARCODE_ALREADY_USED, `Ce code est déjà celui de « ${pris.name} ».`);
+    return propre;
   }
 
   // ── Groupes ───────────────────────────────────────────────────────────
