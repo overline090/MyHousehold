@@ -710,6 +710,28 @@ for i in 1 2; do curl -s -o /dev/null -X POST "$BASE/stock/items" -H "authorizat
 check "un article créé hors ligne, envoyé deux fois, n'existe qu'une fois" "1" \
   "$(curl -s "$BASE/stock/items" -H "authorization: Bearer $WEB_TOKEN" | py "import json,sys; print(len([i for i in json.load(sys.stdin) if i['id'] == '$SEL']))")"
 check "la quantité ne descend pas sous zéro" "0" "$(curl -s -X POST "$BASE/stock/items/$CAFE/adjust" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' -d '{"delta":-10}' | field "['quantity']")"
+# Groupes d'un tableau, et sorties avec une note.
+PHARMA=$(curl -s -X POST "$BASE/stock/boards" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' -d '{"name":"Pharmacie","icon":"medicament"}' | field "['id']")
+GROUPE_A=$(curl -s -X POST "$BASE/stock/groups" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' \
+  -d '{"boardId":"'$PHARMA'","name":"Groupe A","color":"#B91C1C"}' | field "['id']")
+check "un tableau a ses groupes" "Groupe A" "$(curl -s "$BASE/stock/groups?boardId=$PHARMA" -H "authorization: Bearer $WEB_TOKEN" | py "import json,sys; print(','.join(g['name'] for g in json.load(sys.stdin)))")"
+DOLI=$(curl -s -X POST "$BASE/stock/items" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' \
+  -d '{"boardId":"'$PHARMA'","groupId":"'$GROUPE_A'","name":"Paracétamol","icon":"pilule","quantity":3,"minimum":2}' | field "['id']")
+check "un article se range dans un groupe de son tableau" "$GROUPE_A" "$(curl -s "$BASE/stock/items?boardId=$PHARMA" -H "authorization: Bearer $WEB_TOKEN" | py "import json,sys; print(json.load(sys.stdin)[0]['groupId'])")"
+check "pas dans le groupe d'un autre tableau" "400" \
+  "$(status -X PATCH "$BASE/stock/items/$CAFE" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' -d '{"groupId":"'$GROUPE_A'"}')"
+check "une sortie garde sa note" "-1 Pour la fièvre de Lou" \
+  "$(curl -s -o /dev/null -X POST "$BASE/stock/out" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' \
+      -d '{"items":[{"id":"'$DOLI'","quantity":1}],"note":"Pour la fièvre de Lou"}'; \
+     curl -s "$BASE/stock/items/$DOLI/movements" -H "authorization: Bearer $WEB_TOKEN" | py "import json,sys; m=json.load(sys.stdin)[0]; print(m['delta'], m['note'])")"
+check "la note est dans le journal" "yes" "$(curl -s "$BASE/activity" -H "authorization: Bearer $WEB_TOKEN" | py "
+import json,sys; print('yes' if any('fièvre de Lou' in (e.get('summary') or '') for e in json.load(sys.stdin)['data']) else 'no')")"
+check "+ et − restent dans l'historique" "1 -1" \
+  "$(curl -s -o /dev/null -X POST "$BASE/stock/items/$DOLI/adjust" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' -d '{"delta":1}'; \
+     curl -s "$BASE/stock/items/$DOLI/movements" -H "authorization: Bearer $WEB_TOKEN" | py "import json,sys; m=json.load(sys.stdin); print(m[0]['delta'], m[1]['delta'])")"
+check "supprimer un groupe garde ses articles, sans groupe" "None" \
+  "$(curl -s -o /dev/null -X DELETE "$BASE/stock/groups/$GROUPE_A" -H "authorization: Bearer $WEB_TOKEN"; \
+     curl -s "$BASE/stock/items?boardId=$PHARMA" -H "authorization: Bearer $WEB_TOKEN" | py "import json,sys; print(json.load(sys.stdin)[0]['groupId'])")"
 echo
 check "une règle de copie automatique s'enregistre sur le foyer" "Code du portail True" \
   "$(curl -s -X PATCH "$BASE/household" -H "authorization: Bearer $WEB_TOKEN" -H 'content-type: application/json' \

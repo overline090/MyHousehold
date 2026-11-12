@@ -121,9 +121,45 @@ export class CreateItemDto {
   @IsString()
   @Length(0, 500)
   detail?: string | null;
+
+  @ApiPropertyOptional({ nullable: true, description: 'Un groupe du même tableau ; null : sans groupe.' })
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null)
+  @IsUUID()
+  groupId?: string | null;
 }
 
 export class UpdateItemDto extends PartialType(OmitType(CreateItemDto, ['id'] as const)) {}
+
+export class CreateGroupDto {
+  @ApiPropertyOptional({ description: 'Identifiant choisi par le téléphone, pour une création faite hors ligne.' })
+  @IsOptional()
+  @IsUUID()
+  id?: string;
+
+  @ApiProperty()
+  @IsUUID()
+  boardId!: string;
+
+  @ApiProperty({ example: 'Groupe A — Douleur et fièvre' })
+  @IsString()
+  @Length(1, 60)
+  name!: string;
+
+  @ApiPropertyOptional({ example: '#B91C1C' })
+  @IsOptional()
+  @IsHexColor()
+  color?: string;
+
+  @ApiPropertyOptional({ minimum: 0, maximum: 999 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(999)
+  position?: number;
+}
+
+export class UpdateGroupDto extends PartialType(OmitType(CreateGroupDto, ['id', 'boardId'] as const)) {}
 
 export class AdjustDto {
   @ApiProperty({ example: -1, description: 'Ce qui entre (+) ou sort (−).' })
@@ -153,4 +189,10 @@ export class SortieDto {
   @ValidateNested({ each: true })
   @Type(() => SortieLigneDto)
   items!: SortieLigneDto[];
+
+  @ApiPropertyOptional({ example: 'Pour la fièvre de Lou', description: 'Pour qui, pourquoi : reste dans l’historique des articles.' })
+  @IsOptional()
+  @IsString()
+  @Length(0, 300)
+  note?: string;
 }

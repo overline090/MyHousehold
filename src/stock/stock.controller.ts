@@ -25,7 +25,16 @@ import { AppException } from '../common/errors/app.exception';
 import { ErrorCode } from '../common/errors/error-codes';
 import { RequireRight } from '../households/decorators/require-right.decorator';
 import { PluginsService } from '../plugins/plugins.service';
-import { AdjustDto, CreateBoardDto, CreateItemDto, SortieDto, UpdateBoardDto, UpdateItemDto } from './dto/stock.dto';
+import {
+  AdjustDto,
+  CreateBoardDto,
+  CreateGroupDto,
+  CreateItemDto,
+  SortieDto,
+  UpdateBoardDto,
+  UpdateGroupDto,
+  UpdateItemDto,
+} from './dto/stock.dto';
 import { StockImagesService } from './images.service';
 import { StockService } from './stock.service';
 
@@ -151,9 +160,47 @@ export class StockController {
   @Post('items/:id/adjust')
   @RequireRight(Right.COMPLETE_TASKS)
   @ApiOperation({ summary: 'Une de plus, une de moins' })
-  async adjust(@Param('id', ParseUUIDPipe) id: string, @Body() dto: AdjustDto) {
+  async adjust(@Param('id', ParseUUIDPipe) id: string, @Body() dto: AdjustDto, @CurrentUser() user: AuthenticatedUser) {
     await this.actif();
-    return this.stock.adjust(id, dto.delta);
+    return this.stock.adjust(id, dto.delta, user.id);
+  }
+
+  @Get('items/:id/movements')
+  @RequireRight(Right.VIEW)
+  @ApiOperation({ summary: 'Historique d’un article : entrées, sorties, notes' })
+  async movements(@Param('id', ParseUUIDPipe) id: string) {
+    await this.actif();
+    return this.stock.movements(id);
+  }
+
+  @Get('groups')
+  @RequireRight(Right.VIEW)
+  @ApiOperation({ summary: 'Les groupes d’un tableau, ou de tous' })
+  async groups(@Query('boardId') boardId?: string) {
+    await this.actif();
+    return this.stock.groups(boardId || undefined);
+  }
+
+  @Post('groups')
+  @RequireRight(Right.MANAGE_TASKS)
+  async createGroup(@Body() dto: CreateGroupDto) {
+    await this.actif();
+    return this.stock.createGroup(dto);
+  }
+
+  @Patch('groups/:id')
+  @RequireRight(Right.MANAGE_TASKS)
+  async updateGroup(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateGroupDto) {
+    await this.actif();
+    return this.stock.updateGroup(id, dto);
+  }
+
+  @Delete('groups/:id')
+  @RequireRight(Right.MANAGE_TASKS)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async removeGroup(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+    await this.actif();
+    await this.stock.removeGroup(id);
   }
 
   @Put('items/:id/image')

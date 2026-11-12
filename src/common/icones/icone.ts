@@ -8,6 +8,7 @@ import { ValidateBy, type ValidationOptions } from 'class-validator';
 export const ICONES = [
   'boite', 'bocal', 'flacon', 'medicament', 'ampoule', 'panier', 'outil', 'tasse', 'pomme', 'bouteille', 'savon', 'linge',
   'maison', 'lit', 'plante', 'voiture',
+  'pilule', 'pansement', 'thermometre',
 ] as const;
 
 /**

@@ -544,15 +544,20 @@ PLUGIN_DISABLED`.
 | `PUT`/`DELETE`/`GET` | `/stock/boards/:id/image` | `MANAGE_TASKS` / `VIEW` | Image importée (champ `file`), à la place de l'icône |
 | `GET` | `/stock/items` | `VIEW` | `?boardId=` facultatif |
 | `GET` | `/stock/to-buy` | `VIEW` | Sous le minimum ou périmés dans les 15 jours, avec `boardName` |
-| `POST` | `/stock/items` | `MANAGE_TASKS` | `{ boardId, name, icon?, color?, quantity?, minimum?, expiresOn?, link?, detail? }` |
+| `POST` | `/stock/items` | `MANAGE_TASKS` | `{ boardId, groupId?, name, icon?, color?, quantity?, minimum?, expiresOn?, link?, detail? }` — `groupId`, un groupe du même tableau |
 | `PATCH`/`DELETE` | `/stock/items/:id` | `MANAGE_TASKS` | |
 | `POST` | `/stock/items/:id/adjust` | `COMPLETE_TASKS` | `{ delta }` — jamais sous zéro |
 | `PUT`/`DELETE`/`GET` | `/stock/items/:id/image` | `MANAGE_TASKS` / `VIEW` | |
-| `POST` | `/stock/out` | `COMPLETE_TASKS` | Déclarer une sortie : `{ items: [{ id, quantity }] }`, en une fois, inscrite au fil d'activité |
+| `POST` | `/stock/out` | `COMPLETE_TASKS` | Déclarer une sortie : `{ items: [{ id, quantity }], note? }`, en une fois, inscrite au fil d'activité avec sa note |
+| `GET` | `/stock/items/:id/movements` | `VIEW` | Les 30 derniers mouvements : `{ id, delta, note, createdAt, actor: { id, firstName } }`, sorties en négatif |
+| `GET` | `/stock/groups?boardId=` | `VIEW` | Les groupes d'un tableau (ou de tous) : `{ id, boardId, name, color, position }` |
+| `POST` | `/stock/groups` | `MANAGE_TASKS` | `{ id?, boardId, name, color?, position? }`, création idempotente par `id` |
+| `PATCH`/`DELETE` | `/stock/groups/:id` | `MANAGE_TASKS` | Supprimer un groupe garde ses articles, « sans groupe » |
 
 **Icônes** (stock et groupes de tâches) : `null` pour aucune, un nom de la liste
 (`boite`, `bocal`, `flacon`, `medicament`, `ampoule`, `panier`, `outil`, `tasse`,
-`pomme`, `bouteille`, `savon`, `linge`, `maison`, `lit`, `plante`, `voiture`), ou
+`pomme`, `bouteille`, `savon`, `linge`, `maison`, `lit`, `plante`, `voiture`, `pilule`,
+`pansement`, `thermometre`), ou
 `texte:` suivi d'un emoji ou d'une à deux lettres (`texte:🍝`, `texte:PR`), affiché sur
 la couleur. Les couleurs sont des `#rrggbb` quelconques.
 

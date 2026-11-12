@@ -169,6 +169,7 @@ model User {
   reminders            Reminder[]
   activities           ActivityLog[]
   createdInvites       Invite[]
+  stockMovements       StockMovement[]
 
   @@index([statusId])
   @@map("user")
@@ -200,15 +201,15 @@ model Status {
 }
 
 model Household {
-  id           String @id @default(uuid(7)) @db.Uuid
-  name         String
+  id               String  @id @default(uuid(7)) @db.Uuid
+  name             String
   /// Identifiant IANA. Référence pour dérouler les récurrences :
   /// « chaque lundi 19h » doit rester 19h locales après un changement d'heure.
-  timezone     String @default("Europe/Paris")
-  weekStartsOn Int    @default(1) @db.SmallInt
+  timezone         String  @default("Europe/Paris")
+  weekStartsOn     Int     @default(1) @db.SmallInt
   /// Ce que les détails des tâches reconnaissent : téléphones, adresses,
   /// liens, et les règles de copie automatique du foyer.
-  detection    Json   @default("{}")
+  detection        Json    @default("{}")
   /// Inscriptions libres : sans code d'invitation, au statut des nouveaux
   /// membres. Fermées par défaut — on rejoint le foyer par un code.
   registrationOpen Boolean @default(false)
@@ -262,14 +263,14 @@ model Invite {
 /// transforment une liste de corvées en système de classement, et
 /// personne ne range ses corvées.
 model TaskGroup {
-  id          String @id @default(uuid(7)) @db.Uuid
-  householdId String @db.Uuid
+  id          String  @id @default(uuid(7)) @db.Uuid
+  householdId String  @db.Uuid
   name        String
   /// Repère de lecture en liste.
-  color       String @default("#0F766E")
+  color       String  @default("#0F766E")
   /// Une icône de la liste, ou « texte: » et un emoji ou une à deux lettres.
   icon        String?
-  position    Int    @default(0)
+  position    Int     @default(0)
 
   createdAt DateTime  @default(now()) @db.Timestamptz
   updatedAt DateTime  @updatedAt @db.Timestamptz
@@ -729,8 +730,9 @@ model StockBoard {
   updatedAt   DateTime  @updatedAt @db.Timestamptz
   deletedAt   DateTime? @db.Timestamptz
 
-  household Household   @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  household Household    @relation(fields: [householdId], references: [id], onDelete: Cascade)
   items     StockItem[]
+  groups    StockGroup[]
 
   @@index([householdId])
   @@map("stock_board")
@@ -756,8 +758,49 @@ model StockItem {
   updatedAt DateTime  @updatedAt @db.Timestamptz
   deletedAt DateTime? @db.Timestamptz
 
-  board StockBoard @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  /// Le groupe de l'article dans son tableau (Groupe A, Groupe B…) ; aucun : « Sans groupe ».
+  groupId String? @db.Uuid
+
+  board     StockBoard      @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  group     StockGroup?     @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  movements StockMovement[]
 
   @@index([boardId])
+  @@index([groupId])
   @@map("stock_item")
+}
+
+/// Un groupe d'articles dans un tableau : la pharmacie, groupe A, groupe B.
+model StockGroup {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  boardId   String    @db.Uuid
+  name      String
+  color     String    @default("#0F766E")
+  position  Int       @default(0)
+  createdAt DateTime  @default(now()) @db.Timestamptz
+  updatedAt DateTime  @updatedAt @db.Timestamptz
+  deletedAt DateTime? @db.Timestamptz
+
+  board StockBoard  @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  items StockItem[]
+
+  @@index([boardId])
+  @@map("stock_group")
+}
+
+/// Ce qui entre et sort d'un article, et pourquoi : l'historique de sa fiche.
+model StockMovement {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  itemId    String   @db.Uuid
+  /// Négatif : une sortie.
+  delta     Int
+  note      String?
+  actorId   String?  @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz
+
+  item  StockItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  actor User?     @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([itemId, createdAt])
+  @@map("stock_movement")
 }

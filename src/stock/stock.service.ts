@@ -5,7 +5,15 @@ import { AppException } from '../common/errors/app.exception';
 import { ErrorCode } from '../common/errors/error-codes';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { todayIn } from '../tasks/recurrence';
-import { CreateBoardDto, CreateItemDto, SortieDto, UpdateBoardDto, UpdateItemDto } from './dto/stock.dto';
+import {
+  CreateBoardDto,
+  CreateGroupDto,
+  CreateItemDto,
+  SortieDto,
+  UpdateBoardDto,
+  UpdateGroupDto,
+  UpdateItemDto,
+} from './dto/stock.dto';
 
 /**
  * Change à chaque image importée : l'app ne retélécharge une image que
@@ -26,9 +34,19 @@ const BOARD = {
   _count: { select: { items: { where: { deletedAt: null } } } },
 } satisfies Prisma.StockBoardSelect;
 
+const GROUP = {
+  id: true,
+  boardId: true,
+  name: true,
+  color: true,
+  position: true,
+  updatedAt: true,
+} satisfies Prisma.StockGroupSelect;
+
 const ITEM = {
   id: true,
   boardId: true,
+  groupId: true,
   name: true,
   icon: true,
   imagePath: true,
@@ -129,6 +147,7 @@ export class StockService {
     const maintenant = this.clock.now();
     await this.prisma.$transaction([
       this.prisma.stockItem.updateMany({ where: { boardId: id, deletedAt: null }, data: { deletedAt: maintenant } }),
+      this.prisma.stockGroup.updateMany({ where: { boardId: id, deletedAt: null }, data: { deletedAt: maintenant } }),
       this.prisma.stockBoard.update({ where: { id }, data: { deletedAt: maintenant } }),
     ]);
   }
@@ -190,6 +209,7 @@ export class StockService {
         expiresOn: dto.expiresOn ? new Date(dto.expiresOn) : null,
         link: dto.link || null,
         detail: dto.detail?.trim() || null,
+        groupId: await this.groupeDuTableau(dto.groupId, dto.boardId),
       },
       select: ITEM,
     });
@@ -197,9 +217,17 @@ export class StockService {
   }
 
   async updateItem(id: string, dto: UpdateItemDto) {
-    await this.requireItem(id);
+    const avant = await this.requireItem(id);
     if (dto.boardId) await this.requireBoard(dto.boardId);
     const foyer = await this.foyer();
+    const tableau = dto.boardId ?? avant.boardId;
+    // Changer de tableau sans dire de groupe : l'article quitte l'ancien groupe.
+    const groupId =
+      dto.groupId !== undefined
+        ? await this.groupeDuTableau(dto.groupId, tableau)
+        : dto.boardId && dto.boardId !== avant.boardId
+          ? null
+          : undefined;
     const i = await this.prisma.stockItem.update({
       where: { id },
       data: {
@@ -212,6 +240,7 @@ export class StockService {
         expiresOn: dto.expiresOn === undefined ? undefined : dto.expiresOn ? new Date(dto.expiresOn) : null,
         link: dto.link === undefined ? undefined : dto.link || null,
         detail: dto.detail === undefined ? undefined : dto.detail?.trim() || null,
+        groupId,
       },
       select: ITEM,
     });
@@ -227,7 +256,7 @@ export class StockService {
     const foyer = await this.foyer();
     const i = await this.prisma.stockItem.findFirst({
       where: { id, deletedAt: null, board: { householdId: foyer.id, deletedAt: null } },
-      select: { id: true, imagePath: true, quantity: true, name: true },
+      select: { id: true, imagePath: true, quantity: true, name: true, boardId: true },
     });
     if (!i) throw AppException.notFound("Cet article n'existe pas.");
     return i;
@@ -239,10 +268,14 @@ export class StockService {
     return this.vueArticle(i, todayIn(foyer.timezone, this.clock.now()));
   }
 
-  /** + ou − depuis la liste. La quantité ne descend pas sous zéro. */
-  async adjust(id: string, delta: number) {
+  /** + ou − depuis la liste. La quantité ne descend pas sous zéro, et l'historique le garde. */
+  async adjust(id: string, delta: number, actorId?: string) {
     const avant = await this.requireItem(id);
-    return this.updateItem(id, { quantity: Math.max(0, avant.quantity + delta) });
+    const apres = Math.max(0, avant.quantity + delta);
+    if (apres !== avant.quantity) {
+      await this.prisma.stockMovement.create({ data: { itemId: id, delta: apres - avant.quantity, actorId: actorId ?? null } });
+    }
+    return this.updateItem(id, { quantity: apres });
   }
 
   /**
@@ -257,21 +290,110 @@ export class StockService {
       if (ids.has(l.id)) throw AppException.badRequest(ErrorCode.VALIDATION_FAILED, 'Le même article apparaît deux fois.');
       ids.add(l.id);
     }
+    const note = dto.note?.trim() || null;
     await this.prisma.$transaction([
       ...dto.items.map((l, k) =>
         this.prisma.stockItem.update({ where: { id: l.id }, data: { quantity: Math.max(0, articles[k].quantity - l.quantity) } }),
       ),
+      // Ce qui est vraiment sorti : jamais plus que ce qu'il y avait.
+      ...dto.items
+        .map((l, k) => ({ l, retire: Math.min(l.quantity, articles[k].quantity) }))
+        .filter(({ retire }) => retire > 0)
+        .map(({ l, retire }) => this.prisma.stockMovement.create({ data: { itemId: l.id, delta: -retire, note, actorId } })),
       this.prisma.activityLog.create({
         data: {
           householdId: foyer.id,
           actorId,
           verb: ActivityVerb.STOCK_OUT,
-          summary: `a déclaré une sortie de stock : ${dto.items.map((l, k) => `${articles[k].name} ×${l.quantity}`).join(', ')}`,
+          summary:
+            `a déclaré une sortie de stock : ${dto.items.map((l, k) => `${articles[k].name} ×${l.quantity}`).join(', ')}` +
+            (note ? ` — « ${note} »` : ''),
           subjectType: 'STOCK',
           subjectId: dto.items[0].id,
         },
       }),
     ]);
     return this.items();
+  }
+
+  // ── Groupes ───────────────────────────────────────────────────────────
+
+  /** Les groupes d'un tableau, ou de tous. */
+  async groups(boardId?: string) {
+    const foyer = await this.foyer();
+    return this.prisma.stockGroup.findMany({
+      where: { deletedAt: null, board: { householdId: foyer.id, deletedAt: null }, ...(boardId ? { boardId } : {}) },
+      select: GROUP,
+      orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
+    });
+  }
+
+  async createGroup(dto: CreateGroupDto) {
+    await this.requireBoard(dto.boardId);
+    const foyer = await this.foyer();
+    if (dto.id) {
+      const existant = await this.prisma.stockGroup.findUnique({ where: { id: dto.id }, select: { ...GROUP, board: { select: { householdId: true } } } });
+      if (existant) {
+        if (existant.board.householdId !== foyer.id) throw AppException.notFound("Ce groupe n'existe pas.");
+        const { board: _board, ...groupe } = existant;
+        return groupe;
+      }
+    }
+    return this.prisma.stockGroup.create({
+      data: { id: dto.id, boardId: dto.boardId, name: dto.name.trim(), color: dto.color ?? '#0F766E', position: dto.position ?? 0 },
+      select: GROUP,
+    });
+  }
+
+  async updateGroup(id: string, dto: UpdateGroupDto) {
+    await this.requireGroup(id);
+    return this.prisma.stockGroup.update({
+      where: { id },
+      data: { name: dto.name?.trim(), color: dto.color, position: dto.position },
+      select: GROUP,
+    });
+  }
+
+  /** Supprimer un groupe garde ses articles : ils passent « Sans groupe ». */
+  async removeGroup(id: string) {
+    await this.requireGroup(id);
+    await this.prisma.$transaction([
+      this.prisma.stockItem.updateMany({ where: { groupId: id }, data: { groupId: null } }),
+      this.prisma.stockGroup.update({ where: { id }, data: { deletedAt: this.clock.now() } }),
+    ]);
+  }
+
+  private async requireGroup(id: string) {
+    const foyer = await this.foyer();
+    const g = await this.prisma.stockGroup.findFirst({
+      where: { id, deletedAt: null, board: { householdId: foyer.id, deletedAt: null } },
+      select: { id: true, boardId: true },
+    });
+    if (!g) throw AppException.notFound("Ce groupe n'existe pas.");
+    return g;
+  }
+
+  /** Un groupe n'accueille que les articles de son tableau. */
+  private async groupeDuTableau(groupId: string | null | undefined, boardId: string): Promise<string | null> {
+    if (!groupId) return null;
+    const g = await this.requireGroup(groupId);
+    if (g.boardId !== boardId) {
+      throw AppException.badRequest(ErrorCode.VALIDATION_FAILED, "Ce groupe appartient à un autre tableau.");
+    }
+    return g.id;
+  }
+
+  // ── Historique ────────────────────────────────────────────────────────
+
+  /** Les derniers mouvements d'un article : ce qui est entré, sorti, par qui, et la note. */
+  async movements(itemId: string) {
+    await this.requireItem(itemId);
+    const rows = await this.prisma.stockMovement.findMany({
+      where: { itemId },
+      orderBy: { createdAt: 'desc' },
+      take: 30,
+      select: { id: true, delta: true, note: true, createdAt: true, actor: { select: { id: true, firstName: true } } },
+    });
+    return rows;
   }
 }
