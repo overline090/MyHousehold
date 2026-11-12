@@ -67,9 +67,9 @@
   });
 
   $effect(() => {
-    barre.actions = boutons;
+    barre.ajouter = { libelle: 'Nouveau statut', faire: () => ouvrir(null) };
     return () => {
-      barre.actions = null;
+      barre.ajouter = null;
     };
   });
 
@@ -153,10 +153,6 @@
     }
   }
 </script>
-
-{#snippet boutons()}
-  <button onclick={() => ouvrir(null)}><Icone nom="plus" taille={16} />Nouveau statut</button>
-{/snippet}
 
 <section class="pile">
   {#if changements.length}

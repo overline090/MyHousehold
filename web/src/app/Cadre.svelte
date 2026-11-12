@@ -186,8 +186,14 @@
           <div class="actions">
             {#if barre.actions}{@render barre.actions()}{/if}
             {#if barre.ajouter}
-              <button class="primaire ajouter" onclick={barre.ajouter.faire}>
-                <Icone nom="plus" taille={18} />{barre.ajouter.libelle}
+              <!-- Un « + » seul : son nom n'est que pour l'info-bulle et les lecteurs d'écran. -->
+              <button
+                class="primaire ajouter"
+                aria-label={barre.ajouter.libelle}
+                title={barre.ajouter.libelle}
+                onclick={barre.ajouter.faire}
+              >
+                <Icone nom="plus" taille={22} />
               </button>
             {/if}
           </div>
@@ -345,13 +351,15 @@
     width: 44px;
   }
 
-  .ajouter {
-    min-height: 38px;
-    padding: 0 16px 0 12px;
-    border-radius: 999px;
+  .actions .ajouter {
+    width: 40px;
+    height: 40px;
+    min-height: 40px;
+    padding: 0;
+    border-radius: 50%;
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    justify-content: center;
   }
 
   .dessous {

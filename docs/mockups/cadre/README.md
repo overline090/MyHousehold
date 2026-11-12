@@ -46,7 +46,7 @@ node docs/mockups/cadre/rendre.js   # 1280 × 800 pour l'ordinateur, 390 × 844 
 | `35-tache-details-lire.html` | Les lire : un appui sur un numéro (appeler, copier), une adresse (carte, copier), un code (copié) |
 | `36-admin-copie-automatique.html` | Administration › Réglages du foyer › **Copie automatique** : les règles du foyer, et les essayer |
 | `37-tache-valider.html` | Une tâche ouverte : son état, « C’est fait » ou « Passer cette fois », les dernières fois et par qui |
-| `38-ajouter-dans-la-page.html` | Le bouton d'ajout en tête de chaque page, nommé : « Nouvelle tâche », « Nouveau rendez-vous »… |
+| `38-ajouter-dans-la-page.html` | Le « + » d'ajout en tête de chaque page, à côté de son titre |
 
 ## Ce que ce cadre décide
 
@@ -63,12 +63,11 @@ node docs/mockups/cadre/rendre.js   # 1280 × 800 pour l'ordinateur, 390 × 844 
   qui replie la navigation, le foyer, la mise à jour du serveur quand il y en a une
   (administrateurs) et la photo qui ouvre le menu du compte. La navigation et la page
   sont dessous.
-- **Ajouter se fait dans la page, et dit ce qu'il crée** (maquette
-  `38-ajouter-dans-la-page.html`) : en tête de la page, à côté de son titre,
-  « Nouvelle tâche », « Nouveau rendez-vous », « Nouvel article » ; l'accueil garde
-  « Ajouter » (tâche ou rendez-vous, en deux champs). Un seul « Ajouter » en haut à
-  droite de l'écran changeait de sens d'une page à l'autre. Pas de bouton flottant
-  sur téléphone : le même bouton, en tête de la page.
+- **Ajouter, c'est un « + » dans la page** (maquette `38-ajouter-dans-la-page.html`) :
+  jamais dans la barre d'outils, un seul par page, en tête de la page à côté de son
+  titre, sans texte — son nom (« Nouvelle tâche », « Nouveau rendez-vous »…) n'est que
+  dans l'info-bulle. Sur l'accueil, il ouvre l'ajout rapide (tâche ou rendez-vous).
+  Pas de bouton flottant sur téléphone : le même « + », en tête de la page.
 - **Sur téléphone, la page se comporte comme l'app**, pour qu'on n'ait pas deux
   façons de faire la même chose.
 

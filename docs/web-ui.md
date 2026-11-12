@@ -51,7 +51,7 @@ les N jours, jours de la semaine, dates du mois ou de l'année, toutes les N sem
 N mois — avec une heure ou toute la journée, et un **premier jour** qui peut être dans
 le futur), de fond (à refaire dans les N jours) ou ponctuelle (avec ou sans date
 limite). L'aperçu des trois prochaines fois, avec qui s'en charge à tour de rôle, suit
-la saisie. « Nouvelle tâche », en tête de la page, ouvre la fiche complète.
+la saisie. Le « + », en tête de la page, ouvre la fiche complète.
 
 **Valider une tâche.** Ouvrir une tâche, depuis Tâches ou l'Accueil, montre d'abord
 où elle en est — à faire aujourd'hui et pour qui, en retard, faite (à quelle heure et

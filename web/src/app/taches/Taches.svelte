@@ -152,7 +152,7 @@
 </script>
 
 {#snippet boutons()}
-  <button onclick={() => (nouveauGroupe = true)}><Icone nom="plus" taille={16} />Nouveau groupe</button>
+  <button onclick={() => (nouveauGroupe = true)}>Nouveau groupe</button>
 {/snippet}
 
 {#if erreur}<div class="encadre alerte">{erreur}</div>{/if}
